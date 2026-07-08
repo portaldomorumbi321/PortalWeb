@@ -1,4 +1,4 @@
-import { Users, UserPlus, Package, MapPin } from "lucide-react";
+import { Users, UserPlus, Package, MapPin, CheckSquare } from "lucide-react";
 import { Card } from "./ui/card";
 import { useNavigate } from "react-router";
 
@@ -34,6 +34,14 @@ const cadastroOptions = [
     color: "text-orange-600",
     bgColor: "bg-orange-100",
     route: "/cadastros/enderecos",
+  },
+  {
+    icon: CheckSquare,
+    title: "Tarefas",
+    description: "Gerenciar tarefas e atividades",
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-100",
+    route: "/cadastros/tarefas",
   },
 ];
 
