@@ -1,8 +1,10 @@
 import { FileText, BarChart3, PieChart, FileSpreadsheet } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
+import { useNavigate } from "react-router";
 
 export default function Relatorios() {
+  const navigate = useNavigate();
   const reports = [
     {
       icon: BarChart3,
@@ -52,7 +54,21 @@ export default function Relatorios() {
                   <h3 className="font-semibold text-gray-900 mb-2">{report.title}</h3>
                   <p className="text-sm text-gray-600 mb-4">{report.description}</p>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (report.title === "Relatório de Vendas") {
+                          navigate("/relatorios/vendas");
+                        } else if (report.title === "Relatório Financeiro") {
+                          navigate("/relatorios/financeiro");
+                        } else if (report.title === "Relatório de Clientes") {
+                          navigate("/relatorios/clientes");
+                        } else if (report.title === "Relatório de Produtos") {
+                          navigate("/relatorios/produtos");
+                        }
+                      }}
+                    >
                       Visualizar
                     </Button>
                     <Button size="sm" variant="outline">
