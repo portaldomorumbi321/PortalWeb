@@ -13,6 +13,7 @@ import RelatorioVendas from "./components/RelatorioVendas";
 import RelatorioFinanceiro from "./components/RelatorioFinanceiro";
 import RelatorioClientes from "./components/RelatorioClientes";
 import RelatorioProdutos from "./components/RelatorioProdutos";
+import RoteiroOrcamento from "./components/RoteiroOrcamento";
 import Marketing from "./components/Marketing";
 import Funcionario from "./components/Funcionario";
 
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { path: "cadastros/tarefas", Component: CadastroTarefas },
       { path: "financeiro", Component: Financeiro },
       { path: "financeiro/orcamentos", Component: Orcamentos },
+      { path: "financeiro/orcamentos/:id/roteiro", Component: RoteiroOrcamento },
       { path: "relatorios", Component: Relatorios },
       { path: "relatorios/vendas", Component: RelatorioVendas },
       { path: "relatorios/financeiro", Component: RelatorioFinanceiro },

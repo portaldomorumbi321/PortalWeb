@@ -172,20 +172,53 @@ export default function Orcamentos() {
   function voltar() { setTela("lista"); setEditando(null); setPreview(null); }
 
   function salvar() {
-    if (!form.cliente.trim()) return;
+    if (!form.cliente.trim()) return null;
     if (editando) {
       setLista((prev) => prev.map((o) => (o.id === editando.id ? { ...editando, ...form } : o)));
+      voltar();
+      return editando.id;
     } else {
       const id = lista.length > 0 ? Math.max(...lista.map((o) => o.id)) + 1 : 1;
-      setLista((prev) => [...prev, { id, ...form }]);
+      const novo = { id, ...form };
+      setLista((prev) => [...prev, novo]);
+      voltar();
+      return id;
     }
-    voltar();
   }
 
   function duplicar(o: Orcamento) {
     const id = lista.length > 0 ? Math.max(...lista.map((x) => x.id)) + 1 : 1;
     const novo: Orcamento = { ...o, id, numero: gerarNumero([...lista, o]), status: "Rascunho", dataCriacao: new Date().toISOString().split("T")[0] };
     setLista((prev) => [...prev, novo]);
+  }
+
+  function gerarRoteiro() {
+    // Save first (if valid) and navigate to roteiro page passing orc in state
+    if (!form.cliente.trim()) return;
+    let id: number | null = null;
+    if (editando) {
+      // update
+      setLista((prev) => prev.map((o) => {
+        if (o.id === editando.id) {
+          id = editando.id;
+          return { ...editando, ...form } as Orcamento;
+        }
+        return o;
+      }));
+    } else {
+      // create
+      id = lista.length > 0 ? Math.max(...lista.map((o) => o.id)) + 1 : 1;
+      const novo = { id, ...form } as Orcamento;
+      setLista((prev) => [...prev, novo]);
+    }
+
+    // prepare orc data to pass
+    const orcSalvo = { id, ...form } as Orcamento;
+    // navigate to roteiro route with state
+    // use setTimeout to ensure state was applied before navigating
+    setTimeout(() => {
+      navigate(`/financeiro/orcamentos/${id}/roteiro`, { state: { orc: orcSalvo } });
+    }, 150);
   }
 
   function excluir(id: number) { setLista((prev) => prev.filter((o) => o.id !== id)); setConfirmarExclusao(null); }
@@ -402,6 +435,9 @@ export default function Orcamentos() {
                 <Check className="w-4 h-4 mr-1" />{editando ? "Salvar alterações" : "Criar orçamento"}
               </Button>
               <Button variant="outline" onClick={voltar} className="w-full">Cancelar</Button>
+              <Button variant="ghost" onClick={() => gerarRoteiro()} className="w-full text-sm">
+                Gerar Roteiro
+              </Button>
             </div>
           </div>
         </div>
