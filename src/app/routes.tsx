@@ -22,7 +22,7 @@ export const router = createBrowserRouter([
     path: "/",
     Component: Root,
     children: [
-      { index: true, Component: Cadastros },
+      { index: true, Component: Orcamentos },
       { path: "cadastros", Component: Cadastros },
       { path: "cadastros/clientes", Component: CadastroClientes },
       { path: "cadastros/fornecedores", Component: CadastroFornecedores },
