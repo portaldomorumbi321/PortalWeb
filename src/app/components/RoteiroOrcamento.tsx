@@ -4,6 +4,18 @@ import { Button } from "./ui/button";
 import { Share2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+interface Voo {
+  id: number;
+  companhia: string;
+  numero: string;
+  data: string;
+  origem: string;
+  destino: string;
+  partida: string;
+  chegada: string;
+  duracao: string;
+}
+
 interface ItemOrc {
   id: number;
   descricao: string;
@@ -23,6 +35,14 @@ interface Orcamento {
   dataValidade: string;
   observacoes: string;
   itens: ItemOrc[];
+  voos?: Voo[];
+  hospedagem?: any[];
+  roteiro?: string;
+  dayByDay?: any[];
+  transporte?: any[];
+  restaurante?: any[];
+  experiencias?: any[];
+  seguro?: any[];
 }
 
 export default function RoteiroOrcamento() {
@@ -57,7 +77,7 @@ export default function RoteiroOrcamento() {
   };
 
   return (
-    <div className="px-4 py-6 sm:px-6 sm:py-8 max-w-lg mx-auto bg-white min-h-screen">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 max-w-4xl mx-auto bg-white min-h-screen">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900"><strong>Roteiro da Sua Viagem</strong></h1>
@@ -74,22 +94,136 @@ export default function RoteiroOrcamento() {
         {orc.dataValidade && <p className="text-sm text-gray-500">Validade: {orc.dataValidade}</p>}
       </Card>
 
-      <Card className="p-4 mb-4">
-        <h2 className="font-semibold text-gray-900 mb-2">Itens</h2>
-        <div className="space-y-2">
-          {(orc.itens || []).map((it: any, idx: number) => (
-            <div key={idx} className="flex justify-between border-b pb-2">
-              <div>
-                <p className="font-medium text-gray-900 text-sm">{it.descricao}</p>
-                <p className="text-xs text-gray-500">{it.quantidade} {it.unidade} · {it.desconto ? `${it.desconto}% desc` : "sem desconto"}</p>
+      {/* VOOS */}
+      {orc.voos && orc.voos.length > 0 && (
+        <Card className="p-4 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-3">✈️ Voos</h2>
+          <div className="space-y-3">
+            {orc.voos.map((voo: any, idx: number) => (
+              <div key={voo.id} className="border-l-4 border-blue-500 pl-3">
+                <p className="font-medium text-gray-900">
+                  {voo.numero} - {voo.companhia}
+                  {idx > 0 && <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Conexão {idx}</span>}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">{voo.origem} → {voo.destino}</p>
+                <p className="text-xs text-gray-500 mt-1">{voo.data} | {voo.partida} - {voo.chegada} ({voo.duracao})</p>
               </div>
-              <div className="text-right font-medium text-gray-900 text-sm">
-                R$ {(it.quantidade * it.valorUnitario * (1 - (it.desconto || 0) / 100)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* HOSPEDAGEM */}
+      {orc.hospedagem && orc.hospedagem.length > 0 && (
+        <Card className="p-4 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-3">🏨 Hospedagem</h2>
+          <div className="space-y-2 text-sm text-gray-600">
+            {orc.hospedagem.map((h: any, idx: number) => (
+              <div key={idx} className="border-l-4 border-green-500 pl-3">
+                <p className="font-medium text-gray-900">{h.nome}</p>
+                <p className="text-xs">{h.local}</p>
               </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* ROTEIRO */}
+      {orc.roteiro && (
+        <Card className="p-4 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-3">🗺️ Roteiro</h2>
+          <p className="text-sm text-gray-600 whitespace-pre-wrap">{orc.roteiro}</p>
+        </Card>
+      )}
+
+      {/* DAY BY DAY */}
+      {orc.dayByDay && orc.dayByDay.length > 0 && (
+        <Card className="p-4 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-3">📅 Dia a Dia</h2>
+          <div className="space-y-2">
+            {orc.dayByDay.map((day: any, idx: number) => (
+              <div key={idx} className="border-l-4 border-purple-500 pl-3">
+                <p className="font-medium text-gray-900">Dia {idx + 1}</p>
+                <p className="text-sm text-gray-600">{day.atividade}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* TRANSPORTE */}
+      {orc.transporte && orc.transporte.length > 0 && (
+        <Card className="p-4 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-3">🚗 Transporte</h2>
+          <div className="space-y-2 text-sm text-gray-600">
+            {orc.transporte.map((t: any, idx: number) => (
+              <p key={idx} className="border-l-4 border-yellow-500 pl-3">{t.tipo}: {t.detalhes}</p>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* RESTAURANTE */}
+      {orc.restaurante && orc.restaurante.length > 0 && (
+        <Card className="p-4 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-3">🍽️ Restaurante</h2>
+          <div className="space-y-2">
+            {orc.restaurante.map((r: any, idx: number) => (
+              <div key={idx} className="border-l-4 border-red-500 pl-3">
+                <p className="font-medium text-gray-900">{r.nome}</p>
+                <p className="text-sm text-gray-600">{r.local}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* EXPERIÊNCIAS */}
+      {orc.experiencias && orc.experiencias.length > 0 && (
+        <Card className="p-4 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-3">⭐ Experiências</h2>
+          <div className="space-y-2">
+            {orc.experiencias.map((e: any, idx: number) => (
+              <div key={idx} className="border-l-4 border-pink-500 pl-3">
+                <p className="font-medium text-gray-900">{e.nome}</p>
+                <p className="text-sm text-gray-600">{e.descricao}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* SEGURO */}
+      {orc.seguro && orc.seguro.length > 0 && (
+        <Card className="p-4 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-3">🛡️ Seguro</h2>
+          <div className="space-y-2 text-sm text-gray-600">
+            {orc.seguro.map((s: any, idx: number) => (
+              <p key={idx} className="border-l-4 border-gray-500 pl-3">{s.tipo}: {s.detalhes}</p>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* ITENS */}
+      {orc.itens && orc.itens.length > 0 && (
+        <Card className="p-4 mb-4">
+          <h2 className="font-semibold text-gray-900 mb-2">Itens do Orçamento</h2>
+          <div className="space-y-2">
+            {orc.itens.map((it: any, idx: number) => (
+              <div key={idx} className="flex justify-between border-b pb-2">
+                <div>
+                  <p className="font-medium text-gray-900 text-sm">{it.descricao}</p>
+                  <p className="text-xs text-gray-500">{it.quantidade} {it.unidade}</p>
+                </div>
+                <div className="text-right font-medium text-gray-900 text-sm">
+                  R$ {(it.quantidade * it.valorUnitario * (1 - (it.desconto || 0) / 100)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {orc.observacoes && (
         <Card className="p-4 mb-4 bg-yellow-50 border border-yellow-200">
@@ -118,3 +252,4 @@ export default function RoteiroOrcamento() {
     </div>
   );
 }
+

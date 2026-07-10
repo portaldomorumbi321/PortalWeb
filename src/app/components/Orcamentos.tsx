@@ -32,6 +32,14 @@ interface Orcamento {
   dataValidade: string;
   observacoes: string;
   itens: ItemOrc[];
+  voos?: any[];
+  hospedagem?: any[];
+  roteiro?: string;
+  dayByDay?: any[];
+  transporte?: any[];
+  restaurante?: any[];
+  experiencias?: any[];
+  seguro?: any[];
 }
 
 const itemVazio = (): ItemOrc => ({ id: Date.now(), descricao: "", quantidade: 1, unidade: "un", valorUnitario: 0, desconto: 0 });
@@ -143,6 +151,13 @@ export default function Orcamentos() {
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
   const [section, setSection] = useState<string>("Voos");
   const [voos, setVoos] = useState<any[]>([]);
+  const [hospedagem, setHospedagem] = useState<any[]>([]);
+  const [roteiro, setRoteiro] = useState<string>("");
+  const [dayByDay, setDayByDay] = useState<any[]>([]);
+  const [transporte, setTransporte] = useState<any[]>([]);
+  const [restaurante, setRestaurante] = useState<any[]>([]);
+  const [experiencias, setExperiencias] = useState<any[]>([]);
+  const [seguro, setSeguro] = useState<any[]>([]);
 
   // Handle state params from ResumoOrcamentos
   useEffect(() => {
@@ -201,13 +216,27 @@ export default function Orcamentos() {
 
   function salvar() {
     if (!form.cliente.trim()) return null;
+    
+    // Montar dados do orçamento com seções
+    const orcComSecoes = {
+      ...form,
+      voos: voos.length > 0 ? voos : undefined,
+      hospedagem: hospedagem.length > 0 ? hospedagem : undefined,
+      roteiro: roteiro.trim() ? roteiro : undefined,
+      dayByDay: dayByDay.length > 0 ? dayByDay : undefined,
+      transporte: transporte.length > 0 ? transporte : undefined,
+      restaurante: restaurante.length > 0 ? restaurante : undefined,
+      experiencias: experiencias.length > 0 ? experiencias : undefined,
+      seguro: seguro.length > 0 ? seguro : undefined,
+    };
+    
     if (editando) {
-      setLista((prev) => prev.map((o) => (o.id === editando.id ? { ...editando, ...form } : o)));
+      setLista((prev) => prev.map((o) => (o.id === editando.id ? { ...editando, ...orcComSecoes } : o)));
       voltar();
       return editando.id;
     } else {
       const id = lista.length > 0 ? Math.max(...lista.map((o) => o.id)) + 1 : 1;
-      const novo = { id, ...form };
+      const novo = { id, ...orcComSecoes };
       setLista((prev) => [...prev, novo]);
       voltar();
       return id;
@@ -224,10 +253,23 @@ export default function Orcamentos() {
     const orcParaAbrir = orc || (editando ? editando : null);
     if (!orcParaAbrir) return;
     
+    // Montar dados do orçamento com seções atualizadas
+    const orcComSecoes = {
+      ...orcParaAbrir,
+      voos: voos.length > 0 ? voos : undefined,
+      hospedagem: hospedagem.length > 0 ? hospedagem : undefined,
+      roteiro: roteiro.trim() ? roteiro : undefined,
+      dayByDay: dayByDay.length > 0 ? dayByDay : undefined,
+      transporte: transporte.length > 0 ? transporte : undefined,
+      restaurante: restaurante.length > 0 ? restaurante : undefined,
+      experiencias: experiencias.length > 0 ? experiencias : undefined,
+      seguro: seguro.length > 0 ? seguro : undefined,
+    };
+    
     // Store in localStorage to access from new tab
-    localStorage.setItem(`orc_${orcParaAbrir.numero}`, JSON.stringify(orcParaAbrir));
+    localStorage.setItem(`orc_${orcComSecoes.numero}`, JSON.stringify(orcComSecoes));
     // Open roteiro in new tab using numero (not id)
-    window.open(`/financeiro/orcamentos/roteiro/${orcParaAbrir.numero}`, "_blank");
+    window.open(`/financeiro/orcamentos/roteiro/${orcComSecoes.numero}`, "_blank");
   }
 
   function excluir(id: number) { setLista((prev) => prev.filter((o) => o.id !== id)); setConfirmarExclusao(null); }
