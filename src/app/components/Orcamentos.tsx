@@ -375,7 +375,7 @@ export default function Orcamentos() {
               <div className="space-y-4">
                 <div>
                   <Label>Número</Label>
-                  <Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} className="mt-1 font-mono" />
+                  <Input value={form.numero} readOnly disabled className="mt-1 font-mono bg-gray-100 cursor-not-allowed" />
                 </div>
                 <div>
                   <Label htmlFor="dataCriacao">Data de emissão</Label>
