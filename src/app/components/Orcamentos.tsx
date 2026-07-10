@@ -9,6 +9,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
+import VoosForm from "./VoosForm";
 
 type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
 
@@ -141,6 +142,7 @@ export default function Orcamentos() {
   const [confirmarExclusao, setConfirmarExclusao] = useState<number | null>(null);
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
   const [section, setSection] = useState<string>("Voos");
+  const [voos, setVoos] = useState<any[]>([]);
 
   // Handle state params from ResumoOrcamentos
   useEffect(() => {
@@ -364,11 +366,7 @@ export default function Orcamentos() {
 
               <div className="mt-3">
                 {section === 'Voos' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Adicionar informações de voos (ida/volta, horários, companhias).</p>
-                    {/* Placeholder: implement flight inputs later */}
-                    <div className="text-xs text-gray-500">Campos de Voos aqui...</div>
-                  </div>
+                  <VoosForm voos={voos} onVoosChange={setVoos} />
                 )}
 
                 {section === 'Hospedagem' && (
