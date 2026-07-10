@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import {
   Search, Plus, Edit2, Trash2, X, Check, FileText, ChevronDown, ChevronUp,
   User, Calendar, DollarSign, Send, Eye, Copy
@@ -128,6 +129,7 @@ const orcVazio = (): Omit<Orcamento, "id"> => ({
 });
 
 export default function Orcamentos() {
+  const navigate = useNavigate();
   const [lista, setLista] = useState<Orcamento[]>(dados);
   const [tela, setTela] = useState<Tela>("lista");
   const [editando, setEditando] = useState<Orcamento | null>(null);
