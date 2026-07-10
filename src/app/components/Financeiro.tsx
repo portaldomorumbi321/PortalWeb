@@ -70,15 +70,7 @@ export default function Financeiro() {
 
       {/* Módulos financeiros */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card onClick={() => navigate("/financeiro/orcamentos")} className="p-5 flex items-center gap-4 cursor-pointer hover:shadow-md hover:border-indigo-300 transition-all">
-          <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-            <FileText className="w-5 h-5 text-indigo-600" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">Orçamentos</p>
-            <p className="text-xs text-gray-500 mt-0.5">Criar e gerenciar orçamentos</p>
-          </div>
-        </Card>
+        {/* Financial modules - Orçamentos moved to top menu */}
       </div>
 
       <Card className="p-6">

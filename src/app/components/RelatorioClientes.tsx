@@ -87,7 +87,7 @@ export default function RelatorioClientes() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-3xl font-bold">Relatório de Clientes</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Relatório de Clientes</h1>
             <p className="text-xs sm:text-sm text-gray-600">Análise da carteira e comportamento de clientes</p>
           </div>
         </div>

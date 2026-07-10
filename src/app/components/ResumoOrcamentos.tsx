@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, Edit2, Trash2, Plus, FileText, ChevronRight } from "lucide-react";
+import { Eye, Edit2, Trash2, Plus, FileText, ChevronRight, MapPin } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -29,7 +29,7 @@ interface Orcamento {
 const dados: Orcamento[] = [
   {
     id: 1,
-    numero: "ORC-2025-001",
+    numero: "25060101",
     cliente: "Ana Paula Souza",
     email: "ana@email.com",
     status: "Aprovado",
@@ -43,7 +43,7 @@ const dados: Orcamento[] = [
   },
   {
     id: 2,
-    numero: "ORC-2025-002",
+    numero: "25061501",
     cliente: "Carlos Mendes",
     email: "carlos@empresa.com",
     status: "Enviado",
@@ -56,7 +56,7 @@ const dados: Orcamento[] = [
   },
   {
     id: 3,
-    numero: "ORC-2025-003",
+    numero: "25070101",
     cliente: "Fernanda Lima",
     email: "fernanda@loja.com",
     status: "Rascunho",
@@ -70,7 +70,7 @@ const dados: Orcamento[] = [
   },
   {
     id: 4,
-    numero: "ORC-2025-004",
+    numero: "25070501",
     cliente: "Roberto Silva",
     email: "roberto@tech.com",
     status: "Aprovado",
@@ -118,6 +118,11 @@ export default function ResumoOrcamentos() {
     setExpandidos((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  };
+
+  const gerarRoteiro = (orc: Orcamento) => {
+    localStorage.setItem(`orc_${orc.numero}`, JSON.stringify(orc));
+    window.open(`/financeiro/orcamentos/roteiro/${orc.numero}`, "_blank");
   };
 
   const orcamentosRecentes = orcamentos.slice(0, 3);
@@ -214,7 +219,7 @@ export default function ResumoOrcamentos() {
                 )}
               </div>
 
-              <div className="flex items-center gap-1 flex-shrink-0 self-start md:self-center">
+              <div className="flex items-center gap-1 flex-shrink-0 self-start md:self-center flex-wrap justify-end">
                 <Button
                   variant="outline"
                   size="icon"
@@ -233,7 +238,7 @@ export default function ResumoOrcamentos() {
                   size="icon"
                   className="h-8 w-8 sm:h-9 sm:w-9"
                   title="Visualizar"
-                  onClick={() => navigate("/financeiro/orcamentos")}
+                  onClick={() => navigate("/financeiro/orcamentos", { state: { previewId: orcamento.id } })}
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
@@ -242,8 +247,18 @@ export default function ResumoOrcamentos() {
                   size="icon"
                   className="h-8 w-8 sm:h-9 sm:w-9"
                   title="Editar"
+                  onClick={() => navigate("/financeiro/orcamentos", { state: { editId: orcamento.id } })}
                 >
                   <Edit2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 sm:h-9 sm:w-9 text-green-600 hover:text-green-700"
+                  title="Gerar Roteiro"
+                  onClick={() => gerarRoteiro(orcamento)}
+                >
+                  <MapPin className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"

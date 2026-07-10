@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router";
 import {
   Search, Plus, Edit2, Trash2, X, Check, FileText, ChevronDown, ChevronUp,
-  User, Calendar, DollarSign, Send, Eye, Copy
+  User, Calendar, DollarSign, Send, Eye, Copy, MapPin
 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
+import VoosForm from "./VoosForm";
 
 type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
 
@@ -30,13 +32,21 @@ interface Orcamento {
   dataValidade: string;
   observacoes: string;
   itens: ItemOrc[];
+  voos?: any[];
+  hospedagem?: any[];
+  roteiro?: string;
+  dayByDay?: any[];
+  transporte?: any[];
+  restaurante?: any[];
+  experiencias?: any[];
+  seguro?: any[];
 }
 
 const itemVazio = (): ItemOrc => ({ id: Date.now(), descricao: "", quantidade: 1, unidade: "un", valorUnitario: 0, desconto: 0 });
 
 const dados: Orcamento[] = [
   {
-    id: 1, numero: "ORC-2025-001", cliente: "Ana Paula Souza", email: "ana@email.com",
+    id: 1, numero: "25060101", cliente: "Ana Paula Souza", email: "ana@email.com",
     status: "Aprovado", dataCriacao: "2025-06-01", dataValidade: "2025-07-01", observacoes: "Entrega em até 5 dias úteis.",
     itens: [
       { id: 1, descricao: "Notebook Pro 15\"", quantidade: 2, unidade: "un", valorUnitario: 4599.90, desconto: 5 },
@@ -44,14 +54,14 @@ const dados: Orcamento[] = [
     ],
   },
   {
-    id: 2, numero: "ORC-2025-002", cliente: "Carlos Mendes", email: "carlos@empresa.com",
+    id: 2, numero: "25061501", cliente: "Carlos Mendes", email: "carlos@empresa.com",
     status: "Enviado", dataCriacao: "2025-06-15", dataValidade: "2025-07-15", observacoes: "",
     itens: [
       { id: 1, descricao: "Cadeira Ergonômica", quantidade: 5, unidade: "un", valorUnitario: 1299.00, desconto: 10 },
     ],
   },
   {
-    id: 3, numero: "ORC-2025-003", cliente: "Fernanda Lima", email: "fernanda@loja.com",
+    id: 3, numero: "25070101", cliente: "Fernanda Lima", email: "fernanda@loja.com",
     status: "Rascunho", dataCriacao: "2025-07-01", dataValidade: "2025-08-01", observacoes: "Aguardando confirmação de modelo.",
     itens: [
       { id: 1, descricao: "Serviço de Consultoria", quantidade: 10, unidade: "h", valorUnitario: 250.00, desconto: 0 },
@@ -59,7 +69,7 @@ const dados: Orcamento[] = [
     ],
   },
   {
-    id: 4, numero: "ORC-2025-004", cliente: "João Victor Reis", email: "joao@mail.com",
+    id: 4, numero: "25052001", cliente: "João Victor Reis", email: "joao@mail.com",
     status: "Rejeitado", dataCriacao: "2025-05-20", dataValidade: "2025-06-20", observacoes: "",
     itens: [
       { id: 1, descricao: "Licença Software Anual", quantidade: 1, unidade: "un", valorUnitario: 3500.00, desconto: 0 },
@@ -98,9 +108,25 @@ function fmtData(d: string) {
 }
 
 function gerarNumero(lista: Orcamento[]) {
-  const ano = new Date().getFullYear();
-  const next = (lista.length > 0 ? Math.max(...lista.map((o) => parseInt(o.numero.split("-")[2] || "0"))) : 0) + 1;
-  return `ORC-${ano}-${String(next).padStart(3, "0")}`;
+  // New format: <aammdd><NN> where NN is incremental starting at 01 per day
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const datePart = `${yy}${mm}${dd}`;
+
+  // Look for existing numbers that match the new pattern for today and extract their sequence
+  const regex = new RegExp(`^${datePart}(\\d{2})$`);
+  const seqNums = lista
+    .map((o) => {
+      const m = String(o.numero).match(regex);
+      return m ? parseInt(m[1], 10) : null;
+    })
+    .filter((n): n is number => n !== null);
+
+  const next = seqNums.length > 0 ? Math.max(...seqNums) + 1 : 1;
+  const seq = String(next).padStart(2, "0");
+  return `${datePart}${seq}`;
 }
 
 type Tela = "lista" | "form" | "preview";
@@ -112,6 +138,8 @@ const orcVazio = (): Omit<Orcamento, "id"> => ({
 });
 
 export default function Orcamentos() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [lista, setLista] = useState<Orcamento[]>(dados);
   const [tela, setTela] = useState<Tela>("lista");
   const [editando, setEditando] = useState<Orcamento | null>(null);
@@ -121,6 +149,37 @@ export default function Orcamentos() {
   const [filtroStatus, setFiltroStatus] = useState<StatusOrc | "Todos">("Todos");
   const [confirmarExclusao, setConfirmarExclusao] = useState<number | null>(null);
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
+  const [section, setSection] = useState<string>("Voos");
+  const [voos, setVoos] = useState<any[]>([]);
+  const [hospedagem, setHospedagem] = useState<any[]>([]);
+  const [roteiro, setRoteiro] = useState<string>("");
+  const [dayByDay, setDayByDay] = useState<any[]>([]);
+  const [transporte, setTransporte] = useState<any[]>([]);
+  const [restaurante, setRestaurante] = useState<any[]>([]);
+  const [experiencias, setExperiencias] = useState<any[]>([]);
+  const [seguro, setSeguro] = useState<any[]>([]);
+
+  // Handle state params from ResumoOrcamentos
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.previewId) {
+      const orc = lista.find(o => o.id === state.previewId);
+      if (orc) {
+        setPreview(orc);
+        setTela("preview");
+        // Clear state to prevent reopening on refresh
+        navigate(location.pathname, { replace: true });
+      }
+    } else if (state?.editId) {
+      const orc = lista.find(o => o.id === state.editId);
+      if (orc) {
+        setEditando(orc);
+        setForm({ numero: orc.numero, cliente: orc.cliente, email: orc.email, status: orc.status, dataCriacao: orc.dataCriacao, dataValidade: orc.dataValidade, observacoes: orc.observacoes, itens: orc.itens.map((i) => ({ ...i })) });
+        setTela("form");
+        navigate(location.pathname, { replace: true });
+      }
+    }
+  }, [location.state]);
 
   // --- lista helpers ---
   const filtrados = lista.filter((o) => {
@@ -156,20 +215,61 @@ export default function Orcamentos() {
   function voltar() { setTela("lista"); setEditando(null); setPreview(null); }
 
   function salvar() {
-    if (!form.cliente.trim()) return;
+    if (!form.cliente.trim()) return null;
+    
+    // Montar dados do orçamento com seções
+    const orcComSecoes = {
+      ...form,
+      voos: voos.length > 0 ? voos : undefined,
+      hospedagem: hospedagem.length > 0 ? hospedagem : undefined,
+      roteiro: roteiro.trim() ? roteiro : undefined,
+      dayByDay: dayByDay.length > 0 ? dayByDay : undefined,
+      transporte: transporte.length > 0 ? transporte : undefined,
+      restaurante: restaurante.length > 0 ? restaurante : undefined,
+      experiencias: experiencias.length > 0 ? experiencias : undefined,
+      seguro: seguro.length > 0 ? seguro : undefined,
+    };
+    
     if (editando) {
-      setLista((prev) => prev.map((o) => (o.id === editando.id ? { ...editando, ...form } : o)));
+      setLista((prev) => prev.map((o) => (o.id === editando.id ? { ...editando, ...orcComSecoes } : o)));
+      voltar();
+      return editando.id;
     } else {
       const id = lista.length > 0 ? Math.max(...lista.map((o) => o.id)) + 1 : 1;
-      setLista((prev) => [...prev, { id, ...form }]);
+      const novo = { id, ...orcComSecoes };
+      setLista((prev) => [...prev, novo]);
+      voltar();
+      return id;
     }
-    voltar();
   }
 
   function duplicar(o: Orcamento) {
     const id = lista.length > 0 ? Math.max(...lista.map((x) => x.id)) + 1 : 1;
     const novo: Orcamento = { ...o, id, numero: gerarNumero([...lista, o]), status: "Rascunho", dataCriacao: new Date().toISOString().split("T")[0] };
     setLista((prev) => [...prev, novo]);
+  }
+
+  function gerarRoteiro(orc: Orcamento | null = null) {
+    const orcParaAbrir = orc || (editando ? editando : null);
+    if (!orcParaAbrir) return;
+    
+    // Montar dados do orçamento com seções atualizadas
+    const orcComSecoes = {
+      ...orcParaAbrir,
+      voos: voos.length > 0 ? voos : undefined,
+      hospedagem: hospedagem.length > 0 ? hospedagem : undefined,
+      roteiro: roteiro.trim() ? roteiro : undefined,
+      dayByDay: dayByDay.length > 0 ? dayByDay : undefined,
+      transporte: transporte.length > 0 ? transporte : undefined,
+      restaurante: restaurante.length > 0 ? restaurante : undefined,
+      experiencias: experiencias.length > 0 ? experiencias : undefined,
+      seguro: seguro.length > 0 ? seguro : undefined,
+    };
+    
+    // Store in localStorage to access from new tab
+    localStorage.setItem(`orc_${orcComSecoes.numero}`, JSON.stringify(orcComSecoes));
+    // Open roteiro in new tab using numero (not id)
+    window.open(`/financeiro/orcamentos/roteiro/${orcComSecoes.numero}`, "_blank");
   }
 
   function excluir(id: number) { setLista((prev) => prev.filter((o) => o.id !== id)); setConfirmarExclusao(null); }
@@ -188,9 +288,12 @@ export default function Orcamentos() {
     const totalDesc = totalBruto - total;
     return (
       <div>
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-6 flex-wrap">
           <Button variant="outline" onClick={voltar} className="flex items-center gap-2"><X className="w-4 h-4" /> Fechar</Button>
           <h2 className="text-xl font-bold text-gray-900">Visualização do Orçamento</h2>
+          <Button onClick={() => gerarRoteiro(preview)} className="ml-auto bg-green-600 hover:bg-green-700 text-white flex items-center gap-2">
+            <MapPin className="w-4 h-4" /> Gerar Roteiro
+          </Button>
         </div>
         <Card className="max-w-3xl mx-auto p-8">
           {/* Cabeçalho do orçamento */}
@@ -284,46 +387,121 @@ export default function Orcamentos() {
               </div>
             </Card>
 
-            {/* Itens */}
+            {/* Seções do orçamento (sub-páginas) */}
             <Card className="p-5">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-indigo-500" /> Itens do Orçamento</h3>
+              <h3 className="font-semibold text-gray-900 mb-4"><FileText className="w-4 h-4 text-indigo-500 inline-block mr-2" /> Seções do Orçamento</h3>
 
-              <div className="space-y-3">
-                {form.itens.map((item, idx) => (
-                  <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-gray-400">Item {idx + 1}</span>
-                      {form.itens.length > 1 && (
-                        <button onClick={() => removeItem(item.id)} className="p-1 rounded text-red-400 hover:bg-red-50"><X className="w-3.5 h-3.5" /></button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-6 gap-2">
-                      <div className="col-span-6">
-                        <Input value={item.descricao} onChange={(e) => updateItem(item.id, "descricao", e.target.value)} placeholder="Descrição do item / serviço" />
-                      </div>
-                      <div className="col-span-2">
-                        <Input type="number" min="1" value={item.quantidade} onChange={(e) => updateItem(item.id, "quantidade", parseFloat(e.target.value) || 1)} placeholder="Qtd" />
-                      </div>
-                      <div className="col-span-1">
-                        <Input value={item.unidade} onChange={(e) => updateItem(item.id, "unidade", e.target.value)} placeholder="Un" />
-                      </div>
-                      <div className="col-span-2">
-                        <Input type="number" min="0" step="0.01" value={item.valorUnitario} onChange={(e) => updateItem(item.id, "valorUnitario", parseFloat(e.target.value) || 0)} placeholder="Valor unit." />
-                      </div>
-                      <div className="col-span-1">
-                        <Input type="number" min="0" max="100" value={item.desconto} onChange={(e) => updateItem(item.id, "desconto", parseFloat(e.target.value) || 0)} placeholder="% desc" />
-                      </div>
-                    </div>
-                    <div className="text-right text-sm font-semibold text-indigo-700 mt-2">
-                      {moeda(calcItem(item))}
-                    </div>
-                  </div>
-                ))}
+              <div className="mb-3 overflow-x-auto">
+                <div className="flex gap-2 text-sm">
+                  {["Voos","Hospedagem","Roteiro","Day by Day","Transporte","Restaurante","Experiências","Seguro","Vendas"].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSection(s)}
+                      className={`whitespace-nowrap px-3 py-2 rounded-md ${section === s ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <button onClick={addItem} className="mt-3 w-full border-2 border-dashed border-indigo-200 rounded-lg py-2.5 text-sm text-indigo-600 font-medium hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2">
-                <Plus className="w-4 h-4" /> Adicionar item
-              </button>
+              <div className="mt-3">
+                {section === 'Voos' && (
+                  <VoosForm voos={voos} onVoosChange={setVoos} />
+                )}
+
+                {section === 'Hospedagem' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Detalhes de hospedagem (hotéis, check-in, número de noites).</p>
+                    <div className="text-xs text-gray-500">Campos de Hospedagem aqui...</div>
+                  </div>
+                )}
+
+                {section === 'Roteiro' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Resumo do roteiro. Para pré-visualizar completo, use o botão Gerar Roteiro no sidebar.</p>
+                    <div className="text-xs text-gray-500">Resumo do Roteiro...</div>
+                  </div>
+                )}
+
+                {section === 'Day by Day' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Planejamento dia a dia.</p>
+                    <div className="text-xs text-gray-500">Campos Day by Day...</div>
+                  </div>
+                )}
+
+                {section === 'Transporte' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Informações de transporte (traslados, locações).</p>
+                    <div className="text-xs text-gray-500">Campos de Transporte...</div>
+                  </div>
+                )}
+
+                {section === 'Restaurante' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Reservas e experiências gastronômicas.</p>
+                    <div className="text-xs text-gray-500">Campos de Restaurante...</div>
+                  </div>
+                )}
+
+                {section === 'Experiências' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Passeios e atividades.</p>
+                    <div className="text-xs text-gray-500">Campos de Experiências...</div>
+                  </div>
+                )}
+
+                {section === 'Seguro' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Cobertura e apólices de seguro viagem.</p>
+                    <div className="text-xs text-gray-500">Campos de Seguro...</div>
+                  </div>
+                )}
+
+                {section === 'Vendas' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Itens relacionados à venda (produtos/serviços).</p>
+                    <div className="space-y-3">
+                      {form.itens.map((item, idx) => (
+                        <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-gray-400">Item {idx + 1}</span>
+                            {form.itens.length > 1 && (
+                              <button onClick={() => removeItem(item.id)} className="p-1 rounded text-red-400 hover:bg-red-50"><X className="w-3.5 h-3.5" /></button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-6 gap-2">
+                            <div className="col-span-6">
+                              <Input value={item.descricao} onChange={(e) => updateItem(item.id, "descricao", e.target.value)} placeholder="Descrição do item / serviço" />
+                            </div>
+                            <div className="col-span-2">
+                              <Input type="number" min="1" value={item.quantidade} onChange={(e) => updateItem(item.id, "quantidade", parseFloat(e.target.value) || 1)} placeholder="Qtd" />
+                            </div>
+                            <div className="col-span-1">
+                              <Input value={item.unidade} onChange={(e) => updateItem(item.id, "unidade", e.target.value)} placeholder="Un" />
+                            </div>
+                            <div className="col-span-2">
+                              <Input type="number" min="0" step="0.01" value={item.valorUnitario} onChange={(e) => updateItem(item.id, "valorUnitario", parseFloat(e.target.value) || 0)} placeholder="Valor unit." />
+                            </div>
+                            <div className="col-span-1">
+                              <Input type="number" min="0" max="100" value={item.desconto} onChange={(e) => updateItem(item.id, "desconto", parseFloat(e.target.value) || 0)} placeholder="% desc" />
+                            </div>
+                          </div>
+                          <div className="text-right text-sm font-semibold text-indigo-700 mt-2">
+                            {moeda(calcItem(item))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button onClick={addItem} className="mt-3 w-full border-2 border-dashed border-indigo-200 rounded-lg py-2.5 text-sm text-indigo-600 font-medium hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2">
+                      <Plus className="w-4 h-4" /> Adicionar item
+                    </button>
+                  </div>
+                )}
+              </div>
             </Card>
 
             {/* Observações */}
@@ -340,7 +518,7 @@ export default function Orcamentos() {
               <div className="space-y-4">
                 <div>
                   <Label>Número</Label>
-                  <Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} className="mt-1 font-mono" />
+                  <Input value={form.numero} readOnly disabled className="mt-1 font-mono bg-gray-100 cursor-not-allowed" />
                 </div>
                 <div>
                   <Label htmlFor="dataCriacao">Data de emissão</Label>
@@ -386,6 +564,9 @@ export default function Orcamentos() {
                 <Check className="w-4 h-4 mr-1" />{editando ? "Salvar alterações" : "Criar orçamento"}
               </Button>
               <Button variant="outline" onClick={voltar} className="w-full">Cancelar</Button>
+              <Button variant="ghost" onClick={() => gerarRoteiro()} className="w-full text-sm">
+                Gerar Roteiro
+              </Button>
             </div>
           </div>
         </div>
@@ -398,7 +579,7 @@ export default function Orcamentos() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Orçamentos</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Orçamentos</h1>
           <p className="text-sm text-gray-500 mt-1">{lista.length} orçamentos cadastrados</p>
         </div>
         <Button onClick={abrirNovo} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white">
@@ -474,9 +655,10 @@ export default function Orcamentos() {
                 <div className="text-right flex-shrink-0">
                   <p className="font-bold text-lg text-indigo-700">{moeda(total)}</p>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0 flex-wrap justify-end">
                   <button onClick={() => abrirPreview(orc)} title="Visualizar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Eye className="w-4 h-4" /></button>
                   <button onClick={() => abrirEdicao(orc)} title="Editar" className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => gerarRoteiro(orc)} title="Gerar Roteiro" className="p-1.5 rounded text-green-600 hover:bg-green-50 transition-colors"><MapPin className="w-4 h-4" /></button>
                   <button onClick={() => duplicar(orc)} title="Duplicar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Copy className="w-4 h-4" /></button>
                   {confirmarExclusao === orc.id ? (
                     <>

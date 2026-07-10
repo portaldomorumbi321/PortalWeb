@@ -69,7 +69,7 @@ export default function CadastroFornecedores() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cadastro de Fornecedores</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Cadastro de Fornecedores</h1>
           <p className="text-sm text-gray-500 mt-1">{itens.length} fornecedores cadastrados</p>
         </div>
         <Button onClick={abrirNovo} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white">
