@@ -98,9 +98,25 @@ function fmtData(d: string) {
 }
 
 function gerarNumero(lista: Orcamento[]) {
-  const ano = new Date().getFullYear();
-  const next = (lista.length > 0 ? Math.max(...lista.map((o) => parseInt(o.numero.split("-")[2] || "0"))) : 0) + 1;
-  return `ORC-${ano}-${String(next).padStart(3, "0")}`;
+  // New format: ORC-<aammdd><NN> where NN is incremental starting at 01 per day
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const datePart = `${yy}${mm}${dd}`;
+
+  // Look for existing numbers that match the new pattern for today and extract their sequence
+  const regex = new RegExp(`^ORC-${datePart}(\\d{2})$`);
+  const seqNums = lista
+    .map((o) => {
+      const m = String(o.numero).match(regex);
+      return m ? parseInt(m[1], 10) : null;
+    })
+    .filter((n): n is number => n !== null);
+
+  const next = seqNums.length > 0 ? Math.max(...seqNums) + 1 : 1;
+  const seq = String(next).padStart(2, "0");
+  return `ORC-${datePart}${seq}`;
 }
 
 type Tela = "lista" | "form" | "preview";
