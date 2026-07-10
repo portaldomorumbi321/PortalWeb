@@ -31,7 +31,7 @@ export default function Root() {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0">
               <ImageWithFallback src={logoImg} alt="Logo" className="w-8 sm:w-10 h-8 sm:h-10 object-contain" />
-              <span className="font-semibold text-lg sm:text-xl text-gray-900">Portal</span>
+              <span className="font-semibold text-lg sm:text-xl text-gray-900">321Go Portal do Morumbi</span>
             </Link>
 
             {/* Menu de Navegação - Desktop */}
