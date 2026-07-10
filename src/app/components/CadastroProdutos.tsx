@@ -76,7 +76,7 @@ export default function CadastroProdutos() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cadastro de Produtos</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Cadastro de Produtos</h1>
           <p className="text-sm text-gray-500 mt-1">{itens.length} produtos cadastrados</p>
         </div>
         <Button onClick={abrirNovo} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white">

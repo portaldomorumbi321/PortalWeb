@@ -68,7 +68,7 @@ export default function RelatorioFinanceiro() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-3xl font-bold">Relatório Financeiro</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Relatório Financeiro</h1>
             <p className="text-xs sm:text-sm text-gray-600">Demonstrativo de receitas, despesas e lucratividade</p>
           </div>
         </div>

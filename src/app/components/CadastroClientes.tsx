@@ -87,7 +87,7 @@ export default function CadastroClientes() {
       {/* Cabeçalho */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cadastro de Clientes</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Cadastro de Clientes</h1>
           <p className="text-sm text-gray-500 mt-1">{clientes.length} clientes cadastrados</p>
         </div>
         <Button onClick={abrirNovo} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">

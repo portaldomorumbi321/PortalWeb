@@ -69,7 +69,7 @@ export default function RelatorioVendas() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-3xl font-bold">Relatório de Vendas</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Relatório de Vendas</h1>
             <p className="text-xs sm:text-sm text-gray-600">Análise detalhada de vendas do período</p>
           </div>
         </div>

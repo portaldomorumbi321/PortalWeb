@@ -120,7 +120,7 @@ export default function RelatorioProdutos() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Relatório de Produtos</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Relatório de Produtos</h1>
             <p className="text-gray-600">Estoque, movimentação e análise de desempenho</p>
           </div>
         </div>
