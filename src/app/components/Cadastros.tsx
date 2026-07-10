@@ -1,7 +1,6 @@
 import { Users, UserPlus, Package, MapPin, CheckSquare } from "lucide-react";
 import { Card } from "./ui/card";
 import { useNavigate } from "react-router";
-import ResumoOrcamentos from "./ResumoOrcamentos";
 
 const cadastroOptions = [
   {
@@ -51,9 +50,7 @@ export default function Cadastros() {
 
   return (
     <div className="px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
-      <ResumoOrcamentos />
-
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 mt-8">Cadastros</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Cadastros</h1>
       <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-8">Gerencie todos os cadastros do sistema</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
