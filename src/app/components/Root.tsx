@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
 const menuItems = [
+  { name: "ORÇAMENTOS", path: "/financeiro/orcamentos" },
   { name: "CADASTROS", path: "/cadastros" },
   { name: "FINANCEIRO", path: "/financeiro" },
   { name: "RELATÓRIOS", path: "/relatorios" },
