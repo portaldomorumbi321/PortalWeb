@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router";
 import {
   Search, Plus, Edit2, Trash2, X, Check, FileText, ChevronDown, ChevronUp,
-  User, Calendar, DollarSign, Send, Eye, Copy
+  User, Calendar, DollarSign, Send, Eye, Copy, MapPin
 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -130,6 +130,7 @@ const orcVazio = (): Omit<Orcamento, "id"> => ({
 
 export default function Orcamentos() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [lista, setLista] = useState<Orcamento[]>(dados);
   const [tela, setTela] = useState<Tela>("lista");
   const [editando, setEditando] = useState<Orcamento | null>(null);
@@ -140,6 +141,28 @@ export default function Orcamentos() {
   const [confirmarExclusao, setConfirmarExclusao] = useState<number | null>(null);
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
   const [section, setSection] = useState<string>("Voos");
+
+  // Handle state params from ResumoOrcamentos
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.previewId) {
+      const orc = lista.find(o => o.id === state.previewId);
+      if (orc) {
+        setPreview(orc);
+        setTela("preview");
+        // Clear state to prevent reopening on refresh
+        navigate(location.pathname, { replace: true });
+      }
+    } else if (state?.editId) {
+      const orc = lista.find(o => o.id === state.editId);
+      if (orc) {
+        setEditando(orc);
+        setForm({ numero: orc.numero, cliente: orc.cliente, email: orc.email, status: orc.status, dataCriacao: orc.dataCriacao, dataValidade: orc.dataValidade, observacoes: orc.observacoes, itens: orc.itens.map((i) => ({ ...i })) });
+        setTela("form");
+        navigate(location.pathname, { replace: true });
+      }
+    }
+  }, [location.state]);
 
   // --- lista helpers ---
   const filtrados = lista.filter((o) => {
@@ -195,19 +218,14 @@ export default function Orcamentos() {
     setLista((prev) => [...prev, novo]);
   }
 
-  function gerarRoteiro() {
-    // Save via salvar() which returns the id (or null if invalid)
-    const savedId = salvar();
-    if (!savedId) {
-      // invalid form
-      return;
-    }
-
-    const orcSalvo = { id: savedId, ...form } as Orcamento;
+  function gerarRoteiro(orc: Orcamento | null = null) {
+    const orcParaAbrir = orc || (editando ? editando : null);
+    if (!orcParaAbrir) return;
+    
     // Store in localStorage to access from new tab
-    localStorage.setItem(`orc_${form.numero}`, JSON.stringify(orcSalvo));
+    localStorage.setItem(`orc_${orcParaAbrir.numero}`, JSON.stringify(orcParaAbrir));
     // Open roteiro in new tab using numero (not id)
-    window.open(`/financeiro/orcamentos/roteiro/${form.numero}`, "_blank");
+    window.open(`/financeiro/orcamentos/roteiro/${orcParaAbrir.numero}`, "_blank");
   }
 
   function excluir(id: number) { setLista((prev) => prev.filter((o) => o.id !== id)); setConfirmarExclusao(null); }
@@ -226,9 +244,12 @@ export default function Orcamentos() {
     const totalDesc = totalBruto - total;
     return (
       <div>
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-6 flex-wrap">
           <Button variant="outline" onClick={voltar} className="flex items-center gap-2"><X className="w-4 h-4" /> Fechar</Button>
           <h2 className="text-xl font-bold text-gray-900">Visualização do Orçamento</h2>
+          <Button onClick={() => gerarRoteiro(preview)} className="ml-auto bg-green-600 hover:bg-green-700 text-white flex items-center gap-2">
+            <MapPin className="w-4 h-4" /> Gerar Roteiro
+          </Button>
         </div>
         <Card className="max-w-3xl mx-auto p-8">
           {/* Cabeçalho do orçamento */}
@@ -594,9 +615,10 @@ export default function Orcamentos() {
                 <div className="text-right flex-shrink-0">
                   <p className="font-bold text-lg text-indigo-700">{moeda(total)}</p>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0 flex-wrap justify-end">
                   <button onClick={() => abrirPreview(orc)} title="Visualizar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Eye className="w-4 h-4" /></button>
                   <button onClick={() => abrirEdicao(orc)} title="Editar" className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => gerarRoteiro(orc)} title="Gerar Roteiro" className="p-1.5 rounded text-green-600 hover:bg-green-50 transition-colors"><MapPin className="w-4 h-4" /></button>
                   <button onClick={() => duplicar(orc)} title="Duplicar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Copy className="w-4 h-4" /></button>
                   {confirmarExclusao === orc.id ? (
                     <>

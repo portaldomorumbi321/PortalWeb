@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, Edit2, Trash2, Plus, FileText, ChevronRight } from "lucide-react";
+import { Eye, Edit2, Trash2, Plus, FileText, ChevronRight, MapPin } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -120,6 +120,11 @@ export default function ResumoOrcamentos() {
     );
   };
 
+  const gerarRoteiro = (orc: Orcamento) => {
+    localStorage.setItem(`orc_${orc.numero}`, JSON.stringify(orc));
+    window.open(`/financeiro/orcamentos/roteiro/${orc.numero}`, "_blank");
+  };
+
   const orcamentosRecentes = orcamentos.slice(0, 3);
 
   return (
@@ -214,7 +219,7 @@ export default function ResumoOrcamentos() {
                 )}
               </div>
 
-              <div className="flex items-center gap-1 flex-shrink-0 self-start md:self-center">
+              <div className="flex items-center gap-1 flex-shrink-0 self-start md:self-center flex-wrap justify-end">
                 <Button
                   variant="outline"
                   size="icon"
@@ -233,7 +238,7 @@ export default function ResumoOrcamentos() {
                   size="icon"
                   className="h-8 w-8 sm:h-9 sm:w-9"
                   title="Visualizar"
-                  onClick={() => navigate("/financeiro/orcamentos")}
+                  onClick={() => navigate("/financeiro/orcamentos", { state: { previewId: orcamento.id } })}
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
@@ -242,8 +247,18 @@ export default function ResumoOrcamentos() {
                   size="icon"
                   className="h-8 w-8 sm:h-9 sm:w-9"
                   title="Editar"
+                  onClick={() => navigate("/financeiro/orcamentos", { state: { editId: orcamento.id } })}
                 >
                   <Edit2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 sm:h-9 sm:w-9 text-green-600 hover:text-green-700"
+                  title="Gerar Roteiro"
+                  onClick={() => gerarRoteiro(orcamento)}
+                >
+                  <MapPin className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
