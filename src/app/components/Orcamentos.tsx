@@ -193,32 +193,16 @@ export default function Orcamentos() {
   }
 
   function gerarRoteiro() {
-    // Save first (if valid) and navigate to roteiro page passing orc in state
-    if (!form.cliente.trim()) return;
-    let id: number | null = null;
-    if (editando) {
-      // update
-      setLista((prev) => prev.map((o) => {
-        if (o.id === editando.id) {
-          id = editando.id;
-          return { ...editando, ...form } as Orcamento;
-        }
-        return o;
-      }));
-    } else {
-      // create
-      id = lista.length > 0 ? Math.max(...lista.map((o) => o.id)) + 1 : 1;
-      const novo = { id, ...form } as Orcamento;
-      setLista((prev) => [...prev, novo]);
+    // Save via salvar() which returns the id (or null if invalid)
+    const savedId = salvar();
+    if (!savedId) {
+      // invalid form
+      return;
     }
 
-    // prepare orc data to pass
-    const orcSalvo = { id, ...form } as Orcamento;
-    // navigate to roteiro route with state
-    // use setTimeout to ensure state was applied before navigating
-    setTimeout(() => {
-      navigate(`/financeiro/orcamentos/${id}/roteiro`, { state: { orc: orcSalvo } });
-    }, 150);
+    const orcSalvo = { id: savedId, ...form } as Orcamento;
+    // navigate immediately with the constructed orc object in state
+    navigate(`/financeiro/orcamentos/${savedId}/roteiro`, { state: { orc: orcSalvo } });
   }
 
   function excluir(id: number) { setLista((prev) => prev.filter((o) => o.id !== id)); setConfirmarExclusao(null); }
