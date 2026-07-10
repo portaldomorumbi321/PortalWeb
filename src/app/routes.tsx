@@ -31,7 +31,6 @@ export const router = createBrowserRouter([
       { path: "cadastros/tarefas", Component: CadastroTarefas },
       { path: "financeiro", Component: Financeiro },
       { path: "financeiro/orcamentos", Component: Orcamentos },
-      { path: "financeiro/orcamentos/:id/roteiro", Component: RoteiroOrcamento },
       { path: "relatorios", Component: Relatorios },
       { path: "relatorios/vendas", Component: RelatorioVendas },
       { path: "relatorios/financeiro", Component: RelatorioFinanceiro },
@@ -40,5 +39,9 @@ export const router = createBrowserRouter([
       { path: "marketing", Component: Marketing },
       { path: "funcionario", Component: Funcionario },
     ],
+  },
+  {
+    path: "/financeiro/orcamentos/roteiro/:numero",
+    Component: RoteiroOrcamento,
   },
 ]);

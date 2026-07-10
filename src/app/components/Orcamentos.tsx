@@ -204,8 +204,10 @@ export default function Orcamentos() {
     }
 
     const orcSalvo = { id: savedId, ...form } as Orcamento;
-    // navigate immediately with the constructed orc object in state
-    navigate(`/financeiro/orcamentos/${savedId}/roteiro`, { state: { orc: orcSalvo } });
+    // Store in localStorage to access from new tab
+    localStorage.setItem(`orc_${form.numero}`, JSON.stringify(orcSalvo));
+    // Open roteiro in new tab using numero (not id)
+    window.open(`/financeiro/orcamentos/roteiro/${form.numero}`, "_blank");
   }
 
   function excluir(id: number) { setLista((prev) => prev.filter((o) => o.id !== id)); setConfirmarExclusao(null); }
