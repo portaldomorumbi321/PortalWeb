@@ -1,8 +1,10 @@
 import { FileText, BarChart3, PieChart, FileSpreadsheet } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
+import { useNavigate } from "react-router";
 
 export default function Relatorios() {
+  const navigate = useNavigate();
   const reports = [
     {
       icon: BarChart3,
@@ -35,28 +37,43 @@ export default function Relatorios() {
   ];
 
   return (
-    <div>
-      <h1 className="mb-6">Relatórios</h1>
-      <p className="text-gray-600 mb-8">Gere e visualize relatórios do sistema</p>
+    <div className="px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Relatórios</h1>
+      <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">Gere e visualize relatórios do sistema</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {reports.map((report) => {
           const Icon = report.icon;
           return (
-            <Card key={report.title} className="p-6">
+            <Card key={report.title} className="p-4 sm:p-6">
               <div className="flex items-start gap-4">
                 <div className={`w-12 h-12 rounded-lg ${report.bgColor} flex items-center justify-center flex-shrink-0`}>
                   <Icon className={`w-6 h-6 ${report.color}`} />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 mb-2">{report.title}</h3>
-                  <p className="text-sm text-gray-600 mb-4">{report.description}</p>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">{report.title}</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-4">{report.description}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs sm:text-sm py-2 sm:py-2 h-8 sm:h-9"
+                      onClick={() => {
+                        if (report.title === "Relatório de Vendas") {
+                          navigate("/relatorios/vendas");
+                        } else if (report.title === "Relatório Financeiro") {
+                          navigate("/relatorios/financeiro");
+                        } else if (report.title === "Relatório de Clientes") {
+                          navigate("/relatorios/clientes");
+                        } else if (report.title === "Relatório de Produtos") {
+                          navigate("/relatorios/produtos");
+                        }
+                      }}
+                    >
                       Visualizar
                     </Button>
-                    <Button size="sm" variant="outline">
-                      Exportar PDF
+                    <Button size="sm" variant="outline" className="text-xs sm:text-sm py-2 sm:py-2 h-8 sm:h-9">
+                      PDF
                     </Button>
                   </div>
                 </div>
