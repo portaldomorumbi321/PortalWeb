@@ -29,7 +29,7 @@ interface Orcamento {
 const dados: Orcamento[] = [
   {
     id: 1,
-    numero: "ORC-2025-001",
+    numero: "25060101",
     cliente: "Ana Paula Souza",
     email: "ana@email.com",
     status: "Aprovado",
@@ -43,7 +43,7 @@ const dados: Orcamento[] = [
   },
   {
     id: 2,
-    numero: "ORC-2025-002",
+    numero: "25061501",
     cliente: "Carlos Mendes",
     email: "carlos@empresa.com",
     status: "Enviado",
@@ -56,7 +56,7 @@ const dados: Orcamento[] = [
   },
   {
     id: 3,
-    numero: "ORC-2025-003",
+    numero: "25070101",
     cliente: "Fernanda Lima",
     email: "fernanda@loja.com",
     status: "Rascunho",
@@ -70,7 +70,7 @@ const dados: Orcamento[] = [
   },
   {
     id: 4,
-    numero: "ORC-2025-004",
+    numero: "25070501",
     cliente: "Roberto Silva",
     email: "roberto@tech.com",
     status: "Aprovado",

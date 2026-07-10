@@ -36,7 +36,7 @@ const itemVazio = (): ItemOrc => ({ id: Date.now(), descricao: "", quantidade: 1
 
 const dados: Orcamento[] = [
   {
-    id: 1, numero: "ORC-2025-001", cliente: "Ana Paula Souza", email: "ana@email.com",
+    id: 1, numero: "25060101", cliente: "Ana Paula Souza", email: "ana@email.com",
     status: "Aprovado", dataCriacao: "2025-06-01", dataValidade: "2025-07-01", observacoes: "Entrega em até 5 dias úteis.",
     itens: [
       { id: 1, descricao: "Notebook Pro 15\"", quantidade: 2, unidade: "un", valorUnitario: 4599.90, desconto: 5 },
@@ -44,14 +44,14 @@ const dados: Orcamento[] = [
     ],
   },
   {
-    id: 2, numero: "ORC-2025-002", cliente: "Carlos Mendes", email: "carlos@empresa.com",
+    id: 2, numero: "25061501", cliente: "Carlos Mendes", email: "carlos@empresa.com",
     status: "Enviado", dataCriacao: "2025-06-15", dataValidade: "2025-07-15", observacoes: "",
     itens: [
       { id: 1, descricao: "Cadeira Ergonômica", quantidade: 5, unidade: "un", valorUnitario: 1299.00, desconto: 10 },
     ],
   },
   {
-    id: 3, numero: "ORC-2025-003", cliente: "Fernanda Lima", email: "fernanda@loja.com",
+    id: 3, numero: "25070101", cliente: "Fernanda Lima", email: "fernanda@loja.com",
     status: "Rascunho", dataCriacao: "2025-07-01", dataValidade: "2025-08-01", observacoes: "Aguardando confirmação de modelo.",
     itens: [
       { id: 1, descricao: "Serviço de Consultoria", quantidade: 10, unidade: "h", valorUnitario: 250.00, desconto: 0 },
@@ -59,7 +59,7 @@ const dados: Orcamento[] = [
     ],
   },
   {
-    id: 4, numero: "ORC-2025-004", cliente: "João Victor Reis", email: "joao@mail.com",
+    id: 4, numero: "25052001", cliente: "João Victor Reis", email: "joao@mail.com",
     status: "Rejeitado", dataCriacao: "2025-05-20", dataValidade: "2025-06-20", observacoes: "",
     itens: [
       { id: 1, descricao: "Licença Software Anual", quantidade: 1, unidade: "un", valorUnitario: 3500.00, desconto: 0 },
@@ -98,7 +98,7 @@ function fmtData(d: string) {
 }
 
 function gerarNumero(lista: Orcamento[]) {
-  // New format: ORC-<aammdd><NN> where NN is incremental starting at 01 per day
+  // New format: <aammdd><NN> where NN is incremental starting at 01 per day
   const now = new Date();
   const yy = String(now.getFullYear()).slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, "0");
@@ -106,7 +106,7 @@ function gerarNumero(lista: Orcamento[]) {
   const datePart = `${yy}${mm}${dd}`;
 
   // Look for existing numbers that match the new pattern for today and extract their sequence
-  const regex = new RegExp(`^ORC-${datePart}(\\d{2})$`);
+  const regex = new RegExp(`^${datePart}(\\d{2})$`);
   const seqNums = lista
     .map((o) => {
       const m = String(o.numero).match(regex);
@@ -116,7 +116,7 @@ function gerarNumero(lista: Orcamento[]) {
 
   const next = seqNums.length > 0 ? Math.max(...seqNums) + 1 : 1;
   const seq = String(next).padStart(2, "0");
-  return `ORC-${datePart}${seq}`;
+  return `${datePart}${seq}`;
 }
 
 type Tela = "lista" | "form" | "preview";
