@@ -139,6 +139,7 @@ export default function Orcamentos() {
   const [filtroStatus, setFiltroStatus] = useState<StatusOrc | "Todos">("Todos");
   const [confirmarExclusao, setConfirmarExclusao] = useState<number | null>(null);
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
+  const [section, setSection] = useState<string>("Voos");
 
   // --- lista helpers ---
   const filtrados = lista.filter((o) => {
@@ -319,46 +320,125 @@ export default function Orcamentos() {
               </div>
             </Card>
 
-            {/* Itens */}
+            {/* Seções do orçamento (sub-páginas) */}
             <Card className="p-5">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-indigo-500" /> Itens do Orçamento</h3>
+              <h3 className="font-semibold text-gray-900 mb-4"><FileText className="w-4 h-4 text-indigo-500 inline-block mr-2" /> Seções do Orçamento</h3>
 
-              <div className="space-y-3">
-                {form.itens.map((item, idx) => (
-                  <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-gray-400">Item {idx + 1}</span>
-                      {form.itens.length > 1 && (
-                        <button onClick={() => removeItem(item.id)} className="p-1 rounded text-red-400 hover:bg-red-50"><X className="w-3.5 h-3.5" /></button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-6 gap-2">
-                      <div className="col-span-6">
-                        <Input value={item.descricao} onChange={(e) => updateItem(item.id, "descricao", e.target.value)} placeholder="Descrição do item / serviço" />
-                      </div>
-                      <div className="col-span-2">
-                        <Input type="number" min="1" value={item.quantidade} onChange={(e) => updateItem(item.id, "quantidade", parseFloat(e.target.value) || 1)} placeholder="Qtd" />
-                      </div>
-                      <div className="col-span-1">
-                        <Input value={item.unidade} onChange={(e) => updateItem(item.id, "unidade", e.target.value)} placeholder="Un" />
-                      </div>
-                      <div className="col-span-2">
-                        <Input type="number" min="0" step="0.01" value={item.valorUnitario} onChange={(e) => updateItem(item.id, "valorUnitario", parseFloat(e.target.value) || 0)} placeholder="Valor unit." />
-                      </div>
-                      <div className="col-span-1">
-                        <Input type="number" min="0" max="100" value={item.desconto} onChange={(e) => updateItem(item.id, "desconto", parseFloat(e.target.value) || 0)} placeholder="% desc" />
-                      </div>
-                    </div>
-                    <div className="text-right text-sm font-semibold text-indigo-700 mt-2">
-                      {moeda(calcItem(item))}
-                    </div>
-                  </div>
-                ))}
+              <div className="mb-3 overflow-x-auto">
+                <div className="flex gap-2 text-sm">
+                  {["Voos","Hospedagem","Roteiro","Day by Day","Transporte","Restaurante","Experiências","Seguro","Vendas"].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSection(s)}
+                      className={`whitespace-nowrap px-3 py-2 rounded-md ${section === s ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <button onClick={addItem} className="mt-3 w-full border-2 border-dashed border-indigo-200 rounded-lg py-2.5 text-sm text-indigo-600 font-medium hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2">
-                <Plus className="w-4 h-4" /> Adicionar item
-              </button>
+              <div className="mt-3">
+                {section === 'Voos' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Adicionar informações de voos (ida/volta, horários, companhias).</p>
+                    {/* Placeholder: implement flight inputs later */}
+                    <div className="text-xs text-gray-500">Campos de Voos aqui...</div>
+                  </div>
+                )}
+
+                {section === 'Hospedagem' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Detalhes de hospedagem (hotéis, check-in, número de noites).</p>
+                    <div className="text-xs text-gray-500">Campos de Hospedagem aqui...</div>
+                  </div>
+                )}
+
+                {section === 'Roteiro' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Resumo do roteiro. Para pré-visualizar completo, use o botão Gerar Roteiro no sidebar.</p>
+                    <div className="text-xs text-gray-500">Resumo do Roteiro...</div>
+                  </div>
+                )}
+
+                {section === 'Day by Day' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Planejamento dia a dia.</p>
+                    <div className="text-xs text-gray-500">Campos Day by Day...</div>
+                  </div>
+                )}
+
+                {section === 'Transporte' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Informações de transporte (traslados, locações).</p>
+                    <div className="text-xs text-gray-500">Campos de Transporte...</div>
+                  </div>
+                )}
+
+                {section === 'Restaurante' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Reservas e experiências gastronômicas.</p>
+                    <div className="text-xs text-gray-500">Campos de Restaurante...</div>
+                  </div>
+                )}
+
+                {section === 'Experiências' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Passeios e atividades.</p>
+                    <div className="text-xs text-gray-500">Campos de Experiências...</div>
+                  </div>
+                )}
+
+                {section === 'Seguro' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Cobertura e apólices de seguro viagem.</p>
+                    <div className="text-xs text-gray-500">Campos de Seguro...</div>
+                  </div>
+                )}
+
+                {section === 'Vendas' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Itens relacionados à venda (produtos/serviços).</p>
+                    <div className="space-y-3">
+                      {form.itens.map((item, idx) => (
+                        <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-gray-400">Item {idx + 1}</span>
+                            {form.itens.length > 1 && (
+                              <button onClick={() => removeItem(item.id)} className="p-1 rounded text-red-400 hover:bg-red-50"><X className="w-3.5 h-3.5" /></button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-6 gap-2">
+                            <div className="col-span-6">
+                              <Input value={item.descricao} onChange={(e) => updateItem(item.id, "descricao", e.target.value)} placeholder="Descrição do item / serviço" />
+                            </div>
+                            <div className="col-span-2">
+                              <Input type="number" min="1" value={item.quantidade} onChange={(e) => updateItem(item.id, "quantidade", parseFloat(e.target.value) || 1)} placeholder="Qtd" />
+                            </div>
+                            <div className="col-span-1">
+                              <Input value={item.unidade} onChange={(e) => updateItem(item.id, "unidade", e.target.value)} placeholder="Un" />
+                            </div>
+                            <div className="col-span-2">
+                              <Input type="number" min="0" step="0.01" value={item.valorUnitario} onChange={(e) => updateItem(item.id, "valorUnitario", parseFloat(e.target.value) || 0)} placeholder="Valor unit." />
+                            </div>
+                            <div className="col-span-1">
+                              <Input type="number" min="0" max="100" value={item.desconto} onChange={(e) => updateItem(item.id, "desconto", parseFloat(e.target.value) || 0)} placeholder="% desc" />
+                            </div>
+                          </div>
+                          <div className="text-right text-sm font-semibold text-indigo-700 mt-2">
+                            {moeda(calcItem(item))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button onClick={addItem} className="mt-3 w-full border-2 border-dashed border-indigo-200 rounded-lg py-2.5 text-sm text-indigo-600 font-medium hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2">
+                      <Plus className="w-4 h-4" /> Adicionar item
+                    </button>
+                  </div>
+                )}
+              </div>
             </Card>
 
             {/* Observações */}
