@@ -56,51 +56,50 @@ export default function RelatorioFinanceiro() {
   const margemLucro = "57%";
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+    <div className="px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-3">
+        <div className="flex items-center gap-2 sm:gap-4">
           <Button
             variant="outline"
             size="icon"
             onClick={() => navigate("/relatorios")}
-            className="h-10 w-10"
+            className="h-9 sm:h-10 w-9 sm:w-10 flex-shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Relatório Financeiro</h1>
-            <p className="text-gray-600">Demonstrativo de receitas, despesas e lucratividade</p>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-bold">Relatório Financeiro</h1>
+            <p className="text-xs sm:text-sm text-gray-600">Demonstrativo de receitas, despesas e lucratividade</p>
           </div>
         </div>
         <Button
-          className="gap-2"
+          className="gap-2 text-sm sm:text-base py-2 h-9 sm:h-10 w-full sm:w-auto"
           onClick={() => exportPDF("relatorio-financeiro-container", "Relatorio-Financeiro.pdf")}
         >
-          <Download className="h-4 w-4" />
-          Exportar PDF
+          <Download className="h-4 w-4 flex-shrink-0" />
+          <span className="hidden sm:inline">Exportar PDF</span>
+          <span className="sm:hidden">PDF</span>
         </Button>
       </div>
 
       <div id="relatorio-financeiro-container">
-        <div className="mb-6 flex gap-4">
-          <div className="flex-1 max-w-xs">
-          <label className="text-sm font-medium text-gray-700 block mb-2">Período</label>
-          <Select value={periodo} onValueChange={setPeriodo}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ultimos-7">Últimos 7 dias</SelectItem>
-              <SelectItem value="ultimos-30">Últimos 30 dias</SelectItem>
-              <SelectItem value="ultimos-90">Últimos 90 dias</SelectItem>
-              <SelectItem value="ultimo-ano">Último ano</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1 max-w-xs">
-          <label className="text-sm font-medium text-gray-700 block mb-2">Departamento</label>
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-2 sm:gap-4">
+          <div className="flex-1">
+            <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-2">Período</label>
+            <Select value={periodo} onValueChange={setPeriodo}>
+              <SelectTrigger className="h-9 sm:h-10 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ultimos-7">Últimos 7 dias</SelectItem>
+                <SelectItem value="ultimos-30">Últimos 30 dias</SelectItem>
+                <SelectItem value="ultimos-90">Últimos 90 dias</SelectItem>
+                <SelectItem value="ultimo-ano">Último ano</SelectItem>
+              </SelectContent>
+            </Select>
+          <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-2">Departamento</label>
           <Select value={departamento} onValueChange={setDepartamento}>
-            <SelectTrigger>
+            <SelectTrigger className="h-9 sm:h-10 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -113,49 +112,49 @@ export default function RelatorioFinanceiro() {
           </Select>
         </div>
         <div className="flex items-end">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2 text-xs sm:text-sm py-2 h-9 sm:h-10 w-full sm:w-auto">
             <Filter className="h-4 w-4" />
-            Mais Filtros
+            <span className="hidden sm:inline">Mais Filtros</span>
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="p-6">
-          <p className="text-sm text-gray-600 mb-2">Total de Receitas</p>
-          <h3 className="text-2xl font-bold mb-2">{totalReceitas}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <Card className="p-3 sm:p-6">
+          <p className="text-xs sm:text-sm text-gray-600 mb-2">Total de Receitas</p>
+          <h3 className="text-lg sm:text-2xl font-bold mb-2">{totalReceitas}</h3>
           <div className="flex items-center gap-2 text-green-600">
-            <TrendingUp className="h-4 w-4" />
-            <span className="text-sm font-medium">+8.5%</span>
+            <TrendingUp className="h-4 w-4 flex-shrink-0" />
+            <span className="text-xs sm:text-sm font-medium">+8.5%</span>
           </div>
         </Card>
 
-        <Card className="p-6">
-          <p className="text-sm text-gray-600 mb-2">Total de Despesas</p>
-          <h3 className="text-2xl font-bold mb-2">{totalDespesas}</h3>
+        <Card className="p-3 sm:p-6">
+          <p className="text-xs sm:text-sm text-gray-600 mb-2">Total de Despesas</p>
+          <h3 className="text-lg sm:text-2xl font-bold mb-2">{totalDespesas}</h3>
           <div className="flex items-center gap-2 text-orange-600">
-            <TrendingDown className="h-4 w-4" />
-            <span className="text-sm font-medium">-3.2%</span>
+            <TrendingDown className="h-4 w-4 flex-shrink-0" />
+            <span className="text-xs sm:text-sm font-medium">-3.2%</span>
           </div>
         </Card>
 
-        <Card className="p-6 bg-green-50">
-          <p className="text-sm text-gray-600 mb-2">Lucro Líquido</p>
-          <h3 className="text-2xl font-bold mb-2 text-green-600">{lucroLiquido}</h3>
-          <p className="text-sm text-gray-600">período atual</p>
+        <Card className="p-3 sm:p-6 bg-green-50">
+          <p className="text-xs sm:text-sm text-gray-600 mb-2">Lucro Líquido</p>
+          <h3 className="text-lg sm:text-2xl font-bold mb-2 text-green-600">{lucroLiquido}</h3>
+          <p className="text-xs sm:text-sm text-gray-600">período atual</p>
         </Card>
 
-        <Card className="p-6 bg-blue-50">
-          <p className="text-sm text-gray-600 mb-2">Margem de Lucro</p>
-          <h3 className="text-2xl font-bold mb-2 text-blue-600">{margemLucro}</h3>
-          <p className="text-sm text-gray-600">do faturamento</p>
+        <Card className="p-3 sm:p-6 bg-blue-50">
+          <p className="text-xs sm:text-sm text-gray-600 mb-2">Margem de Lucro</p>
+          <h3 className="text-lg sm:text-2xl font-bold mb-2 text-blue-600">{margemLucro}</h3>
+          <p className="text-xs sm:text-sm text-gray-600">do faturamento</p>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <Card className="p-6">
-          <h3 className="font-semibold text-lg mb-4">Fluxo de Caixa</h3>
-          <ResponsiveContainer width="100%" height={300}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+        <Card className="p-3 sm:p-6">
+          <h3 className="font-semibold text-sm sm:text-lg mb-4">Fluxo de Caixa</h3>
+          <ResponsiveContainer width="100%" height={250}>
             <AreaChart data={fluxoCaixa}>
               <defs>
                 <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
@@ -164,10 +163,10 @@ export default function RelatorioFinanceiro() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mes" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
+              <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip contentStyle={{ fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
               <Area
                 type="monotone"
                 dataKey="receita"
@@ -188,15 +187,15 @@ export default function RelatorioFinanceiro() {
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-6">
-          <h3 className="font-semibold text-lg mb-4">Lucro por Mês</h3>
-          <ResponsiveContainer width="100%" height={300}>
+        <Card className="p-3 sm:p-6">
+          <h3 className="font-semibold text-sm sm:text-lg mb-4">Lucro por Mês</h3>
+          <ResponsiveContainer width="100%" height={250}>
             <BarChart data={fluxoCaixa}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mes" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
+              <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip contentStyle={{ fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="lucro" fill="#3b82f6" name="Lucro" />
             </BarChart>
           </ResponsiveContainer>

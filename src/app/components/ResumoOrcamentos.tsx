@@ -123,48 +123,54 @@ export default function ResumoOrcamentos() {
   const orcamentosRecentes = orcamentos.slice(0, 3);
 
   return (
-    <div className="mb-8">
-      <div className="flex items-center justify-between mb-4">
+    <div className="mb-6 sm:mb-8 px-3 sm:px-4 lg:px-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
         <div className="flex items-center gap-2">
-          <FileText className="h-6 w-6 text-purple-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Orçamentos Recentes</h2>
+          <FileText className="h-5 sm:h-6 w-5 sm:w-6 text-purple-600 flex-shrink-0" />
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Orçamentos Recentes</h2>
         </div>
         <Button
           onClick={() => navigate("/financeiro/orcamentos")}
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto text-sm sm:text-base py-2 h-9 sm:h-10"
         >
           <Plus className="h-4 w-4" />
-          Novo Orçamento
+          Novo
         </Button>
       </div>
 
       <div className="space-y-3">
         {orcamentosRecentes.map((orcamento) => (
-          <Card key={orcamento.id} className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="font-semibold text-gray-900">{orcamento.numero}</h3>
-                  <Badge className={getStatusColor(orcamento.status)}>
+          <Card key={orcamento.id} className="p-3 sm:p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <h3 className="font-semibold text-sm sm:text-base text-gray-900">{orcamento.numero}</h3>
+                  <Badge className={`${getStatusColor(orcamento.status)} text-xs`}>
                     {orcamento.status}
                   </Badge>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-gray-600">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
                   <div>
-                    <p className="font-medium text-gray-700">Cliente</p>
-                    <p>{orcamento.cliente}</p>
+                    <p className="font-medium text-gray-700 text-xs">Cliente</p>
+                    <p className="truncate">{orcamento.cliente}</p>
                   </div>
                   <div>
-                    <p className="font-medium text-gray-700">Data</p>
-                    <p>{new Date(orcamento.dataCriacao).toLocaleDateString("pt-BR")}</p>
+                    <p className="font-medium text-gray-700 text-xs">Data</p>
+                    <p>{new Date(orcamento.dataCriacao).toLocaleDateString("pt-BR", { 
+                      month: "2-digit", 
+                      day: "2-digit" 
+                    })}</p>
                   </div>
                   <div>
-                    <p className="font-medium text-gray-700">Validade</p>
-                    <p>{new Date(orcamento.dataValidade).toLocaleDateString("pt-BR")}</p>
+                    <p className="font-medium text-gray-700 text-xs">Validade</p>
+                    <p>{new Date(orcamento.dataValidade).toLocaleDateString("pt-BR", { 
+                      month: "2-digit", 
+                      day: "2-digit" 
+                    })}</p>
                   </div>
                   <div>
-                    <p className="font-medium text-gray-700">Total</p>
-                    <p className="font-semibold text-purple-600">
+                    <p className="font-medium text-gray-700 text-xs">Total</p>
+                    <p className="font-semibold text-purple-600 text-xs">
                       R$ {calcularTotal(orcamento.itens).toLocaleString("pt-BR", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
@@ -174,15 +180,15 @@ export default function ResumoOrcamentos() {
                 </div>
 
                 {expandidos.includes(orcamento.id) && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Itens:</p>
-                    <div className="space-y-1 text-sm">
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-xs font-medium text-gray-700 mb-2">Itens:</p>
+                    <div className="space-y-1 text-xs">
                       {orcamento.itens.map((item) => (
                         <div key={item.id} className="flex justify-between text-gray-600">
-                          <span>
+                          <span className="flex-1">
                             {item.quantidade} {item.unidade} de {item.descricao}
                           </span>
-                          <span className="font-medium">
+                          <span className="font-medium ml-2 flex-shrink-0">
                             R${" "}
                             {(
                               item.quantidade *
@@ -197,9 +203,9 @@ export default function ResumoOrcamentos() {
                       ))}
                     </div>
                     {orcamento.observacoes && (
-                      <div className="mt-3 pt-3 border-t">
-                        <p className="text-sm">
-                          <span className="font-medium text-gray-700">Observações:</span>{" "}
+                      <div className="mt-2 pt-2 border-t">
+                        <p className="text-xs">
+                          <span className="font-medium text-gray-700">Obs:</span>{" "}
                           {orcamento.observacoes}
                         </p>
                       </div>
@@ -208,12 +214,12 @@ export default function ResumoOrcamentos() {
                 )}
               </div>
 
-              <div className="flex items-center gap-2 ml-4">
+              <div className="flex items-center gap-1 flex-shrink-0 self-start md:self-center">
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => toggleExpand(orcamento.id)}
-                  className="h-9 w-9"
+                  className="h-8 w-8 sm:h-9 sm:w-9"
                   title={expandidos.includes(orcamento.id) ? "Recolher" : "Expandir"}
                 >
                   {expandidos.includes(orcamento.id) ? (
@@ -225,7 +231,7 @@ export default function ResumoOrcamentos() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9"
+                  className="h-8 w-8 sm:h-9 sm:w-9"
                   title="Visualizar"
                   onClick={() => navigate("/financeiro/orcamentos")}
                 >
@@ -234,7 +240,7 @@ export default function ResumoOrcamentos() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9"
+                  className="h-8 w-8 sm:h-9 sm:w-9"
                   title="Editar"
                 >
                   <Edit2 className="h-4 w-4" />
@@ -242,7 +248,7 @@ export default function ResumoOrcamentos() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9 text-red-600 hover:text-red-700"
+                  className="h-8 w-8 sm:h-9 sm:w-9 text-red-600 hover:text-red-700"
                   title="Deletar"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -255,7 +261,7 @@ export default function ResumoOrcamentos() {
 
       <Button
         variant="outline"
-        className="w-full mt-4 gap-2"
+        className="w-full mt-4 gap-2 text-sm sm:text-base py-2 h-9 sm:h-10"
         onClick={() => navigate("/financeiro/orcamentos")}
       >
         Ver todos os orçamentos

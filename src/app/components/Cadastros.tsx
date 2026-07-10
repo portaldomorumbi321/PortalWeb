@@ -50,26 +50,26 @@ export default function Cadastros() {
   const navigate = useNavigate();
 
   return (
-    <div>
+    <div className="px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
       <ResumoOrcamentos />
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Cadastros</h1>
-      <p className="text-gray-500 mb-8">Gerencie todos os cadastros do sistema</p>
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 mt-8">Cadastros</h1>
+      <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-8">Gerencie todos os cadastros do sistema</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {cadastroOptions.map((option) => {
           const Icon = option.icon;
           return (
             <Card
               key={option.title}
               onClick={() => navigate(option.route)}
-              className="p-6 hover:shadow-lg transition-all cursor-pointer hover:border-blue-300"
+              className="p-4 sm:p-6 hover:shadow-lg transition-all cursor-pointer hover:border-blue-300 active:scale-95"
             >
               <div className={`w-12 h-12 rounded-lg ${option.bgColor} flex items-center justify-center mb-4`}>
                 <Icon className={`w-6 h-6 ${option.color}`} />
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">{option.title}</h3>
-              <p className="text-sm text-gray-500">{option.description}</p>
+              <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">{option.title}</h3>
+              <p className="text-xs sm:text-sm text-gray-500">{option.description}</p>
             </Card>
           );
         })}
