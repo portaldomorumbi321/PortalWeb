@@ -45,7 +45,7 @@ interface ExperienciasFormProps {
 }
 
 // Configuração da API Google Places (mesmo padrão da HospedagemForm)
-const GOOGLE_PLACES_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
 const tiposExperiencia = [
   "Passeio Turístico",
@@ -115,7 +115,7 @@ export default function ExperienciasForm({
     setMostrarManual(false);
 
     try {
-      if (GOOGLE_PLACES_API_KEY) {
+      if (GOOGLE_API_KEY) {
         await buscarGooglePlaces(busca);
       } else {
         setErro(
@@ -145,7 +145,7 @@ export default function ExperienciasForm({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+            "X-Goog-Api-Key": GOOGLE_API_KEY,
             "X-Goog-FieldMask":
               "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.id,places.photos,places.editorialSummary",
           },
@@ -171,7 +171,7 @@ export default function ExperienciasForm({
       const placesResponse = await fetch(
         `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
           query + " atrações turísticas"
-        )}&key=${GOOGLE_PLACES_API_KEY}&language=pt-BR`
+        )}&key=${GOOGLE_API_KEY}&language=pt-BR`
       );
       const placesData = await placesResponse.json();
 
@@ -379,7 +379,7 @@ export default function ExperienciasForm({
                 className="flex-1"
               />
               <Button
-                onClick={buscarExperiencia}
+                onClick={buscarExperiencia} 
                 disabled={carregando}
                 size="icon"
                 className="w-auto gap-2 px-4"
@@ -388,13 +388,13 @@ export default function ExperienciasForm({
               </Button>
             </div>
           </div>
-          {!GOOGLE_PLACES_API_KEY && (
+          {!GOOGLE_API_KEY && (
             <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
               ⚠️ API do Google Maps não configurada. Configure VITE_GOOGLE_MAPS_API_KEY
               no .env ou adicione manualmente.
             </p>
           )}
-          {erro && !selecionado && !mostrarManual && (
+          {erro && (
             <p className="text-xs text-red-500">{erro}</p>
           )}
         </div>

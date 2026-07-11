@@ -41,12 +41,48 @@ interface HospedagemFormProps {
   onHospedagensChange: (hospedagens: Hospedagem[]) => void;
 }
 
+const destinosPopulares = [
+  "Rio de Janeiro, Brasil",
+  "São Paulo, Brasil",
+  "Salvador, Brasil",
+  "Florianópolis, Brasil",
+  "Gramado, Brasil",
+  "Foz do Iguaçu, Brasil",
+  "Fortaleza, Brasil",
+  "Recife, Brasil",
+  "Manaus, Brasil",
+  "Curitiba, Brasil",
+  "Belo Horizonte, Brasil",
+  "Brasília, Brasil",
+  "Lisboa, Portugal",
+  "Porto, Portugal",
+  "Paris, França",
+  "Roma, Itália",
+  "Veneza, Itália",
+  "Florença, Itália",
+  "Nova York, EUA",
+  "Orlando, EUA",
+  "Miami, EUA",
+  "Los Angeles, EUA",
+  "Londres, Reino Unido",
+  "Madri, Espanha",
+  "Barcelona, Espanha",
+  "Amsterdã, Holanda",
+  "Berlim, Alemanha",
+  "Atenas, Grécia",
+  "Tóquio, Japão",
+  "Buenos Aires, Argentina",
+  "Cancún, México",
+  "Dubai, Emirados Árabes Unidos",
+  "Bangkok, Tailândia",
+  "Sydney, Austrália",
+];
+
 // Configure suas chaves da API do Google Cloud
 // Places API: https://console.cloud.google.com/apis/credentials
-// Geocoding API: https://console.cloud.google.com/apis/credentials
-const GOOGLE_PLACES_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
-const GOOGLE_GEOCODING_API_KEY = import.meta.env.VITE_GOOGLE_GEOCODING_API_KEY || GOOGLE_PLACES_API_KEY;
-const GOOGLE_API_KEY = GOOGLE_PLACES_API_KEY; // fallback para compatibilidade
+const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+// Linha de depuração para verificar se a chave foi carregada
+console.log("Verificando chave de API do Google Maps:", GOOGLE_API_KEY ? "CHAVE ENCONTRADA" : "CHAVE NÃO ENCONTRADA OU VAZIA");
 
 export default function HospedagemForm({
   hospedagens,
@@ -95,7 +131,7 @@ export default function HospedagemForm({
 
     try {
       // Tenta buscar via Google Places API
-      if (GOOGLE_PLACES_API_KEY) {
+      if (GOOGLE_API_KEY) {
         await buscarGooglePlaces(busca);
       } else {
         // Sem API key configurada - mostrar mensagem e opção manual
@@ -123,7 +159,7 @@ export default function HospedagemForm({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+            "X-Goog-Api-Key": GOOGLE_API_KEY,
             "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.id,places.photos"
           },
           body: JSON.stringify({
@@ -148,7 +184,7 @@ export default function HospedagemForm({
       const placesResponse = await fetch(
         `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
           query + " hotel"
-        )}&key=${GOOGLE_PLACES_API_KEY}&language=pt-BR`
+        )}&key=${GOOGLE_API_KEY}&language=pt-BR`
       );
       const placesData = await placesResponse.json();
 
@@ -162,10 +198,10 @@ export default function HospedagemForm({
 
     // Se tudo falhar, abrir formulário manual com mensagem clara
     setErro(
-      " APIs do Google Maps não habilitadas. Para usar a busca automática:\n" +
-      "1. Acesse https://console.cloud.google.com/apis/dashboard\n" +
-      "2. Ative: Places API e Geocoding API\n" +
-      "3. Ou clique em 'Adicionar Manualmente' abaixo"
+      "APIs do Google Maps não habilitadas. Para usar a busca automática:\n" +
+      "1. Acesse https://console.cloud.google.com/apis/dashboard e ative: Places API e Geocoding API.\n" +
+      "2. Verifique se a chave VITE_GOOGLE_MAPS_API_KEY está no arquivo .env e reinicie o servidor.\n" +
+      "3. Ou clique em 'Adicionar Manualmente' abaixo."
     );
     setMostrarManual(true);
   };
@@ -235,7 +271,7 @@ export default function HospedagemForm({
         amenidades: amenidades.length > 0 ? amenidades : ["WiFi Grátis"],
         precoBase,
         photos: place.photos
-          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${place.photos[0].photo_reference}&key=${GOOGLE_PLACES_API_KEY}`
+          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${place.photos[0].photo_reference}&key=${GOOGLE_API_KEY}`
           : null,
       };
     });
@@ -404,8 +440,14 @@ export default function HospedagemForm({
                   e.key === "Enter" && buscarHospedagem()
                 }
                 className="flex-1"
+                list="destinos-populares-list"
               />
-              <Button
+              <datalist id="destinos-populares-list">
+                {destinosPopulares.map((destino) => (
+                  <option key={destino} value={destino} />
+                ))}
+              </datalist>
+              <Button 
                 onClick={buscarHospedagem}
                 disabled={carregando}
                 size="icon"
@@ -415,12 +457,12 @@ export default function HospedagemForm({
               </Button>
             </div>
           </div>
-          {!GOOGLE_PLACES_API_KEY && (
+          {!GOOGLE_API_KEY && (
             <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
               ⚠️ API do Google Maps não configurada. Configure VITE_GOOGLE_MAPS_API_KEY no .env com uma chave válida.
             </p>
           )}
-          {erro && !selecionado && !mostrarManual && (
+          {erro && (
             <p className="text-xs text-red-500">{erro}</p>
           )}
         </div>

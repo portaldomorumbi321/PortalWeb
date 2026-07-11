@@ -22,6 +22,23 @@ interface VoosFormProps {
   onVoosChange: (voos: Voo[]) => void;
 }
 
+const companhiasAereas = [
+  "TAP Air Portugal",
+  "LATAM Airlines",
+  "GOL Linhas Aéreas",
+  "Azul Linhas Aéreas",
+  "American Airlines",
+  "Delta Air Lines",
+  "United Airlines",
+  "Lufthansa",
+  "Air France",
+  "KLM",
+  "British Airways",
+  "Iberia",
+  "Emirates",
+  "Qatar Airways",
+];
+
 export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
   const [busca, setBusca] = useState({ companhia: "", numero: "", data: "" });
   const [carregando, setCarregando] = useState(false);
@@ -88,11 +105,17 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
           <div>
             <Label className="text-xs">CIA Aérea</Label>
             <Input
-              placeholder="Ex: TAP, TAM, LATAM"
+              placeholder="Ex: TAP, LATAM..."
               value={busca.companhia}
               onChange={(e) => setBusca({ ...busca, companhia: e.target.value })}
               className="mt-1"
+              list="companhias-aereas-list"
             />
+            <datalist id="companhias-aereas-list">
+              {companhiasAereas.map((cia) => (
+                <option key={cia} value={cia} />
+              ))}
+            </datalist>
           </div>
           <div>
             <Label className="text-xs">Nº Vôo</Label>

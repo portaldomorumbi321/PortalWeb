@@ -16,13 +16,17 @@ import RelatorioProdutos from "./components/RelatorioProdutos";
 import RoteiroOrcamento from "./components/RoteiroOrcamento";
 import Marketing from "./components/Marketing";
 import Funcionario from "./components/Funcionario";
+import LeadDashboard from "./components/LeadDashboard";
+import LeadList from "./components/LeadList";
+import ResumoOrcamento from "./components/ResumoOrcamento";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: Root,
     children: [
-      { index: true, Component: Orcamentos },
+      { index: true, Component: LeadDashboard },
+      { path: "leads/list", Component: LeadList },
       { path: "cadastros", Component: Cadastros },
       { path: "cadastros/clientes", Component: CadastroClientes },
       { path: "cadastros/fornecedores", Component: CadastroFornecedores },
@@ -43,5 +47,9 @@ export const router = createBrowserRouter([
   {
     path: "/financeiro/orcamentos/roteiro/:numero",
     Component: RoteiroOrcamento,
+  },
+  {
+    path: "/financeiro/orcamentos/resumo/:numero",
+    Component: ResumoOrcamento,
   },
 ]);

@@ -71,7 +71,7 @@ export default function RoteiroOrcamento() {
   const total = (orc.itens || []).reduce((acc: number, i: any) => acc + (i.quantidade * i.valorUnitario * (1 - (i.desconto || 0) / 100)), 0);
 
   const handleShareWhatsApp = () => {
-    const message = `Olá! Aqui está o roteiro da sua viagem:\n\nCliente: ${orc.cliente}\nOrçamento: ${orc.numero}\nTotal: R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n\nVisite: ${window.location.href}`;
+    const message = `Olá! Aqui está o roteiro da sua viagem:\n\nCliente: ${orc.cliente}\nOrçamento: ${orc.numero}\n\nVisite: ${window.location.href}`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, "_blank");
   };
@@ -128,11 +128,6 @@ export default function RoteiroOrcamento() {
                     {h.tipoQuarto} • {h.checkin} → {h.checkout} • {h.noites} noite{h.noites !== 1 ? "s" : ""}
                   </p>
                 )}
-                {h.preco > 0 && (
-                  <p className="text-xs font-semibold text-indigo-600 mt-1">
-                    R$ {h.preco.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                )}
                 {h.voucher && (
                   <button
                     onClick={() => {
@@ -152,14 +147,6 @@ export default function RoteiroOrcamento() {
                 )}
               </div>
             ))}
-          </div>
-          <div className="mt-3 pt-3 border-t">
-            <p className="text-sm font-semibold text-gray-900">
-              Total Hospedagem: R${" "}
-              {orc.hospedagem
-                .reduce((sum: number, h: any) => sum + (h.preco || 0), 0)
-                .toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
           </div>
         </Card>
       )}
@@ -206,11 +193,6 @@ export default function RoteiroOrcamento() {
                     {t.dataHoraChegada && <> | Chegada: {new Date(t.dataHoraChegada).toLocaleString("pt-BR")}</>}
                   </p>
                 )}
-                {t.valor > 0 && (
-                  <p className="text-xs font-semibold text-indigo-600 mt-1">
-                    R$ {t.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                )}
                 {t.codigoReserva && (
                   <p className="text-xs text-gray-500 mt-0.5">
                     Reserva: <span className="font-mono font-semibold">{t.codigoReserva}</span>
@@ -238,14 +220,6 @@ export default function RoteiroOrcamento() {
                 )}
               </div>
             ))}
-          </div>
-          <div className="mt-3 pt-3 border-t">
-            <p className="text-sm font-semibold text-gray-900">
-              Total Transporte: R${" "}
-              {orc.transporte
-                .reduce((sum: number, t: any) => sum + (t.valor || 0), 0)
-                .toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
           </div>
         </Card>
       )}
@@ -303,9 +277,6 @@ export default function RoteiroOrcamento() {
                   <p className="font-medium text-gray-900 text-sm">{it.descricao}</p>
                   <p className="text-xs text-gray-500">{it.quantidade} {it.unidade}</p>
                 </div>
-                <div className="text-right font-medium text-gray-900 text-sm">
-                  R$ {(it.quantidade * it.valorUnitario * (1 - (it.desconto || 0) / 100)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
               </div>
             ))}
           </div>
@@ -319,17 +290,6 @@ export default function RoteiroOrcamento() {
         </Card>
       )}
 
-      <Card className="p-4 mb-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-sm text-gray-500">Total da Viagem</p>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-indigo-700">R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          </div>
-        </div>
-      </Card>
-
       <div className="flex gap-2">
         <Button onClick={() => window.print()} className="flex-1">Imprimir</Button>
         <Button onClick={handleShareWhatsApp} className="flex-1 bg-green-600 hover:bg-green-700">
@@ -339,4 +299,3 @@ export default function RoteiroOrcamento() {
     </div>
   );
 }
-
