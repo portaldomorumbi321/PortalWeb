@@ -35,7 +35,7 @@ const dados: Orcamento[] = [
     status: "Aprovado",
     dataCriacao: "2025-06-01",
     dataValidade: "2025-07-01",
-    observacoes: "Entrega em até 5 dias úteis.",
+    observacoes: "",
     itens: [
       { id: 1, descricao: "Notebook Pro 15\"", quantidade: 2, unidade: "un", valorUnitario: 4599.90, desconto: 5 },
       { id: 2, descricao: "Mouse Sem Fio", quantidade: 2, unidade: "un", valorUnitario: 89.90, desconto: 0 },
