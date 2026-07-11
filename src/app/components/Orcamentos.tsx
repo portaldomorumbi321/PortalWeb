@@ -10,6 +10,13 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import VoosForm from "./VoosForm";
+import TransporteForm from "./TransporteForm";
+import HospedagemForm from "./HospedagemForm";
+import RoteiroForm from "./RoteiroForm";
+import DayByDayForm from "./DayByDayForm";
+import RestauranteForm from "./RestauranteForm";
+import ExperienciasForm from "./ExperienciasForm";
+import SeguroForm from "./SeguroForm";
 
 type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
 
@@ -412,52 +419,31 @@ export default function Orcamentos() {
                 )}
 
                 {section === 'Hospedagem' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Detalhes de hospedagem (hotéis, check-in, número de noites).</p>
-                    <div className="text-xs text-gray-500">Campos de Hospedagem aqui...</div>
-                  </div>
+                  <HospedagemForm hospedagens={hospedagem} onHospedagensChange={setHospedagem} />
                 )}
 
                 {section === 'Roteiro' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Resumo do roteiro. Para pré-visualizar completo, use o botão Gerar Roteiro no sidebar.</p>
-                    <div className="text-xs text-gray-500">Resumo do Roteiro...</div>
-                  </div>
+                  <RoteiroForm roteiro={roteiro} onRoteiroChange={setRoteiro} />
                 )}
 
                 {section === 'Day by Day' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Planejamento dia a dia.</p>
-                    <div className="text-xs text-gray-500">Campos Day by Day...</div>
-                  </div>
+                  <DayByDayForm dayByDay={dayByDay} onDayByDayChange={setDayByDay} />
                 )}
 
                 {section === 'Transporte' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Informações de transporte (traslados, locações).</p>
-                    <div className="text-xs text-gray-500">Campos de Transporte...</div>
-                  </div>
+                  <TransporteForm transportes={transporte} onTransportesChange={setTransporte} />
                 )}
 
                 {section === 'Restaurante' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Reservas e experiências gastronômicas.</p>
-                    <div className="text-xs text-gray-500">Campos de Restaurante...</div>
-                  </div>
+                  <RestauranteForm restaurantes={restaurante} onRestaurantesChange={setRestaurante} />
                 )}
 
                 {section === 'Experiências' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Passeios e atividades.</p>
-                    <div className="text-xs text-gray-500">Campos de Experiências...</div>
-                  </div>
+                  <ExperienciasForm experiencias={experiencias} onExperienciasChange={setExperiencias} />
                 )}
 
                 {section === 'Seguro' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Cobertura e apólices de seguro viagem.</p>
-                    <div className="text-xs text-gray-500">Campos de Seguro...</div>
-                  </div>
+                  <SeguroForm seguros={seguro} onSegurosChange={setSeguro} />
                 )}
 
                 {section === 'Vendas' && (
