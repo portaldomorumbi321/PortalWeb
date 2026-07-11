@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Search, Plus, Edit2, Trash2, X, Check, FileText, ChevronDown, ChevronUp,
-  User, Calendar, DollarSign, Send, Eye, Copy, MapPin
+  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Printer
 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -10,6 +10,13 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import VoosForm from "./VoosForm";
+import HospedagemForm from "./HospedagemForm";
+import RoteiroForm from "./RoteiroForm";
+import DayByDayForm from "./DayByDayForm";
+import TransporteForm from "./TransporteForm";
+import RestauranteForm from "./RestauranteForm";
+import ExperienciasForm from "./ExperienciasForm";
+import SeguroForm from "./SeguroForm";
 
 type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
 
@@ -272,6 +279,35 @@ export default function Orcamentos() {
     window.open(`/financeiro/orcamentos/roteiro/${orcComSecoes.numero}`, "_blank");
   }
 
+  function abrirResumo(orc: Orcamento | null = null) {
+    const orcParaAbrir = orc || (editando ? { id: editando.id, ...form } : null);
+    if (!orcParaAbrir) return;
+
+    const orcComSecoes = {
+      ...orcParaAbrir,
+      voos: voos.length > 0 ? voos : orcParaAbrir.voos,
+      hospedagem: hospedagem.length > 0 ? hospedagem : orcParaAbrir.hospedagem,
+      roteiro: roteiro.trim() ? roteiro : orcParaAbrir.roteiro,
+      dayByDay: dayByDay.length > 0 ? dayByDay : orcParaAbrir.dayByDay,
+      transporte: transporte.length > 0 ? transporte : orcParaAbrir.transporte,
+      restaurante: restaurante.length > 0 ? restaurante : orcParaAbrir.restaurante,
+      experiencias: experiencias.length > 0 ? experiencias : orcParaAbrir.experiencias,
+      seguro: seguro.length > 0 ? seguro : orcParaAbrir.seguro,
+    };
+
+    // Armazena no localStorage para acessar na nova aba
+    localStorage.setItem(`orc_${orcComSecoes.numero}`, JSON.stringify(orcComSecoes));
+    window.open(`/financeiro/orcamentos/resumo/${orcComSecoes.numero}`, "_blank");
+  }
+
+  function gerarOrcamento(orc: Orcamento | null = null) {
+    const orcParaAbrir = orc || (editando ? editando : null);
+    if (!orcParaAbrir) return;
+    setPreview(orcParaAbrir);
+    setTela("preview");
+    setTimeout(() => window.print(), 500); // Aguarda a renderização antes de imprimir
+  }
+
   function excluir(id: number) { setLista((prev) => prev.filter((o) => o.id !== id)); setConfirmarExclusao(null); }
 
   // --- itens do form ---
@@ -291,6 +327,12 @@ export default function Orcamentos() {
         <div className="flex items-center gap-3 mb-6 flex-wrap">
           <Button variant="outline" onClick={voltar} className="flex items-center gap-2"><X className="w-4 h-4" /> Fechar</Button>
           <h2 className="text-xl font-bold text-gray-900">Visualização do Orçamento</h2>
+          <Button onClick={() => abrirResumo(preview)} className="ml-auto bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
+            <FileText className="w-4 h-4" /> Resumo do Orçamento
+          </Button>
+          <Button onClick={() => window.print()} className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2">
+            <Printer className="w-4 h-4" /> Gerar Orçamento
+          </Button>
           <Button onClick={() => gerarRoteiro(preview)} className="ml-auto bg-green-600 hover:bg-green-700 text-white flex items-center gap-2">
             <MapPin className="w-4 h-4" /> Gerar Roteiro
           </Button>
@@ -391,8 +433,8 @@ export default function Orcamentos() {
             <Card className="p-5">
               <h3 className="font-semibold text-gray-900 mb-4"><FileText className="w-4 h-4 text-indigo-500 inline-block mr-2" /> Seções do Orçamento</h3>
 
-              <div className="mb-3 overflow-x-auto">
-                <div className="flex gap-2 text-sm">
+              <div className="mb-3">
+                <div className="flex flex-wrap gap-2 text-sm">
                   {["Voos","Hospedagem","Roteiro","Day by Day","Transporte","Restaurante","Experiências","Seguro","Vendas"].map((s) => (
                     <button
                       key={s}
@@ -412,52 +454,31 @@ export default function Orcamentos() {
                 )}
 
                 {section === 'Hospedagem' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Detalhes de hospedagem (hotéis, check-in, número de noites).</p>
-                    <div className="text-xs text-gray-500">Campos de Hospedagem aqui...</div>
-                  </div>
+                  <HospedagemForm hospedagens={hospedagem} onHospedagensChange={setHospedagem} />
                 )}
 
                 {section === 'Roteiro' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Resumo do roteiro. Para pré-visualizar completo, use o botão Gerar Roteiro no sidebar.</p>
-                    <div className="text-xs text-gray-500">Resumo do Roteiro...</div>
-                  </div>
+                  <RoteiroForm roteiro={roteiro} onRoteiroChange={setRoteiro} />
                 )}
 
                 {section === 'Day by Day' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Planejamento dia a dia.</p>
-                    <div className="text-xs text-gray-500">Campos Day by Day...</div>
-                  </div>
+                  <DayByDayForm dayByDay={dayByDay} onDayByDayChange={setDayByDay} />
                 )}
 
                 {section === 'Transporte' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Informações de transporte (traslados, locações).</p>
-                    <div className="text-xs text-gray-500">Campos de Transporte...</div>
-                  </div>
+                  <TransporteForm transportes={transporte} onTransportesChange={setTransporte} />
                 )}
 
                 {section === 'Restaurante' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Reservas e experiências gastronômicas.</p>
-                    <div className="text-xs text-gray-500">Campos de Restaurante...</div>
-                  </div>
+                  <RestauranteForm restaurantes={restaurante} onRestaurantesChange={setRestaurante} />
                 )}
 
                 {section === 'Experiências' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Passeios e atividades.</p>
-                    <div className="text-xs text-gray-500">Campos de Experiências...</div>
-                  </div>
+                  <ExperienciasForm experiencias={experiencias} onExperienciasChange={setExperiencias} />
                 )}
 
                 {section === 'Seguro' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Cobertura e apólices de seguro viagem.</p>
-                    <div className="text-xs text-gray-500">Campos de Seguro...</div>
-                  </div>
+                  <SeguroForm seguros={seguro} onSegurosChange={setSeguro} />
                 )}
 
                 {section === 'Vendas' && (
@@ -507,7 +528,7 @@ export default function Orcamentos() {
             {/* Observações */}
             <Card className="p-5">
               <Label htmlFor="obs">Observações</Label>
-              <textarea id="obs" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} placeholder="Condições de pagamento, prazo de entrega, garantias..." rows={3} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring resize-none" />
+              <textarea id="obs" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} placeholder="" rows={3} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring resize-none" />
             </Card>
           </div>
 
@@ -530,14 +551,15 @@ export default function Orcamentos() {
                 </div>
                 <div>
                   <Label>Status</Label>
-                  <div className="grid grid-cols-1 gap-1.5 mt-1">
-                    {allStatus.map((s) => {
-                      const cfg = statusConfig[s];
-                      return (
-                        <button key={s} type="button" onClick={() => setForm({ ...form, status: s })} className={`px-3 py-1.5 rounded-md text-sm font-medium border text-left transition-colors ${form.status === s ? `${cfg.bg} ${cfg.cor} border-current` : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}>{s}</button>
-                      );
-                    })}
-                  </div>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value as StatusOrc })}
+                    className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                  >
+                    {allStatus.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </Card>
@@ -560,12 +582,18 @@ export default function Orcamentos() {
             </Card>
 
             <div className="flex flex-col gap-2">
-              <Button onClick={salvar} disabled={!form.cliente.trim()} className="bg-indigo-600 hover:bg-indigo-700 text-white w-full">
+              <Button onClick={salvar} disabled={!form.cliente.trim()} className="w-full gap-2">
                 <Check className="w-4 h-4 mr-1" />{editando ? "Salvar alterações" : "Criar orçamento"}
               </Button>
-              <Button variant="outline" onClick={voltar} className="w-full">Cancelar</Button>
-              <Button variant="ghost" onClick={() => gerarRoteiro()} className="w-full text-sm">
+              <Button variant="outline" onClick={voltar} className="w-full gap-2">Cancelar</Button>
+              <Button variant="ghost" onClick={() => abrirResumo()} className="w-full text-sm text-gray-600 gap-2">
+                Resumo do Orçamento
+              </Button>
+              <Button variant="ghost" onClick={() => gerarRoteiro()} className="w-full text-sm text-gray-600 gap-2">
                 Gerar Roteiro
+              </Button>
+              <Button variant="ghost" onClick={() => gerarOrcamento()} className="w-full text-sm text-gray-600 gap-2">
+                Gerar Orçamento
               </Button>
             </div>
           </div>
@@ -657,7 +685,9 @@ export default function Orcamentos() {
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0 flex-wrap justify-end">
                   <button onClick={() => abrirPreview(orc)} title="Visualizar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Eye className="w-4 h-4" /></button>
+                  <button onClick={() => abrirResumo(orc)} title="Resumo do Orçamento" className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"><FileText className="w-4 h-4" /></button>
                   <button onClick={() => abrirEdicao(orc)} title="Editar" className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => gerarOrcamento(orc)} title="Gerar Orçamento" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Printer className="w-4 h-4" /></button>
                   <button onClick={() => gerarRoteiro(orc)} title="Gerar Roteiro" className="p-1.5 rounded text-green-600 hover:bg-green-50 transition-colors"><MapPin className="w-4 h-4" /></button>
                   <button onClick={() => duplicar(orc)} title="Duplicar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Copy className="w-4 h-4" /></button>
                   {confirmarExclusao === orc.id ? (
