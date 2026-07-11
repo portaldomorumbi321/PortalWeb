@@ -49,7 +49,7 @@ export default function Cadastros() {
   const navigate = useNavigate();
 
   return (
-    <div className="px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
+    <div>
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Cadastros</h1>
       <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-8">Gerencie todos os cadastros do sistema</p>
 
