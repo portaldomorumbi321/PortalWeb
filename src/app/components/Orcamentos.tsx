@@ -11,6 +11,7 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import VoosForm from "./VoosForm";
 import TransporteForm from "./TransporteForm";
+import HospedagemForm from "./HospedagemForm";
 
 type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
 
@@ -413,10 +414,7 @@ export default function Orcamentos() {
                 )}
 
                 {section === 'Hospedagem' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Detalhes de hospedagem (hotéis, check-in, número de noites).</p>
-                    <div className="text-xs text-gray-500">Campos de Hospedagem aqui...</div>
-                  </div>
+                  <HospedagemForm hospedagens={hospedagem} onHospedagensChange={setHospedagem} />
                 )}
 
                 {section === 'Roteiro' && (
