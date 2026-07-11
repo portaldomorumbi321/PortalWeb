@@ -117,13 +117,49 @@ export default function RoteiroOrcamento() {
       {orc.hospedagem && orc.hospedagem.length > 0 && (
         <Card className="p-4 mb-4">
           <h2 className="font-semibold text-gray-900 mb-3">🏨 Hospedagem</h2>
-          <div className="space-y-2 text-sm text-gray-600">
+          <div className="space-y-3">
             {orc.hospedagem.map((h: any, idx: number) => (
               <div key={idx} className="border-l-4 border-green-500 pl-3">
                 <p className="font-medium text-gray-900">{h.nome}</p>
-                <p className="text-xs">{h.local}</p>
+                <p className="text-xs text-gray-500">{h.local}</p>
+                {h.endereco && <p className="text-xs text-gray-400">{h.endereco}</p>}
+                {h.tipoQuarto && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    {h.tipoQuarto} • {h.checkin} → {h.checkout} • {h.noites} noite{h.noites !== 1 ? "s" : ""}
+                  </p>
+                )}
+                {h.preco > 0 && (
+                  <p className="text-xs font-semibold text-indigo-600 mt-1">
+                    R$ {h.preco.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                )}
+                {h.voucher && (
+                  <button
+                    onClick={() => {
+                      const win = window.open("");
+                      if (win && h.voucher) {
+                        win.document.write(
+                          h.voucherTipo === "pdf"
+                            ? `<iframe src="${h.voucher}" style="width:100%;height:100%;border:none;"></iframe>`
+                            : `<img src="${h.voucher}" style="max-width:100%;max-height:100vh;display:block;margin:auto;" />`
+                        );
+                      }
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 underline mt-1 inline-block"
+                  >
+                    📎 Ver voucher
+                  </button>
+                )}
               </div>
             ))}
+          </div>
+          <div className="mt-3 pt-3 border-t">
+            <p className="text-sm font-semibold text-gray-900">
+              Total Hospedagem: R${" "}
+              {orc.hospedagem
+                .reduce((sum: number, h: any) => sum + (h.preco || 0), 0)
+                .toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
           </div>
         </Card>
       )}
