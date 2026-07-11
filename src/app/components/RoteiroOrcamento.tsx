@@ -155,10 +155,61 @@ export default function RoteiroOrcamento() {
       {orc.transporte && orc.transporte.length > 0 && (
         <Card className="p-4 mb-4">
           <h2 className="font-semibold text-gray-900 mb-3">🚗 Transporte</h2>
-          <div className="space-y-2 text-sm text-gray-600">
+          <div className="space-y-3">
             {orc.transporte.map((t: any, idx: number) => (
-              <p key={idx} className="border-l-4 border-yellow-500 pl-3">{t.tipo}: {t.detalhes}</p>
+              <div key={idx} className="border-l-4 border-yellow-500 pl-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-gray-900 text-sm">{t.tipo}</span>
+                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">{t.empresa}</span>
+                  {t.diaRoteiro && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Dia {t.diaRoteiro}</span>}
+                </div>
+                <p className="text-sm text-gray-700 mt-1">{t.origem} → {t.destino}</p>
+                {t.dataHoraSaida && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Saída: {new Date(t.dataHoraSaida).toLocaleString("pt-BR")}
+                    {t.dataHoraChegada && <> | Chegada: {new Date(t.dataHoraChegada).toLocaleString("pt-BR")}</>}
+                  </p>
+                )}
+                {t.valor > 0 && (
+                  <p className="text-xs font-semibold text-indigo-600 mt-1">
+                    R$ {t.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                )}
+                {t.codigoReserva && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Reserva: <span className="font-mono font-semibold">{t.codigoReserva}</span>
+                  </p>
+                )}
+                {t.descricao && (
+                  <p className="text-xs text-gray-500 mt-0.5 italic">{t.descricao}</p>
+                )}
+                {t.voucher && (
+                  <button
+                    onClick={() => {
+                      const win = window.open("");
+                      if (win && t.voucher) {
+                        win.document.write(
+                          t.voucherTipo === "pdf"
+                            ? `<iframe src="${t.voucher}" style="width:100%;height:100%;border:none;"></iframe>`
+                            : `<img src="${t.voucher}" style="max-width:100%;max-height:100vh;display:block;margin:auto;" />`
+                        );
+                      }
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 underline mt-1 inline-block"
+                  >
+                    📎 Ver voucher
+                  </button>
+                )}
+              </div>
             ))}
+          </div>
+          <div className="mt-3 pt-3 border-t">
+            <p className="text-sm font-semibold text-gray-900">
+              Total Transporte: R${" "}
+              {orc.transporte
+                .reduce((sum: number, t: any) => sum + (t.valor || 0), 0)
+                .toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
           </div>
         </Card>
       )}

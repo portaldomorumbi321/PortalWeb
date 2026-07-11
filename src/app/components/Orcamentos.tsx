@@ -10,6 +10,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import VoosForm from "./VoosForm";
+import TransporteForm from "./TransporteForm";
 
 type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
 
@@ -433,10 +434,7 @@ export default function Orcamentos() {
                 )}
 
                 {section === 'Transporte' && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Informações de transporte (traslados, locações).</p>
-                    <div className="text-xs text-gray-500">Campos de Transporte...</div>
-                  </div>
+                  <TransporteForm transportes={transporte} onTransportesChange={setTransporte} />
                 )}
 
                 {section === 'Restaurante' && (
