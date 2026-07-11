@@ -10,8 +10,6 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 import VoosForm from "./VoosForm";
-import TransporteForm from "./TransporteForm";
-import HospedagemForm from "./HospedagemForm";
 
 type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
 
@@ -414,7 +412,10 @@ export default function Orcamentos() {
                 )}
 
                 {section === 'Hospedagem' && (
-                  <HospedagemForm hospedagens={hospedagem} onHospedagensChange={setHospedagem} />
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Detalhes de hospedagem (hotéis, check-in, número de noites).</p>
+                    <div className="text-xs text-gray-500">Campos de Hospedagem aqui...</div>
+                  </div>
                 )}
 
                 {section === 'Roteiro' && (
@@ -432,7 +433,10 @@ export default function Orcamentos() {
                 )}
 
                 {section === 'Transporte' && (
-                  <TransporteForm transportes={transporte} onTransportesChange={setTransporte} />
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Informações de transporte (traslados, locações).</p>
+                    <div className="text-xs text-gray-500">Campos de Transporte...</div>
+                  </div>
                 )}
 
                 {section === 'Restaurante' && (
