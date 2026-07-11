@@ -54,7 +54,7 @@ const itemVazio = (): ItemOrc => ({ id: Date.now(), descricao: "", quantidade: 1
 const dados: Orcamento[] = [
   {
     id: 1, numero: "25060101", cliente: "Ana Paula Souza", email: "ana@email.com",
-    status: "Aprovado", dataCriacao: "2025-06-01", dataValidade: "2025-07-01", observacoes: "Entrega em até 5 dias úteis.",
+    status: "Aprovado", dataCriacao: "2025-06-01", dataValidade: "2025-07-01", observacoes: "",
     itens: [
       { id: 1, descricao: "Notebook Pro 15\"", quantidade: 2, unidade: "un", valorUnitario: 4599.90, desconto: 5 },
       { id: 2, descricao: "Mouse Sem Fio", quantidade: 2, unidade: "un", valorUnitario: 89.90, desconto: 0 },
@@ -263,14 +263,14 @@ export default function Orcamentos() {
     // Montar dados do orçamento com seções atualizadas
     const orcComSecoes = {
       ...orcParaAbrir,
-      voos: voos.length > 0 ? voos : undefined,
-      hospedagem: hospedagem.length > 0 ? hospedagem : undefined,
-      roteiro: roteiro.trim() ? roteiro : undefined,
-      dayByDay: dayByDay.length > 0 ? dayByDay : undefined,
-      transporte: transporte.length > 0 ? transporte : undefined,
-      restaurante: restaurante.length > 0 ? restaurante : undefined,
-      experiencias: experiencias.length > 0 ? experiencias : undefined,
-      seguro: seguro.length > 0 ? seguro : undefined,
+      voos: voos.length > 0 ? voos : orcParaAbrir.voos,
+      hospedagem: hospedagem.length > 0 ? hospedagem : orcParaAbrir.hospedagem,
+      roteiro: roteiro.trim() ? roteiro : orcParaAbrir.roteiro,
+      dayByDay: dayByDay.length > 0 ? dayByDay : orcParaAbrir.dayByDay,
+      transporte: transporte.length > 0 ? transporte : orcParaAbrir.transporte,
+      restaurante: restaurante.length > 0 ? restaurante : orcParaAbrir.restaurante,
+      experiencias: experiencias.length > 0 ? experiencias : orcParaAbrir.experiencias,
+      seguro: seguro.length > 0 ? seguro : orcParaAbrir.seguro,
     };
     
     // Store in localStorage to access from new tab
@@ -330,10 +330,15 @@ export default function Orcamentos() {
           <Button onClick={() => abrirResumo(preview)} className="ml-auto bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
             <FileText className="w-4 h-4" /> Resumo do Orçamento
           </Button>
-          <Button onClick={() => window.print()} className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2">
+          <Button onClick={() => gerarOrcamento(preview)} className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2">
             <Printer className="w-4 h-4" /> Gerar Orçamento
           </Button>
-          <Button onClick={() => gerarRoteiro(preview)} className="ml-auto bg-green-600 hover:bg-green-700 text-white flex items-center gap-2">
+          <Button
+            onClick={() => gerarRoteiro(preview)}
+            disabled={preview.status !== "Aprovado"}
+            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            title={preview.status !== "Aprovado" ? "O orçamento precisa estar Aprovado" : "Gerar Roteiro"}
+          >
             <MapPin className="w-4 h-4" /> Gerar Roteiro
           </Button>
         </div>
@@ -589,11 +594,15 @@ export default function Orcamentos() {
               <Button variant="ghost" onClick={() => abrirResumo()} className="w-full text-sm text-gray-600 gap-2">
                 Resumo do Orçamento
               </Button>
-              <Button variant="ghost" onClick={() => gerarRoteiro()} className="w-full text-sm text-gray-600 gap-2">
-                Gerar Roteiro
-              </Button>
               <Button variant="ghost" onClick={() => gerarOrcamento()} className="w-full text-sm text-gray-600 gap-2">
                 Gerar Orçamento
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => gerarRoteiro()}
+                disabled={form.status !== "Aprovado"}
+                className="w-full text-sm text-gray-600 gap-2 disabled:text-gray-400 disabled:cursor-not-allowed">
+                Gerar Roteiro
               </Button>
             </div>
           </div>
@@ -688,7 +697,12 @@ export default function Orcamentos() {
                   <button onClick={() => abrirResumo(orc)} title="Resumo do Orçamento" className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"><FileText className="w-4 h-4" /></button>
                   <button onClick={() => abrirEdicao(orc)} title="Editar" className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"><Edit2 className="w-4 h-4" /></button>
                   <button onClick={() => gerarOrcamento(orc)} title="Gerar Orçamento" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Printer className="w-4 h-4" /></button>
-                  <button onClick={() => gerarRoteiro(orc)} title="Gerar Roteiro" className="p-1.5 rounded text-green-600 hover:bg-green-50 transition-colors"><MapPin className="w-4 h-4" /></button>
+                  <button
+                    onClick={() => gerarRoteiro(orc)}
+                    disabled={orc.status !== "Aprovado"}
+                    title={orc.status !== "Aprovado" ? "O orçamento precisa estar Aprovado" : "Gerar Roteiro"}
+                    className="p-1.5 rounded text-green-600 hover:bg-green-50 transition-colors disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  ><MapPin className="w-4 h-4" /></button>
                   <button onClick={() => duplicar(orc)} title="Duplicar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Copy className="w-4 h-4" /></button>
                   {confirmarExclusao === orc.id ? (
                     <>

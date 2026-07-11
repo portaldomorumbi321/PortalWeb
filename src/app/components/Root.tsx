@@ -1,8 +1,8 @@
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import logoImg from "@/imports/logo.png";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
 
 const menuItems = [
   { name: "DASHBOARD", path: "/" },
@@ -17,11 +17,17 @@ const menuItems = [
 
 export default function Root() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => {
     if (path === "/" && location.pathname === "/") return true;
     return location.pathname === path;
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("isAuthenticated");
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -37,7 +43,7 @@ export default function Root() {
             </Link>
 
             {/* Menu de Navegação - Desktop */}
-            <nav className="hidden md:flex gap-1">
+            <nav className="hidden md:flex items-center gap-1">
               {menuItems.map((item) => (
                 <Link
                   key={item.path}
@@ -51,6 +57,12 @@ export default function Root() {
                   {item.name}
                 </Link>
               ))}
+              <button
+                onClick={handleLogout}
+                className="ml-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors text-red-600 hover:text-red-900 hover:bg-red-100 flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" /> Sair
+              </button>
             </nav>
 
             {/* Menu Mobile Toggle */}
@@ -79,6 +91,12 @@ export default function Root() {
                   {item.name}
                 </Link>
               ))}
+              <button
+                onClick={handleLogout}
+                className="block w-full text-left px-4 py-3 text-sm font-medium rounded-md transition-colors text-red-600 hover:text-red-900 hover:bg-red-100 flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" /> Sair
+              </button>
             </nav>
           )}
        </div>

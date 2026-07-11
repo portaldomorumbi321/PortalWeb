@@ -19,29 +19,40 @@ import Funcionario from "./components/Funcionario";
 import LeadDashboard from "./components/LeadDashboard";
 import LeadList from "./components/LeadList";
 import ResumoOrcamento from "./components/ResumoOrcamento";
+import Login from "./components/Login";
+import AuthLayout from "./components/AuthLayout";
 
 export const router = createBrowserRouter([
   {
-    path: "/",
-    Component: Root,
+    path: "/login",
+    Component: Login,
+  },
+  {
+    element: <AuthLayout />,
     children: [
-      { index: true, Component: LeadDashboard },
-      { path: "leads/list", Component: LeadList },
-      { path: "cadastros", Component: Cadastros },
-      { path: "cadastros/clientes", Component: CadastroClientes },
-      { path: "cadastros/fornecedores", Component: CadastroFornecedores },
-      { path: "cadastros/produtos", Component: CadastroProdutos },
-      { path: "cadastros/enderecos", Component: CadastroEnderecos },
-      { path: "cadastros/tarefas", Component: CadastroTarefas },
-      { path: "financeiro", Component: Financeiro },
-      { path: "financeiro/orcamentos", Component: Orcamentos },
-      { path: "relatorios", Component: Relatorios },
-      { path: "relatorios/vendas", Component: RelatorioVendas },
-      { path: "relatorios/financeiro", Component: RelatorioFinanceiro },
-      { path: "relatorios/clientes", Component: RelatorioClientes },
-      { path: "relatorios/produtos", Component: RelatorioProdutos },
-      { path: "marketing", Component: Marketing },
-      { path: "funcionario", Component: Funcionario },
+      {
+        path: "/",
+        Component: Root,
+        children: [
+          { index: true, Component: LeadDashboard },
+          { path: "leads/list", Component: LeadList },
+          { path: "cadastros", Component: Cadastros },
+          { path: "cadastros/clientes", Component: CadastroClientes },
+          { path: "cadastros/fornecedores", Component: CadastroFornecedores },
+          { path: "cadastros/produtos", Component: CadastroProdutos },
+          { path: "cadastros/enderecos", Component: CadastroEnderecos },
+          { path: "cadastros/tarefas", Component: CadastroTarefas },
+          { path: "financeiro", Component: Financeiro },
+          { path: "financeiro/orcamentos", Component: Orcamentos },
+          { path: "relatorios", Component: Relatorios },
+          { path: "relatorios/vendas", Component: RelatorioVendas },
+          { path: "relatorios/financeiro", Component: RelatorioFinanceiro },
+          { path: "relatorios/clientes", Component: RelatorioClientes },
+          { path: "relatorios/produtos", Component: RelatorioProdutos },
+          { path: "marketing", Component: Marketing },
+          { path: "funcionario", Component: Funcionario },
+        ],
+      },
     ],
   },
   {
