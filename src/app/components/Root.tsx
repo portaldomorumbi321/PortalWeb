@@ -7,12 +7,12 @@ import { Menu, X, LogOut } from "lucide-react";
 const menuItems = [
   { name: "DASHBOARD", path: "/" },
   { name: "LEADS", path: "/leads/list" },
+  { name: "CRM", path: "/crm" },
   { name: "CADASTROS", path: "/cadastros" },
   { name: "FINANCEIRO", path: "/financeiro" },
   { name: "ORÇAMENTOS", path: "/financeiro/orcamentos" },
   { name: "RELATÓRIOS", path: "/relatorios" },
   { name: "MARKETING", path: "/marketing" },
-  { name: "FUNCIONÁRIO", path: "/funcionario" },
 ];
 
 export default function Root() {

@@ -14,6 +14,7 @@ import RelatorioFinanceiro from "./components/RelatorioFinanceiro";
 import RelatorioClientes from "./components/RelatorioClientes";
 import RelatorioProdutos from "./components/RelatorioProdutos";
 import RoteiroOrcamento from "./components/RoteiroOrcamento";
+import CRM from "./components/CRM";
 import Marketing from "./components/Marketing";
 import Funcionario from "./components/Funcionario";
 import LeadDashboard from "./components/LeadDashboard";
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, Component: LeadDashboard },
           { path: "leads/list", Component: LeadList },
+          { path: "crm", Component: CRM },
           { path: "cadastros", Component: Cadastros },
           { path: "cadastros/clientes", Component: CadastroClientes },
           { path: "cadastros/fornecedores", Component: CadastroFornecedores },

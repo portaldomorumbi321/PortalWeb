@@ -1,4 +1,4 @@
-import { Users, UserPlus, Package, MapPin, CheckSquare } from "lucide-react";
+import { Users, UserPlus, Package, MapPin, CheckSquare, Briefcase } from "lucide-react";
 import { Card } from "./ui/card";
 import { useNavigate } from "react-router";
 
@@ -42,6 +42,14 @@ const cadastroOptions = [
     color: "text-indigo-600",
     bgColor: "bg-indigo-100",
     route: "/cadastros/tarefas",
+  },
+  {
+    icon: Briefcase,
+    title: "Funcionários",
+    description: "Gerencie os usuários e colaboradores.",
+    color: "text-teal-600",
+    bgColor: "bg-teal-100",
+    route: "/funcionario",
   },
 ];
 
