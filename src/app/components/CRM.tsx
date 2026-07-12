@@ -140,7 +140,8 @@ export default function CRM() {
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<LeadCardData | null>(null);
   const [columns, setColumns] = useState<Columns>(() => {
-    const columnsWithLeads = { ...initialColumns };
+    // Cria uma cópia profunda para evitar mutação do objeto original em re-renderizações
+    const columnsWithLeads = JSON.parse(JSON.stringify(initialColumns));
     mockLeads.forEach(lead => {
       const columnKey = Object.keys(columnsWithLeads).find(key => columnsWithLeads[key].status === lead.statusCrm);
       if (columnKey) {

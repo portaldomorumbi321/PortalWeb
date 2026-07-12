@@ -2,7 +2,8 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import logoImg from "@/imports/logo.png";
 import { useState } from "react";
-import { Menu, X, LogOut } from "lucide-react";
+import { Menu, X, LogOut, MessageSquare, PanelRightClose, PanelRightOpen } from "lucide-react";
+import WhatsAppChat from "./WhatsAppChat";
 
 const menuItems = [
   { name: "DASHBOARD", path: "/" },
@@ -19,6 +20,7 @@ export default function Root() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
 
   const isActive = (path: string) => {
     if (path === "/" && location.pathname === "/") return true;
@@ -102,10 +104,31 @@ export default function Root() {
        </div>
       </header>
 
-      {/* Conteúdo */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Outlet />
-      </main>
+      {/* Conteúdo com Chat */}
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className={`flex gap-8 transition-all duration-300`}>
+          <main className={`flex-1 min-w-0 transition-all duration-300 ${!chatOpen ? 'w-full' : ''}`}>
+            <Outlet />
+          </main>
+          <aside className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out ${chatOpen ? 'w-[550px]' : 'w-0'}`} style={{ overflow: 'hidden' }}>
+            <WhatsAppChat setChatOpen={setChatOpen} />
+          </aside>
+        </div>
+      </div>
+
+      {/* Botão flutuante para MAXIMIZAR o chat */}
+      {!chatOpen && (
+        <div className="fixed bottom-6 right-6 z-50 hidden md:block">
+          <button
+            onClick={() => setChatOpen(true)}
+            className="w-14 h-14 bg-green-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-600 transition-all transform hover:scale-110"
+            title="Abrir WhatsApp"
+          >
+            <MessageSquare size={24} />
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }
