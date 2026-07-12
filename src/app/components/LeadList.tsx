@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Search, Plus, Edit2, Trash2, X, ArrowUp, ArrowDown } from "lucide-react";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -7,6 +8,7 @@ import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
 
 type StatusLead = "Novo" | "Em Contato" | "Qualificado" | "Perdido" | "Vendido";
+type StatusCrm = "Novo Lead" | "Qualificação" | "Reunião" | "Follow-ups" | "Pagos" | "Nutrição" | "Finalizados";
 
 interface Lead {
   id: number;
@@ -14,20 +16,22 @@ interface Lead {
   email: string;
   whatsapp: string;
   status: StatusLead;
+  statusCrm: StatusCrm;
   viagens: number;
   criadoEm: string;
   atendente: string;
 }
 
 const dadosIniciais: Lead[] = [
-  { id: 1, nome: "Juliana Martins", email: "juliana.m@email.com", whatsapp: "(11) 98877-6655", status: "Novo", viagens: 0, criadoEm: "2024-07-28", atendente: "Ana Paula" },
-  { id: 2, nome: "Marcos Andrade", email: "marcos.a@corp.com", whatsapp: "(21) 97766-5544", status: "Em Contato", viagens: 1, criadoEm: "2024-07-27", atendente: "Carlos Mendes" },
-  { id: 3, nome: "Beatriz Costa", email: "bia.costa@email.com", whatsapp: "(31) 96655-4433", status: "Qualificado", viagens: 3, criadoEm: "2024-07-25", atendente: "Ana Paula" },
-  { id: 4, nome: "Lucas Pereira", email: "lucas.p@mail.com", whatsapp: "(41) 95544-3322", status: "Vendido", viagens: 1, criadoEm: "2024-07-22", atendente: "Carlos Mendes" },
-  { id: 5, nome: "Sofia Ribeiro", email: "sofia.r@email.com", whatsapp: "(51) 94433-2211", status: "Perdido", viagens: 0, criadoEm: "2024-07-20", atendente: "Ana Paula" },
+  { id: 1, nome: "Juliana Martins", email: "juliana.m@email.com", whatsapp: "(11) 98877-6655", status: "Novo", statusCrm: "Novo Lead", viagens: 0, criadoEm: "2024-07-28", atendente: "Ana Paula" },
+  { id: 2, nome: "Marcos Andrade", email: "marcos.a@corp.com", whatsapp: "(21) 97766-5544", status: "Em Contato", statusCrm: "Qualificação", viagens: 1, criadoEm: "2024-07-27", atendente: "Carlos Mendes" },
+  { id: 3, nome: "Beatriz Costa", email: "bia.costa@email.com", whatsapp: "(31) 96655-4433", status: "Qualificado", statusCrm: "Reunião", viagens: 3, criadoEm: "2024-07-25", atendente: "Ana Paula" },
+  { id: 4, nome: "Lucas Pereira", email: "lucas.p@mail.com", whatsapp: "(41) 95544-3322", status: "Vendido", statusCrm: "Pagos", viagens: 1, criadoEm: "2024-07-22", atendente: "Carlos Mendes" },
+  { id: 5, nome: "Sofia Ribeiro", email: "sofia.r@email.com", whatsapp: "(51) 94433-2211", status: "Perdido", statusCrm: "Finalizados", viagens: 0, criadoEm: "2024-07-20", atendente: "Ana Paula" },
+  { id: 6, nome: "Fernanda Lima", email: "fernanda.l@email.com", whatsapp: "(31) 97654-3210", status: "Em Contato", statusCrm: "Follow-ups", viagens: 2, criadoEm: "2024-07-18", atendente: "Carlos Mendes" },
 ];
 
-const leadVazio: Omit<Lead, 'id'> = { nome: "", email: "", whatsapp: "", status: "Novo", viagens: 0, criadoEm: new Date().toISOString().split("T")[0], atendente: "" };
+const leadVazio: Omit<Lead, 'id'> = { nome: "", email: "", whatsapp: "", status: "Novo", statusCrm: "Novo Lead", viagens: 0, criadoEm: new Date().toISOString().split("T")[0], atendente: "" };
 
 const statusConfig: Record<StatusLead, { bg: string; cor: string }> = {
   "Novo": { bg: "bg-blue-100", cor: "text-blue-700" },
@@ -38,9 +42,12 @@ const statusConfig: Record<StatusLead, { bg: string; cor: string }> = {
 };
 
 const allStatus: StatusLead[] = ["Novo", "Em Contato", "Qualificado", "Perdido", "Vendido"];
+const allCrmStatus: StatusCrm[] = ["Novo Lead", "Qualificação", "Reunião", "Follow-ups", "Pagos", "Nutrição", "Finalizados"];
 const allAtendentes = ["Ana Paula", "Carlos Mendes", "Fernanda Lima"];
 
 export default function LeadList() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>(dadosIniciais);
   const [filtroNome, setFiltroNome] = useState("");
   const [filtroEmail, setFiltroEmail] = useState("");
@@ -51,6 +58,20 @@ export default function LeadList() {
   const [sortConfig, setSortConfig] = useState<{ key: keyof Lead; direction: 'asc' | 'desc' } | null>({ key: 'criadoEm', direction: 'desc' });
   const [editando, setEditando] = useState<Lead | null>(null);
   const [form, setForm] = useState(leadVazio);
+
+  useEffect(() => {
+    const state = location.state as { editLeadId?: number };
+    if (state?.editLeadId) {
+      const leadToEdit = leads.find(l => l.id === state.editLeadId);
+      if (leadToEdit) {
+        abrirEdicao(leadToEdit);
+        // Limpa o state da navegação para não reabrir o modal ao atualizar a página
+        navigate(location.pathname, { replace: true });
+      }
+    }
+  // Adicionamos 'leads' como dependência para garantir que a busca funcione mesmo se os leads carregarem depois
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, leads]);
 
   const leadsFiltrados = leads.filter((lead) => {
     const matchNome = filtroNome ? lead.nome.toLowerCase().includes(filtroNome.toLowerCase()) : true;
@@ -217,7 +238,20 @@ export default function LeadList() {
                 </div>
                 <div>
                   <Label htmlFor="whatsapp">Whatsapp</Label>
-                  <Input id="whatsapp" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="(00) 00000-0000" className="mt-1" />
+                  <div className="relative mt-1">
+                    <Input
+                      id="whatsapp"
+                      value={form.whatsapp}
+                      onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+                      placeholder="(00) 00000-0000"
+                      className="pr-10"
+                    />
+                    {form.whatsapp && (
+                      <a href={`https://wa.me/${form.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" title="Abrir no WhatsApp" className="absolute inset-y-0 right-0 flex items-center pr-3 text-green-600 hover:text-green-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -225,6 +259,12 @@ export default function LeadList() {
                   <Label htmlFor="status">Status</Label>
                   <select id="status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as StatusLead })} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm">
                     {allStatus.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="statusCrm">Status CRM</Label>
+                  <select id="statusCrm" value={form.statusCrm} onChange={(e) => setForm({ ...form, statusCrm: e.target.value as StatusCrm })} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm">
+                    {allCrmStatus.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>

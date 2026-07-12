@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Search, Plus, Edit2, Trash2, X, Check, FileText, ChevronDown, ChevronUp,
-  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Printer
-} from "lucide-react";
+  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Printer, Sparkles
+} from "lucide-react"; // Adicionado Sparkles
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
@@ -162,6 +162,7 @@ export default function Orcamentos() {
   const [roteiro, setRoteiro] = useState<string>("");
   const [dayByDay, setDayByDay] = useState<any[]>([]);
   const [transporte, setTransporte] = useState<any[]>([]);
+  const [gerandoRoteiro, setGerandoRoteiro] = useState(false); // Estado de loading para a IA
   const [restaurante, setRestaurante] = useState<any[]>([]);
   const [experiencias, setExperiencias] = useState<any[]>([]);
   const [seguro, setSeguro] = useState<any[]>([]);
@@ -317,6 +318,61 @@ export default function Orcamentos() {
     setForm((f) => ({ ...f, itens: f.itens.map((i) => i.id === id ? { ...i, [field]: value } : i) }));
   }
 
+  // --- Geração de Roteiro com IA (Simulação) ---
+  async function gerarRoteiroComIA() {
+    setGerandoRoteiro(true);
+
+    // 1. Coletar dados do formulário para enviar à IA
+    const hotelInfo = hospedagem[0] ? `em ${hospedagem[0].nomeHotel} (${hospedagem[0].cidade})` : '';
+    const vooInfo = voos[0] ? `com voo de ${voos[0].origem} para ${voos[0].destino} no dia ${fmtData(voos[0].dataIda)}` : '';
+    const prompt = `Crie uma sugestão de roteiro de viagem para ${form.cliente} ${vooInfo} ${hotelInfo}. O roteiro deve ser um texto descritivo e envolvente.`;
+
+    console.log("Enviando para IA (simulado):", prompt);
+
+    const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+    if (!GEMINI_API_KEY) {
+      console.error("Chave da API do Gemini não encontrada. Verifique o arquivo .env");
+      setRoteiro("ERRO: A chave da API do Google Gemini não foi configurada em VITE_GEMINI_API_KEY no arquivo .env.");
+      setGerandoRoteiro(false);
+      return;
+    }
+
+    try {
+      // 2. Chamada direta para a API do Google Gemini
+      // Substitua 'gemini-1.0-pro' pelo modelo que você está usando, se for diferente.
+      // A URL pode variar dependendo da sua região e projeto.
+      const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Erro da API Gemini:", errorData);
+        throw new Error(`Erro na API: ${errorData.error?.message || 'Resposta inválida'}`);
+      }
+
+      const data = await response.json();
+      // Extrai o texto da resposta da API do Gemini
+      const roteiroGerado = data.candidates[0].content.parts[0].text;
+      setRoteiro(roteiroGerado);
+
+    } catch (error) {
+      console.error("Falha ao gerar roteiro com IA:", error);
+      setRoteiro(`Ocorreu um erro ao tentar gerar o roteiro com a IA. Detalhes: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setGerandoRoteiro(false);
+    }
+  }
+
   // ============ TELA PREVIEW ============
   if (tela === "preview" && preview) {
     const total = calcTotal(preview.itens);
@@ -463,7 +519,22 @@ export default function Orcamentos() {
                 )}
 
                 {section === 'Roteiro' && (
-                  <RoteiroForm roteiro={roteiro} onRoteiroChange={setRoteiro} />
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <Label htmlFor="roteiro-texto">Descrição do Roteiro</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={gerarRoteiroComIA}
+                        disabled={gerandoRoteiro}
+                        className="flex items-center gap-2 text-indigo-600 border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      >
+                        <Sparkles className={`w-4 h-4 ${gerandoRoteiro ? 'animate-spin' : ''}`} /> {gerandoRoteiro ? 'Gerando...' : 'Gerar com IA'}
+                      </Button>
+                    </div>
+                    <RoteiroForm roteiro={roteiro} onRoteiroChange={setRoteiro} />
+                  </div>
                 )}
 
                 {section === 'Day by Day' && (
