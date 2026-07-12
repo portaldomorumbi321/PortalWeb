@@ -10,14 +10,21 @@ const socket = io("http://localhost:3001");
 
 interface WhatsAppChatProps {
   setChatOpen: (open: boolean) => void;
+  isVisible: boolean;
 }
 
-export default function WhatsAppChat({ setChatOpen }: WhatsAppChatProps) {
+export default function WhatsAppChat({ setChatOpen, isVisible }: WhatsAppChatProps) {
   const [qrValue, setQrValue] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isVisible) {
+      // Se o painel não está visível, não faz nada.
+      // O backend também poderia ser otimizado para desconectar aqui.
+      return;
+    }
+
     // Ouve o evento 'qr' do backend
     socket.on('qr', (qr) => {
       console.log("QR Code recebido do backend no frontend");
@@ -39,10 +46,10 @@ export default function WhatsAppChat({ setChatOpen }: WhatsAppChatProps) {
       socket.off('qr');
       socket.off('ready');
     };
-  }, []);
+  }, [isVisible]);
 
   return (
-    <Card className="h-full flex flex-col p-6">
+    <Card className="h-[80vh] flex flex-col p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-lg text-gray-900">Conectar WhatsApp</h3>
         <div className="flex items-center gap-2">
