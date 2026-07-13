@@ -11,9 +11,10 @@ const socket = io("http://localhost:3001");
 interface WhatsAppChatProps {
   setChatOpen: (open: boolean) => void;
   isVisible: boolean;
+  isMobile?: boolean;
 }
 
-export default function WhatsAppChat({ setChatOpen, isVisible }: WhatsAppChatProps) {
+export default function WhatsAppChat({ setChatOpen, isVisible, isMobile = false }: WhatsAppChatProps) {
   const [qrValue, setQrValue] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -49,7 +50,7 @@ export default function WhatsAppChat({ setChatOpen, isVisible }: WhatsAppChatPro
   }, [isVisible]);
 
   return (
-    <Card className="h-[80vh] flex flex-col p-6">
+    <Card className={`${isMobile ? 'h-full' : 'h-[80vh]'} flex flex-col p-6`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-lg text-gray-900">Conectar WhatsApp</h3>
         <div className="flex items-center gap-2">

@@ -6,13 +6,14 @@ import { Input } from "./ui/input";
 
 interface AIChatProps {
   setAiChatOpen: (open: boolean) => void;
+  isMobile?: boolean;
 }
 
 const initialMessages = [
   { sender: 'ai', text: 'Olá! Sou seu assistente de IA. Como posso ajudar a planejar sua próxima viagem?' },
 ];
 
-export default function AIChat({ setAiChatOpen }: AIChatProps) {
+export default function AIChat({ setAiChatOpen, isMobile = false }: AIChatProps) {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState('');
 
@@ -28,7 +29,7 @@ export default function AIChat({ setAiChatOpen }: AIChatProps) {
   };
 
   return (
-    <Card className="h-[80vh] flex flex-col p-4">
+    <Card className={`${isMobile ? 'h-full' : 'h-[80vh]'} flex flex-col p-4`}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Bot className="w-6 h-6 text-blue-600" />

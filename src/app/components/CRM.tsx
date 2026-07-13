@@ -231,7 +231,7 @@ export default function CRM() {
         </div>
       </div>
       <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="flex gap-2">
+        <div className="flex flex-col md:flex-row gap-4">
           {Object.entries(columns).map(([id, column]) => (
             <Column key={id} id={id} title={column.title} items={column.items} onEdit={abrirEdicao} />
           ))}

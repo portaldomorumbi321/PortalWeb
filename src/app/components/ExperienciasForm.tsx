@@ -100,6 +100,7 @@ export default function ExperienciasForm({
     nome: string;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formManualRef = useRef<HTMLDivElement>(null);
 
   // Buscar experiências via Google Places API
   const buscarExperiencia = async () => {
@@ -357,6 +358,16 @@ export default function ExperienciasForm({
     onExperienciasChange(experiencias.filter((e) => e.id !== id));
   };
 
+  const abrirFormManual = () => {
+    setMostrarManual(true);
+    setResultados([]);
+    setSelecionado(null);
+    setErro("");
+    setBuscou(false);
+    // Scroll para o formulário manual
+    setTimeout(() => formManualRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  }
+
   return (
     <div className="space-y-4">
       {/* Busca */}
@@ -399,6 +410,11 @@ export default function ExperienciasForm({
           )}
         </div>
       </Card>
+      <div className="text-center">
+        <Button variant="link" onClick={abrirFormManual} className="text-indigo-600 text-sm">
+          Não encontrou a experiência? Adicionar manualmente
+        </Button>
+      </div>
 
       {/* Resultados da busca */}
       {resultados.length > 0 && !selecionado && (
@@ -688,7 +704,7 @@ export default function ExperienciasForm({
 
       {/* Formulário manual */}
       {mostrarManual && !selecionado && (
-        <Card className="p-4 border-2 border-dashed border-indigo-300 bg-indigo-50/50">
+        <Card ref={formManualRef} className="p-4 border-2 border-dashed border-indigo-300 bg-indigo-50/50">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-semibold text-gray-900">
               <Sparkles className="w-4 h-4 inline-block mr-1 text-indigo-500" />
