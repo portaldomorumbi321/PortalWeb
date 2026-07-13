@@ -87,6 +87,7 @@ export default function SeguroForm({
   });
   const [erro, setErro] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mostrarForm, setMostrarForm] = useState(false);
 
   // Sugestão de integração com API de cotação de seguros
   const [mostrarSugestoesCobertura, setMostrarSugestoesCobertura] = useState(false);
@@ -204,235 +205,250 @@ export default function SeguroForm({
               </code>
             </p>
           </div>
+        </div> {/* Closing div for <div className="flex items-start gap-3"> */}
+      </Card> {/* Closing Card for the suggestion box */}
+
+      {!mostrarForm && (
+        <div className="text-center">
+          <Button variant="link" onClick={() => setMostrarForm(true)} className="text-indigo-600 text-sm">
+            Adicionar seguro manualmente
+          </Button>
         </div>
-      </Card>
+      )}
 
       {/* Formulário de cadastro */}
-      <Card className="p-4">
-        <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Shield className="w-4 h-4 text-indigo-500" />
-          Adicionar Seguro
-        </h4>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-          <div>
-            <Label className="text-xs">
-              Tipo <span className="text-red-500">*</span>
-            </Label>
-            <select
-              value={form.tipo}
-              onChange={(e) => setForm({ ...form, tipo: e.target.value })}
-              className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-            >
-              <option value="">Selecione o tipo</option>
-              {tiposSeguro.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {tipo}
-                </option>
-              ))}
-            </select>
+      {mostrarForm && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-indigo-500" />
+              Adicionar Seguro
+            </h4>
+            <Button variant="ghost" size="icon" onClick={() => setMostrarForm(false)} className="h-7 w-7 text-gray-400 hover:text-gray-600">
+              <X className="w-4 h-4" />
+            </Button>
           </div>
 
-          <div>
-            <Label className="text-xs">
-              Seguradora <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              placeholder="Ex: SulAmérica, Porto Seguro"
-              value={form.seguradora}
-              onChange={(e) => setForm({ ...form, seguradora: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">Nº da Apólice</Label>
-            <Input
-              placeholder="Ex: AP-2025-123456"
-              value={form.apolice}
-              onChange={(e) => setForm({ ...form, apolice: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">Data Início</Label>
-            <Input
-              type="date"
-              value={form.dataInicio}
-              onChange={(e) => setForm({ ...form, dataInicio: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">Data Fim</Label>
-            <Input
-              type="date"
-              value={form.dataFim}
-              onChange={(e) => setForm({ ...form, dataFim: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">Valor (R$)</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0,00"
-              value={form.valor || ""}
-              onChange={(e) =>
-                setForm({ ...form, valor: parseFloat(e.target.value) || 0 })
-              }
-              className="mt-1"
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Cobertura</Label>
-            <div className="mt-1 flex gap-2">
-              <Input
-                placeholder="Ex: Médico, Bagagem, Cancelamento"
-                value={form.cobertura}
-                onChange={(e) => setForm({ ...form, cobertura: e.target.value })}
-                className="flex-1"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setMostrarSugestoesCobertura(!mostrarSugestoesCobertura)}
-                className="text-xs whitespace-nowrap"
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+            <div>
+              <Label className="text-xs">
+                Tipo <span className="text-red-500">*</span>
+              </Label>
+              <select
+                value={form.tipo}
+                onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
               >
-                {mostrarSugestoesCobertura ? "Fechar" : "Sugestões"}
-              </Button>
+                <option value="">Selecione o tipo</option>
+                {tiposSeguro.map((tipo) => (
+                  <option key={tipo} value={tipo}>
+                    {tipo}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {mostrarSugestoesCobertura && (
-              <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-[10px] text-gray-500 mb-1.5 font-medium">
-                  Selecione as coberturas desejadas:
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {sugestoesCobertura.map((c) => {
-                    const ativo = form.cobertura
-                      .split(", ")
-                      .map((x) => x.trim())
-                      .includes(c);
-                    return (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => toggleCobertura(c)}
-                        className={`text-[10px] px-2 py-1 rounded-full border transition-colors ${
-                          ativo
-                            ? "bg-indigo-100 text-indigo-700 border-indigo-300"
-                            : "bg-white text-gray-500 border-gray-300 hover:bg-gray-100"
-                        }`}
-                      >
-                        {ativo && "✓ "}
-                        {c}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+            <div>
+              <Label className="text-xs">
+                Seguradora <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="Ex: SulAmérica, Porto Seguro"
+                value={form.seguradora}
+                onChange={(e) => setForm({ ...form, seguradora: e.target.value })}
+                className="mt-1"
+              />
+            </div>
 
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Contato de Emergência</Label>
-            <Input
-              placeholder="Nome do contato"
-              value={form.contatoEmergencia}
-              onChange={(e) =>
-                setForm({ ...form, contatoEmergencia: e.target.value })
-              }
-              className="mt-1"
-            />
-          </div>
+            <div>
+              <Label className="text-xs">Nº da Apólice</Label>
+              <Input
+                placeholder="Ex: AP-2025-123456"
+                value={form.apolice}
+                onChange={(e) => setForm({ ...form, apolice: e.target.value })}
+                className="mt-1"
+              />
+            </div>
 
-          <div className="sm:col-span-2">
-            <Label className="text-xs">Telefone de Emergência</Label>
-            <Input
-              placeholder="+55 11 99999-9999"
-              value={form.telefoneEmergencia}
-              onChange={(e) =>
-                setForm({ ...form, telefoneEmergencia: e.target.value })
-              }
-              className="mt-1"
-            />
-          </div>
+            <div>
+              <Label className="text-xs">Data Início</Label>
+              <Input
+                type="date"
+                value={form.dataInicio}
+                onChange={(e) => setForm({ ...form, dataInicio: e.target.value })}
+                className="mt-1"
+              />
+            </div>
 
-          <div className="sm:col-span-3">
-            <Label className="text-xs">Observações</Label>
-            <textarea
-              value={form.observacoes}
-              onChange={(e) =>
-                setForm({ ...form, observacoes: e.target.value })
-              }
-              placeholder="Informações adicionais sobre o seguro..."
-              rows={2}
-              className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring resize-none"
-            />
-          </div>
-        </div>
+            <div>
+              <Label className="text-xs">Data Fim</Label>
+              <Input
+                type="date"
+                value={form.dataFim}
+                onChange={(e) => setForm({ ...form, dataFim: e.target.value })}
+                className="mt-1"
+              />
+            </div>
 
-        {/* Documento da apólice */}
-        <div className="mb-3">
-          <Label className="text-xs">Documento da Apólice (PDF)</Label>
-          <div className="mt-1">
-            {form.voucher ? (
-              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <FileText className="w-8 h-8 text-red-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {form.voucherNome}
-                  </p>
-                  <p className="text-xs text-gray-500">Documento PDF</p>
-                </div>
-                <button
-                  onClick={removerVoucher}
-                  className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+            <div>
+              <Label className="text-xs">Valor (R$)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0,00"
+                value={form.valor || ""}
+                onChange={(e) =>
+                  setForm({ ...form, valor: parseFloat(e.target.value) || 0 })
+                }
+                className="mt-1"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <Label className="text-xs">Cobertura</Label>
+              <div className="mt-1 flex gap-2">
+                <Input
+                  placeholder="Ex: Médico, Bagagem, Cancelamento"
+                  value={form.cobertura}
+                  onChange={(e) => setForm({ ...form, cobertura: e.target.value })}
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMostrarSugestoesCobertura(!mostrarSugestoesCobertura)}
+                  className="text-xs whitespace-nowrap"
                 >
-                  <X className="w-4 h-4" />
-                </button>
+                  {mostrarSugestoesCobertura ? "Fechar" : "Sugestões"}
+                </Button>
               </div>
-            ) : (
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
-              >
-                <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
-                <p className="text-xs text-gray-500">
-                  Clique para fazer upload da apólice
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  PDF (JPG, PNG também aceitos)
-                </p>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,image/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
+
+              {mostrarSugestoesCobertura && (
+                <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-[10px] text-gray-500 mb-1.5 font-medium">
+                    Selecione as coberturas desejadas:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {sugestoesCobertura.map((c) => {
+                      const ativo = form.cobertura
+                        .split(", ")
+                        .map((x) => x.trim())
+                        .includes(c);
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => toggleCobertura(c)}
+                          className={`text-[10px] px-2 py-1 rounded-full border transition-colors ${
+                            ativo
+                              ? "bg-indigo-100 text-indigo-700 border-indigo-300"
+                              : "bg-white text-gray-500 border-gray-300 hover:bg-gray-100"
+                          }`}
+                        >
+                          {ativo && "✓ "}
+                          {c}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="sm:col-span-2">
+              <Label className="text-xs">Contato de Emergência</Label>
+              <Input
+                placeholder="Nome do contato"
+                value={form.contatoEmergencia}
+                onChange={(e) =>
+                  setForm({ ...form, contatoEmergencia: e.target.value })
+                }
+                className="mt-1"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <Label className="text-xs">Telefone de Emergência</Label>
+              <Input
+                placeholder="+55 11 99999-9999"
+                value={form.telefoneEmergencia}
+                onChange={(e) =>
+                  setForm({ ...form, telefoneEmergencia: e.target.value })
+                }
+                className="mt-1"
+              />
+            </div>
+
+            <div className="sm:col-span-3">
+              <Label className="text-xs">Observações</Label>
+              <textarea
+                value={form.observacoes}
+                onChange={(e) =>
+                  setForm({ ...form, observacoes: e.target.value })
+                }
+                placeholder="Informações adicionais sobre o seguro..."
+                rows={2}
+                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring resize-none"
+              />
+            </div>
           </div>
-        </div>
 
-        {erro && <p className="text-xs text-red-500 mb-3">{erro}</p>}
+          {/* Documento da apólice */}
+          <div className="mb-3">
+            <Label className="text-xs">Documento da Apólice (PDF)</Label>
+            <div className="mt-1">
+              {form.voucher ? (
+                <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <FileText className="w-8 h-8 text-red-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {form.voucherNome}
+                    </p>
+                    <p className="text-xs text-gray-500">Documento PDF</p>
+                  </div>
+                  <button
+                    onClick={removerVoucher}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                >
+                  <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                  <p className="text-xs text-gray-500">
+                    Clique para fazer upload da apólice
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    PDF (JPG, PNG também aceitos)
+                  </p>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
+          </div>
 
-        <Button
-          onClick={adicionarSeguro}
-          className="w-full gap-2 bg-green-600 hover:bg-green-700"
-        >
-          <Plus className="w-4 h-4" />
-          Adicionar Seguro
-        </Button>
-      </Card>
+          {erro && <p className="text-xs text-red-500 mb-3">{erro}</p>}
+
+          <Button
+            onClick={adicionarSeguro}
+            className="w-full gap-2 bg-green-600 hover:bg-green-700"
+          >
+            <Plus className="w-4 h-4" />
+            Adicionar Seguro
+          </Button>
+        </Card>
+      )}
 
       {/* Lista de seguros adicionados */}
       {seguros.length > 0 && (
@@ -543,7 +559,7 @@ export default function SeguroForm({
         </Card>
       )}
 
-      {seguros.length === 0 && (
+      {seguros.length === 0 && !mostrarForm && (
         <div className="text-center py-8 text-gray-500 text-sm">
           Nenhum seguro adicionado. Preencha o formulário acima para adicionar.
         </div>

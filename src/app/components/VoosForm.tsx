@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card } from "./ui/card";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search, Plane } from "lucide-react";
 
 interface Voo {
   id: number;
@@ -44,6 +44,18 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
   const [resultados, setResultados] = useState<Voo | null>(null);
+  const [mostrarManual, setMostrarManual] = useState(false);
+  const [formManual, setFormManual] = useState<Omit<Voo, 'id'>>({
+    companhia: "",
+    numero: "",
+    data: "",
+    origem: "",
+    destino: "",
+    partida: "",
+    chegada: "",
+    duracao: "",
+  });
+  const formManualRef = useRef<HTMLDivElement>(null);
 
   const buscarVoo = async () => {
     if (!busca.companhia || !busca.numero || !busca.data) {
@@ -52,6 +64,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
     }
 
     setCarregando(true);
+    setMostrarManual(false);
     setErro("");
     
     try {
@@ -90,11 +103,34 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
     onVoosChange([...voos, novoVoo]);
     setResultados(null);
     setBusca({ companhia: "", numero: "", data: "" });
+    setErro("");
+  };
+
+  const adicionarVooManual = () => {
+    if (!formManual.companhia || !formManual.origem || !formManual.destino || !formManual.data) {
+      setErro("Preencha os campos obrigatórios: Cia Aérea, Origem, Destino e Data.");
+      return;
+    }
+    const novoVoo: Voo = {
+      ...formManual,
+      id: Date.now(),
+    };
+    onVoosChange([...voos, novoVoo]);
+    setFormManual({ companhia: "", numero: "", data: "", origem: "", destino: "", partida: "", chegada: "", duracao: "" });
+    setMostrarManual(false);
+    setErro("");
   };
 
   const removerVoo = (id: number) => {
     onVoosChange(voos.filter(v => v.id !== id));
   };
+
+  const abrirFormManual = () => {
+    setMostrarManual(true);
+    setResultados(null);
+    setErro("");
+    setTimeout(() => formManualRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  }
 
   return (
     <div className="space-y-4">
@@ -146,6 +182,11 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
           {carregando ? "Buscando..." : "Buscar Voo"}
         </Button>
       </Card>
+      <div className="text-center">
+        <Button variant="link" onClick={abrirFormManual} className="text-indigo-600 text-sm">
+          Não encontrou o voo? Adicionar manualmente
+        </Button>
+      </div>
 
       {/* Resultado da busca */}
       {resultados && (
@@ -192,26 +233,94 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
         </Card>
       )}
 
+      {/* Formulário Manual */}
+      {mostrarManual && (
+        <Card ref={formManualRef} className="p-4 border-2 border-dashed border-indigo-300 bg-indigo-50/50">
+          <h4 className="font-semibold text-gray-900 mb-4">Adicionar Voo Manualmente</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+            <div>
+              <Label className="text-xs">CIA Aérea *</Label>
+              <Input placeholder="Ex: LATAM" value={formManual.companhia} onChange={(e) => setFormManual({ ...formManual, companhia: e.target.value })} className="mt-1" list="companhias-aereas-list" />
+            </div>
+            <div>
+              <Label className="text-xs">Nº Voo</Label>
+              <Input placeholder="Ex: LA3210" value={formManual.numero} onChange={(e) => setFormManual({ ...formManual, numero: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Data *</Label>
+              <Input type="date" value={formManual.data} onChange={(e) => setFormManual({ ...formManual, data: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Origem *</Label>
+              <Input placeholder="Ex: São Paulo (GRU)" value={formManual.origem} onChange={(e) => setFormManual({ ...formManual, origem: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Destino *</Label>
+              <Input placeholder="Ex: Paris (CDG)" value={formManual.destino} onChange={(e) => setFormManual({ ...formManual, destino: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Duração</Label>
+              <Input placeholder="Ex: 11h 30min" value={formManual.duracao} onChange={(e) => setFormManual({ ...formManual, duracao: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Partida</Label>
+              <Input type="time" value={formManual.partida} onChange={(e) => setFormManual({ ...formManual, partida: e.target.value })} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Chegada</Label>
+              <Input type="time" value={formManual.chegada} onChange={(e) => setFormManual({ ...formManual, chegada: e.target.value })} className="mt-1" />
+            </div>
+          </div>
+          {erro && <p className="text-xs text-red-500 mb-3">{erro}</p>}
+          <div className="flex gap-2">
+            <Button onClick={adicionarVooManual} className="flex-1 gap-2 bg-indigo-600 hover:bg-indigo-700">
+              <Plus className="w-4 h-4" /> Adicionar Voo
+            </Button>
+            <Button onClick={() => setMostrarManual(false)} variant="outline" className="flex-1">
+              Cancelar
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Lista de voos adicionados */}
       {voos.length > 0 && (
         <Card className="p-4">
-          <h4 className="font-semibold text-gray-900 mb-3">Voos Adicionados ({voos.length})</h4>
+          <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Plane className="w-4 h-4 text-green-500" />
+            Voos Adicionados ({voos.length})
+          </h4>
           <div className="space-y-2">
             {voos.map((voo, idx) => (
-              <div key={voo.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={voo.id} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-indigo-600">{voo.numero}</span>
-                    <span className="text-xs text-gray-500">{voo.companhia}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-gray-900 text-sm">{voo.companhia}</span>
+                    <span className="font-mono text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{voo.numero}</span>
                     {idx > 0 && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Conexão {idx}</span>}
                   </div>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {voo.origem} → {voo.destino} | {voo.partida} → {voo.chegada} ({voo.duracao})
-                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-2 text-xs">
+                    <div>
+                      <p className="text-gray-400">Origem</p>
+                      <p className="text-gray-700 font-medium">{voo.origem}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Destino</p>
+                      <p className="text-gray-700 font-medium">{voo.destino}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Data</p>
+                      <p className="text-gray-700 font-medium">{new Date(voo.data + 'T00:00:00').toLocaleDateString("pt-BR")}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Horários</p>
+                      <p className="text-gray-700 font-medium">{voo.partida} → {voo.chegada} {voo.duracao && `(${voo.duracao})`}</p>
+                    </div>
+                  </div>
                 </div>
                 <button
                   onClick={() => removerVoo(voo.id)}
-                  className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors ml-2 flex-shrink-0"
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors ml-3 flex-shrink-0 self-center"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -226,7 +335,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
         </Card>
       )}
 
-      {voos.length === 0 && (
+      {voos.length === 0 && !mostrarManual && (
         <div className="text-center py-8 text-gray-500 text-sm">
           Nenhum voo adicionado. Busque e adicione voos acima.
         </div>

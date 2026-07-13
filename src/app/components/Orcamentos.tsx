@@ -56,8 +56,48 @@ const dados: Orcamento[] = [
     id: 1, numero: "25060101", cliente: "Ana Paula Souza", email: "ana@email.com",
     status: "Aprovado", dataCriacao: "2025-06-01", dataValidade: "2025-07-01", observacoes: "",
     itens: [
-      { id: 1, descricao: "Notebook Pro 15\"", quantidade: 2, unidade: "un", valorUnitario: 4599.90, desconto: 5 },
-      { id: 2, descricao: "Mouse Sem Fio", quantidade: 2, unidade: "un", valorUnitario: 89.90, desconto: 0 },
+      { id: 1, descricao: "Chip Vivo Roaming Internacional", quantidade: 1, unidade: "un", valorUnitario: 350.00, desconto: 0 },
+    ],
+    // Dados mocados adicionados
+    voos: [
+      { id: 1, companhia: "Air France", numero: "AF457", data: "2025-09-10", origem: "São Paulo (GRU)", destino: "Paris (CDG)", partida: "18:05", chegada: "10:35", duracao: "11h 30min" },
+      { id: 2, companhia: "Air France", numero: "AF454", data: "2025-09-20", origem: "Paris (CDG)", destino: "São Paulo (GRU)", partida: "23:25", chegada: "06:10", duracao: "11h 45min" }
+    ],
+    hospedagem: [
+      { id: 1, nome: "Hôtel Le Marais", local: "Paris, França", endereco: "Rue de Rivoli, 75004 Paris", checkin: "2025-09-11", checkout: "2025-09-20", tipoQuarto: "Quarto Duplo Superior com Vista", preco: 12500, noites: 9, classificacao: 4.5, amenidades: ["WiFi Grátis", "Café da Manhã", "Ar Condicionado"], voucher: null, voucherTipo: null, voucherNome: "" }
+    ],
+    roteiro: `**Uma Viagem Inesquecível a Paris!**
+
+Prepare-se para explorar a Cidade Luz em uma jornada de 10 dias repleta de cultura, gastronomia e momentos mágicos.
+
+**Destaques:**
+- Visita aos icônicos Museu do Louvre e Torre Eiffel.
+- Passeios charmosos pelos bairros de Le Marais e Montmartre.
+- Cruzeiro pelo Rio Sena ao entardecer.
+- Experiências gastronômicas em bistrôs tradicionais.
+
+Este roteiro foi cuidadosamente planejado para oferecer uma imersão completa na beleza e na história de Paris.`,
+    dayByDay: [
+      { id: 1, data: "2025-09-11", titulo: "Chegada e Exploração de Le Marais", atividades: [
+        { id: 1, hora: "12:00", descricao: "Check-in no Hôtel Le Marais.", tipo: "Hospedagem" },
+        { id: 2, hora: "14:00", descricao: "Almoço no L'As du Fallafel.", tipo: "Almoço" },
+        { id: 3, hora: "16:00", descricao: "Passeio pela Place des Vosges.", tipo: "Passeio" }
+      ]},
+      { id: 2, data: "2025-09-12", titulo: "Arte e Cultura", atividades: [
+        { id: 1, hora: "09:00", descricao: "Visita guiada ao Museu do Louvre.", tipo: "Cultural" },
+        { id: 2, hora: "13:00", descricao: "Almoço próximo ao museu.", tipo: "Almoço" }
+      ]}
+    ],
+    transporte: [
+      { id: 1, tipo: "Transfer", empresa: "Paris Shuttle", diaRoteiro: "1", origem: "Aeroporto CDG", destino: "Hôtel Le Marais", dataHoraSaida: "2025-09-11T11:00", valor: 350, descricao: "Transfer privado para o hotel." }
+    ],
+    restaurante: [
+      { id: 1, nome: "Le Bouillon Chartier", local: "Paris, França", endereco: "7 Rue du Faubourg Montmartre, 75009 Paris", tipoCozinha: "Francesa", data: "2025-09-12", horario: "20:00", qtdPessoas: 2, preco: 250, telefone: "+33 1 47 70 86 29", website: "https://www.bouillon-chartier.com", observacoes: "Reserva para o jantar.", voucher: null, voucherTipo: null, voucherNome: "" },
+      { id: 2, nome: "L'Ambroisie", local: "Paris, França", endereco: "9 Place des Vosges, 75004 Paris", tipoCozinha: "Francesa", data: "2025-09-15", horario: "21:00", qtdPessoas: 2, preco: 1800, telefone: "+33 1 42 78 51 45", website: "", observacoes: "Reserva especial de comemoração.", voucher: null, voucherTipo: null, voucherNome: "" }
+    ],
+    experiencias: [
+      { id: 1, nome: "Tour Guiado no Museu do Louvre", local: "Paris, França", tipo: "Cultural", data: "2025-09-12", horario: "09:00", duracao: "3h", qtdPessoas: 2, preco: 450, descricao: "Tour com guia especializado nas principais obras.", inclui: "Ingresso e guia", observacoes: "", voucher: null, voucherTipo: null, voucherNome: "" },
+      { id: 2, nome: "Passeio de Barco no Rio Sena", local: "Paris, França", tipo: "Passeio Turístico", data: "2025-09-13", horario: "19:00", duracao: "1h", qtdPessoas: 2, preco: 150, descricao: "Passeio ao entardecer com vista para a Torre Eiffel.", inclui: "Ticket do barco", observacoes: "", voucher: null, voucherTipo: null, voucherNome: "" }
     ],
   },
   {
@@ -65,6 +105,13 @@ const dados: Orcamento[] = [
     status: "Enviado", dataCriacao: "2025-06-15", dataValidade: "2025-07-15", observacoes: "",
     itens: [
       { id: 1, descricao: "Cadeira Ergonômica", quantidade: 5, unidade: "un", valorUnitario: 1299.00, desconto: 10 },
+    ],
+    dayByDay: [
+      { id: 1, data: "2025-08-01", titulo: "Instalação Mobiliário", atividades: [
+        { id: 1, hora: "09:00", descricao: "Entrega das cadeiras no escritório.", tipo: "Entrega" },
+        { id: 2, hora: "10:00", descricao: "Montagem e distribuição das cadeiras.", tipo: "Serviço" },
+        { id: 3, hora: "12:00", descricao: "Finalização e aceite do cliente.", tipo: "Finalização" }
+      ]}
     ],
   },
   {
@@ -208,13 +255,31 @@ export default function Orcamentos() {
 
   function abrirNovo() {
     setEditando(null);
+    // Limpa o formulário principal e as seções
     setForm({ ...orcVazio(), numero: gerarNumero(lista) });
+    setVoos([]);
+    setHospedagem([]);
+    setRoteiro("");
+    setDayByDay([]);
+    setTransporte([]);
+    setRestaurante([]);
+    setExperiencias([]);
+    setSeguro([]);
     setTela("form");
   }
 
   function abrirEdicao(o: Orcamento) {
     setEditando(o);
     setForm({ numero: o.numero, cliente: o.cliente, email: o.email, status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i })) });
+    // Carrega os dados das seções para os estados correspondentes
+    setVoos(o.voos || []);
+    setHospedagem(o.hospedagem || []);
+    setRoteiro(o.roteiro || "");
+    setDayByDay(o.dayByDay || []);
+    setTransporte(o.transporte || []);
+    setRestaurante(o.restaurante || []);
+    setExperiencias(o.experiencias || []);
+    setSeguro(o.seguro || []);
     setTela("form");
   }
 

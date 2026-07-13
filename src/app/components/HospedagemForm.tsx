@@ -116,6 +116,7 @@ export default function HospedagemForm({
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const formManualRef = useRef<HTMLDivElement>(null);
   // Buscar no Google Places API
   const buscarHospedagem = async () => {
     if (!busca.trim()) {
@@ -420,6 +421,16 @@ export default function HospedagemForm({
     setErro("");
   };
 
+  const abrirFormManual = () => {
+    setMostrarManual(true);
+    setResultados([]);
+    setSelecionado(null);
+    setErro("");
+    setBuscou(false);
+    // Scroll para o formulário manual
+    setTimeout(() => formManualRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  }
+
   return (
     <div className="space-y-4">
       {/* Busca */}
@@ -467,6 +478,11 @@ export default function HospedagemForm({
           )}
         </div>
       </Card>
+      <div className="text-center">
+        <Button variant="link" onClick={abrirFormManual} className="text-indigo-600 text-sm">
+          Não encontrou a hospedagem? Adicionar manualmente
+        </Button>
+      </div>
 
       {/* Resultados da busca via API */}
       {resultados.length > 0 && !selecionado && (
@@ -763,7 +779,7 @@ export default function HospedagemForm({
 
       {/* Formulário manual (quando não encontra resultados ou clica em "Adicionar manualmente") */}
       {mostrarManual && !selecionado && (
-        <Card className="p-4 border-2 border-dashed border-indigo-300 bg-indigo-50/50">
+        <Card ref={formManualRef} className="p-4 border-2 border-dashed border-indigo-300 bg-indigo-50/50">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-semibold text-gray-900">
               <Building2 className="w-4 h-4 inline-block mr-1 text-indigo-500" />
@@ -1091,7 +1107,7 @@ export default function HospedagemForm({
         </Card>
       )}
 
-      {hospedagens.length === 0 && !selecionado && !mostrarManual && (
+      {hospedagens.length === 0 && !selecionado && !mostrarManual && !carregando && (
         <div className="text-center py-8 text-gray-500 text-sm">
           <Building2 className="w-8 h-8 mx-auto mb-2 text-gray-300" />
           Nenhuma hospedagem adicionada. Busque acima ou{" "}
