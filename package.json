@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build",    
     "dev:frontend": "vite",
-    "dev:backend": "node Backend/index.cjs",
+    "dev:backend": "node Backend/index.js",
     "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\""
   },
   "dependencies": {
