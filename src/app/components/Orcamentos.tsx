@@ -143,6 +143,8 @@ const statusConfig: Record<StatusOrc, { bg: string; cor: string }> = {
 };
 
 const allStatus: StatusOrc[] = ["Rascunho", "Enviado", "Aprovado", "Rejeitado", "Cancelado"];
+const secoesOrcamento = ["Voos", "Hospedagem", "Roteiro", "Day by Day", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
+type SecaoOrcamento = typeof secoesOrcamento[number];
 
 function calcItem(item: ItemOrc) {
   const bruto = item.quantidade * item.valorUnitario;
@@ -206,7 +208,7 @@ export default function Orcamentos() {
   const [filtroStatus, setFiltroStatus] = useState<StatusOrc | "Todos">("Todos");
   const [confirmarExclusao, setConfirmarExclusao] = useState<number | null>(null);
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
-  const [section, setSection] = useState<string>("Voos");
+  const [section, setSection] = useState<SecaoOrcamento>("Voos");
   const [voos, setVoos] = useState<any[]>([]);
   const [hospedagem, setHospedagem] = useState<any[]>([]);
   const [roteiro, setRoteiro] = useState<string>("");
@@ -534,7 +536,29 @@ export default function Orcamentos() {
 
   // ============ TELA FORMULÁRIO ============
   if (tela === "form") {
-    const totalForm = calcTotal(form.itens);
+    const itensVendaComDescricao = form.itens.filter((item) => item.descricao.trim());
+    const totalHospedagemResumo = hospedagem.reduce((acc, item) => acc + (Number(item?.preco) || 0), 0);
+    const totalTransporteResumo = transporte.reduce((acc, item) => acc + (Number(item?.valor) || 0), 0);
+    const totalRestauranteResumo = restaurante.reduce((acc, item) => acc + (Number(item?.preco) || 0), 0);
+    const totalExperienciasResumo = experiencias.reduce((acc, item) => acc + (Number(item?.preco) || 0), 0);
+    const totalSeguroResumo = seguro.reduce((acc, item) => acc + (Number(item?.valor) || 0), 0);
+    const totalVendasResumo = itensVendaComDescricao.reduce((acc, item) => acc + calcItem(item), 0);
+    const totalResumo = totalVendasResumo
+      + totalHospedagemResumo
+      + totalTransporteResumo
+      + totalRestauranteResumo
+      + totalExperienciasResumo
+      + totalSeguroResumo;
+    const resumoSecoes: { nome: SecaoOrcamento; quantidade: number; valor: string }[] = [
+      { nome: "Voos", quantidade: voos.length, valor: "—" },
+      { nome: "Hospedagem", quantidade: hospedagem.length, valor: moeda(totalHospedagemResumo) },
+      { nome: "Roteiro", quantidade: roteiro.trim() ? 1 : 0, valor: roteiro.trim() ? "Preenchido" : "—" },
+      { nome: "Day by Day", quantidade: dayByDay.length, valor: "—" },
+      { nome: "Transporte", quantidade: transporte.length, valor: moeda(totalTransporteResumo) },
+      { nome: "Restaurante", quantidade: restaurante.length, valor: moeda(totalRestauranteResumo) },
+      { nome: "Experiências", quantidade: experiencias.length, valor: moeda(totalExperienciasResumo) },
+      { nome: "Seguro", quantidade: seguro.length, valor: moeda(totalSeguroResumo) },
+    ];
     return (
       <div>
         <div className="flex items-center gap-3 mb-6">
@@ -599,7 +623,7 @@ export default function Orcamentos() {
 
               <div className="mb-3">
                 <div className="flex flex-wrap gap-2 text-sm">
-                  {["Voos","Hospedagem","Roteiro","Day by Day","Transporte","Restaurante","Experiências","Seguro","Vendas"].map((s) => (
+                  {secoesOrcamento.map((s) => (
                     <button
                       key={s}
                       type="button"
@@ -747,15 +771,39 @@ export default function Orcamentos() {
             <Card className="p-5">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><DollarSign className="w-4 h-4 text-indigo-500" /> Resumo</h3>
               <div className="space-y-2 text-sm">
-                {form.itens.map((item, idx) => item.descricao && (
-                  <div key={item.id} className="flex justify-between text-gray-500">
-                    <span className="truncate flex-1 mr-2">Item {idx + 1}</span>
-                    <span>{moeda(calcItem(item))}</span>
-                  </div>
-                ))}
+                <div className="space-y-1.5">
+                  {resumoSecoes.map((secao) => (
+                    <div key={secao.nome} className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-2.5 py-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="inline-flex h-6 min-w-8 items-center justify-center rounded bg-indigo-100 px-2 text-xs font-semibold text-indigo-700">
+                          {secao.quantidade}x
+                        </span>
+                        <span className="truncate text-gray-700">{secao.nome}</span>
+                      </div>
+                      <span className="text-right font-medium text-gray-700">{secao.valor}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-1.5">
+                  {itensVendaComDescricao.length > 0 ? (
+                    itensVendaComDescricao.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-2.5 py-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="inline-flex h-6 min-w-8 items-center justify-center rounded bg-indigo-100 px-2 text-xs font-semibold text-indigo-700">
+                            {item.quantidade}x
+                          </span>
+                          <span className="truncate text-gray-700">{item.descricao}</span>
+                        </div>
+                        <span className="text-right font-medium text-gray-700">{moeda(calcItem(item))}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-500">Nenhum item de venda informado.</p>
+                  )}
+                </div>
                 <div className="border-t pt-2 flex justify-between font-bold text-base text-gray-900">
                   <span>Total</span>
-                  <span className="text-indigo-700">{moeda(totalForm)}</span>
+                  <span className="text-indigo-700">{moeda(totalResumo)}</span>
                 </div>
               </div>
             </Card>
