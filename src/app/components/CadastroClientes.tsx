@@ -327,7 +327,7 @@ export default function CadastroClientes() {
             onClick={fecharModal}
           />
           {/* Painel */}
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 z-10">
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-5xl mx-4 p-6 z-10 max-h-[90vh] overflow-y-auto">
             {/* Título */}
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">
@@ -339,7 +339,7 @@ export default function CadastroClientes() {
             </div>
 
             {/* Formulário */}
-            <div className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <div>
                 <Label htmlFor="nome">Nome completo *</Label>
                 <Input
@@ -350,7 +350,7 @@ export default function CadastroClientes() {
                   className="mt-1"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 md:col-span-2 xl:col-span-1">
                 <div>
                   <Label htmlFor="cpfCnpj">CPF / CNPJ</Label>
                   <Input
@@ -372,7 +372,7 @@ export default function CadastroClientes() {
                   />
                 </div>
               </div>
-              <div>
+              <div className="md:col-span-2 xl:col-span-1">
                 <Label htmlFor="email">E-mail</Label>
                 <Input
                   id="email"
@@ -383,7 +383,7 @@ export default function CadastroClientes() {
                   className="mt-1"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 md:col-span-2 xl:col-span-1">
                 <div>
                   <Label htmlFor="cep">CEP</Label>
                   <Input
@@ -405,7 +405,7 @@ export default function CadastroClientes() {
                   />
                 </div>
               </div>
-              <div>
+              <div className="md:col-span-2 xl:col-span-2">
                 <Label htmlFor="endereco">Endereço</Label>
                 <Input
                   id="endereco"
@@ -415,7 +415,7 @@ export default function CadastroClientes() {
                   className="mt-1"
                 />
               </div>
-              <div>
+              <div className="md:col-span-2 xl:col-span-1">
                 <Label htmlFor="complemento">Complemento</Label>
                 <Input
                   id="complemento"
@@ -425,7 +425,7 @@ export default function CadastroClientes() {
                   className="mt-1"
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:col-span-2 xl:col-span-1">
                 <div>
                   <Label htmlFor="dataNascimento">Data de Nascimento</Label>
                   <Input
@@ -453,7 +453,7 @@ export default function CadastroClientes() {
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 md:col-span-2 xl:col-span-1">
                 <div>
                   <Label htmlFor="cidade">Cidade</Label>
                   <Input
@@ -476,7 +476,7 @@ export default function CadastroClientes() {
                   />
                 </div>
               </div>
-              <div>
+              <div className="md:col-span-2 xl:col-span-1">
                 <Label>Status</Label>
                 <div className="flex gap-2 mt-1">
                   {(["Ativo", "Inativo"] as const).map((s) => (
