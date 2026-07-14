@@ -24,6 +24,7 @@ interface Hospedagem {
   nome: string;
   local: string;
   endereco: string;
+  linkOperadora: string;
   checkin: string;
   checkout: string;
   tipoQuarto: string;
@@ -105,6 +106,7 @@ export default function HospedagemForm({
     nome: "",
     local: "",
     endereco: "",
+    linkOperadora: "",
     tipoQuarto: "",
     precoNoite: 0,
     classificacao: 0,
@@ -334,6 +336,7 @@ export default function HospedagemForm({
       nome: selecionado.nome,
       local: selecionado.local,
       endereco: selecionado.endereco,
+      linkOperadora: selecionado.linkOperadora || "",
       tipoQuarto: formQuarto.tipoQuarto,
       checkin: formQuarto.checkin,
       checkout: formQuarto.checkout,
@@ -379,6 +382,7 @@ export default function HospedagemForm({
       nome: formManual.nome,
       local: formManual.local,
       endereco: formManual.endereco,
+      linkOperadora: formManual.linkOperadora,
       tipoQuarto: formManual.tipoQuarto || "Standard",
       checkin: formQuarto.checkin,
       checkout: formQuarto.checkout,
@@ -398,6 +402,7 @@ export default function HospedagemForm({
       nome: "",
       local: "",
       endereco: "",
+      linkOperadora: "",
       tipoQuarto: "",
       precoNoite: 0,
       classificacao: 0,
@@ -686,6 +691,22 @@ export default function HospedagemForm({
             </div>
           </div>
 
+          <div className="mb-3">
+            <Label className="text-xs">Link da Operadora</Label>
+            <Input
+              type="url"
+              placeholder="https://..."
+              value={selecionado.linkOperadora || ""}
+              onChange={(e) =>
+                setSelecionado({
+                  ...selecionado,
+                  linkOperadora: e.target.value,
+                })
+              }
+              className="mt-1"
+            />
+          </div>
+
           {formQuarto.checkin && formQuarto.checkout && (
             <div className="text-sm text-gray-600 mb-3 p-2 bg-white rounded">
               <p className="font-medium">
@@ -918,6 +939,19 @@ export default function HospedagemForm({
             </div>
           </div>
 
+          <div className="mb-3">
+            <Label className="text-xs">Link da Operadora</Label>
+            <Input
+              type="url"
+              placeholder="https://..."
+              value={formManual.linkOperadora}
+              onChange={(e) =>
+                setFormManual({ ...formManual, linkOperadora: e.target.value })
+              }
+              className="mt-1"
+            />
+          </div>
+
           {formQuarto.checkin && formQuarto.checkout && (
             <div className="text-sm text-gray-600 mb-3 p-2 bg-white rounded">
               <p className="font-medium">
@@ -1046,6 +1080,17 @@ export default function HospedagemForm({
                     {hosp.noites} noite{hosp.noites !== 1 ? "s" : ""}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">{hosp.endereco}</p>
+                  {hosp.linkOperadora && (
+                    <a
+                      href={hosp.linkOperadora}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 underline"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      Link da operadora
+                    </a>
+                  )}
                   {hosp.amenidades && hosp.amenidades.length > 0 && (
                     <p className="text-xs text-gray-400 mt-0.5">
                       {hosp.amenidades.join(" • ")}
