@@ -169,6 +169,20 @@ function mapCliente(row) {
   };
 }
 
+function mapProduto(row) {
+  return {
+    id: Number(row.id),
+    nome: row.nome,
+    codigo: row.codigo || '',
+    categoria: row.categoria || '',
+    preco: Number(row.preco || 0),
+    fornecedor: row.fornecedor || '',
+    operadora: row.operadora || '',
+    unidade: row.unidade || 'un',
+    status: row.status,
+  };
+}
+
 function normalizePayload(body) {
   return {
     name: String(body.name || '').trim(),
@@ -197,6 +211,19 @@ function normalizeClientePayload(body) {
     cpfCnpj: String(body?.cpfCnpj || '').trim(),
     dataNascimento: String(body?.dataNascimento || '').trim(),
     documentoNome: String(body?.documentoNome || '').trim(),
+  };
+}
+
+function normalizeProdutoPayload(body) {
+  return {
+    nome: String(body?.nome || '').trim(),
+    codigo: String(body?.codigo || '').trim().toUpperCase(),
+    categoria: String(body?.categoria || '').trim(),
+    preco: Number(body?.preco || 0),
+    fornecedor: String(body?.fornecedor || '').trim(),
+    operadora: String(body?.operadora || '').trim(),
+    unidade: String(body?.unidade || 'un').trim() || 'un',
+    status: body?.status === 'Inativo' ? 'Inativo' : 'Ativo',
   };
 }
 
@@ -543,6 +570,136 @@ app.delete('/api/clientes/:id', ensureDb, async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Erro ao excluir cliente:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/produtos', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, nome, codigo, categoria, preco, fornecedor, operadora, unidade, status
+       FROM public.produtos
+       ORDER BY nome ASC`
+    );
+
+    res.json(result.rows.map(mapProduto));
+  } catch (error) {
+    console.error('Erro ao listar produtos:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/produtos', ensureDb, async (req, res) => {
+  const payload = normalizeProdutoPayload(req.body);
+
+  if (!payload.nome) {
+    return res.status(400).json({ error: 'Nome e obrigatorio.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.produtos
+        (nome, codigo, categoria, preco, fornecedor, operadora, unidade, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, nome, codigo, categoria, preco, fornecedor, operadora, unidade, status`,
+      [
+        payload.nome,
+        payload.codigo || null,
+        payload.categoria || null,
+        payload.preco,
+        payload.fornecedor || null,
+        payload.operadora || null,
+        payload.unidade,
+        payload.status,
+      ]
+    );
+
+    res.status(201).json(mapProduto(result.rows[0]));
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Ja existe produto com este codigo.' });
+    }
+
+    console.error('Erro ao criar produto:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/produtos/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeProdutoPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID invalido.' });
+  }
+
+  if (!payload.nome) {
+    return res.status(400).json({ error: 'Nome e obrigatorio.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.produtos
+          SET nome = $1,
+              codigo = $2,
+              categoria = $3,
+              preco = $4,
+              fornecedor = $5,
+              operadora = $6,
+              unidade = $7,
+              status = $8,
+              atualizado_em = NOW()
+        WHERE id = $9
+      RETURNING id, nome, codigo, categoria, preco, fornecedor, operadora, unidade, status`,
+      [
+        payload.nome,
+        payload.codigo || null,
+        payload.categoria || null,
+        payload.preco,
+        payload.fornecedor || null,
+        payload.operadora || null,
+        payload.unidade,
+        payload.status,
+        id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Produto nao encontrado.' });
+    }
+
+    res.json(mapProduto(result.rows[0]));
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Ja existe produto com este codigo.' });
+    }
+
+    console.error('Erro ao atualizar produto:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.delete('/api/produtos/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID invalido.' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM public.produtos WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Produto nao encontrado.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir produto:', error);
     const dbError = resolveDatabaseError(error);
     res.status(dbError.status).json({ error: dbError.message });
   }
