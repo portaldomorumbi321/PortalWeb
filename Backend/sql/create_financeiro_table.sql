@@ -5,6 +5,9 @@ CREATE TABLE IF NOT EXISTS public.financeiro (
   valor NUMERIC(14, 2) NOT NULL CHECK (valor > 0),
   data_lancamento DATE NOT NULL,
   oculto BOOLEAN NOT NULL DEFAULT FALSE,
+  orcamento_pago BOOLEAN NOT NULL DEFAULT FALSE,
+  forma_pagamento VARCHAR(30),
+  parcelas INTEGER,
   orcamento_id BIGINT REFERENCES public.orcamentos(id) ON DELETE SET NULL,
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -12,6 +15,15 @@ CREATE TABLE IF NOT EXISTS public.financeiro (
 
 ALTER TABLE IF EXISTS public.financeiro
   ADD COLUMN IF NOT EXISTS oculto BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE IF EXISTS public.financeiro
+  ADD COLUMN IF NOT EXISTS orcamento_pago BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE IF EXISTS public.financeiro
+  ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(30);
+
+ALTER TABLE IF EXISTS public.financeiro
+  ADD COLUMN IF NOT EXISTS parcelas INTEGER;
 
 CREATE INDEX IF NOT EXISTS idx_financeiro_tipo ON public.financeiro (tipo);
 CREATE INDEX IF NOT EXISTS idx_financeiro_data ON public.financeiro (data_lancamento DESC);

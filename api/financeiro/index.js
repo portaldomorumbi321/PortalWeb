@@ -8,6 +8,9 @@ function mapLancamento(row) {
     valor: Number(row.valor || 0),
     data: row.data_lancamento ? new Date(row.data_lancamento).toISOString().slice(0, 10) : '',
     oculto: Boolean(row.oculto),
+    orcamentoPago: Boolean(row.orcamento_pago),
+    formaPagamento: row.forma_pagamento || '',
+    parcelas: row.parcelas ? Number(row.parcelas) : null,
     orcamentoId: row.orcamento_id ? Number(row.orcamento_id) : null,
     orcamentoNumero: row.orcamento_numero || '',
     cliente: row.cliente || '',
@@ -20,12 +23,21 @@ function normalizeLancamentoPayload(body = {}) {
   const parsedOrcamentoId = Number(body.orcamentoId);
   const orcamentoId = Number.isInteger(parsedOrcamentoId) && parsedOrcamentoId > 0 ? parsedOrcamentoId : null;
 
+  const normalizedTipo = tipo === 'despesa' ? 'despesa' : 'receita';
+  const orcamentoPago = body.orcamentoPago === true;
+  const formaPagamento = orcamentoPago ? String(body.formaPagamento || '').trim() : '';
+  const parcelas =
+    orcamentoPago && Number.isInteger(Number(body.parcelas)) && Number(body.parcelas) > 0 ? Number(body.parcelas) : null;
+
   return {
-    tipo: tipo === 'despesa' ? 'despesa' : 'receita',
+    tipo: normalizedTipo,
     descricao: String(body.descricao || '').trim(),
     valor: Math.abs(Number(body.valor || 0)),
     data: String(body.data || '').trim(),
     oculto: body.oculto === true,
+    orcamentoPago,
+    formaPagamento,
+    parcelas,
     orcamentoId,
   };
 }
@@ -37,7 +49,7 @@ export default async function handler(req, res) {
 
     try {
       const result = await pool.query(
-        `SELECT f.id, f.tipo, f.descricao, f.valor, f.data_lancamento, f.oculto, f.orcamento_id, o.numero AS orcamento_numero, o.cliente
+        `SELECT f.id, f.tipo, f.descricao, f.valor, f.data_lancamento, f.oculto, f.orcamento_pago, f.forma_pagamento, f.parcelas, f.orcamento_id, o.numero AS orcamento_numero, o.cliente
          FROM public.financeiro f
          LEFT JOIN public.orcamentos o ON o.id = f.orcamento_id
          ORDER BY f.data_lancamento DESC, f.id DESC`
@@ -68,17 +80,31 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Data é obrigatória.' });
     }
 
+    if (payload.orcamentoPago && (!payload.formaPagamento || !payload.parcelas)) {
+      return res.status(400).json({ error: 'Informe forma de pagamento e parcelas para receita com orçamento quitado.' });
+    }
+
     try {
       const result = await pool.query(
-        `INSERT INTO public.financeiro (tipo, descricao, valor, data_lancamento, oculto, orcamento_id)
-         VALUES ($1, $2, $3, NULLIF($4, '')::date, $5, $6)
-         RETURNING id, tipo, descricao, valor, data_lancamento, oculto, orcamento_id`,
-        [payload.tipo, payload.descricao, payload.valor, payload.data, payload.oculto, payload.orcamentoId]
+        `INSERT INTO public.financeiro (tipo, descricao, valor, data_lancamento, oculto, orcamento_pago, forma_pagamento, parcelas, orcamento_id)
+         VALUES ($1, $2, $3, NULLIF($4, '')::date, $5, $6, NULLIF($7, ''), $8, $9)
+         RETURNING id, tipo, descricao, valor, data_lancamento, oculto, orcamento_pago, forma_pagamento, parcelas, orcamento_id`,
+        [
+          payload.tipo,
+          payload.descricao,
+          payload.valor,
+          payload.data,
+          payload.oculto,
+          payload.orcamentoPago,
+          payload.formaPagamento,
+          payload.parcelas,
+          payload.orcamentoId,
+        ]
       );
 
       const inserted = result.rows[0];
       const enriched = await pool.query(
-        `SELECT f.id, f.tipo, f.descricao, f.valor, f.data_lancamento, f.oculto, f.orcamento_id, o.numero AS orcamento_numero, o.cliente
+        `SELECT f.id, f.tipo, f.descricao, f.valor, f.data_lancamento, f.oculto, f.orcamento_pago, f.forma_pagamento, f.parcelas, f.orcamento_id, o.numero AS orcamento_numero, o.cliente
          FROM public.financeiro f
          LEFT JOIN public.orcamentos o ON o.id = f.orcamento_id
          WHERE f.id = $1`,

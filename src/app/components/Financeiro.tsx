@@ -58,8 +58,12 @@ export default function Financeiro() {
   const [orcamentoId, setOrcamentoId] = useState<number | null>(null);
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [editandoOculto, setEditandoOculto] = useState(false);
+  const [orcamentoPago, setOrcamentoPago] = useState(false);
+  const [formaPagamento, setFormaPagamento] = useState("");
+  const [parcelas, setParcelas] = useState("1");
 
   const camposPreenchidosPorOrcamento = tipo === "receita";
+  const habilitarDadosPagamento = orcamentoPago;
 
   useEffect(() => {
     async function carregarDados() {
@@ -147,6 +151,9 @@ export default function Financeiro() {
     setOrcamentoBusca("");
     setOrcamentoId(null);
     setEditandoOculto(false);
+    setOrcamentoPago(false);
+    setFormaPagamento("");
+    setParcelas("1");
   }
 
   function abrirModal() {
@@ -204,6 +211,9 @@ export default function Financeiro() {
     setValor(String(lancamento.valor));
     setData(lancamento.data);
     setEditandoOculto(lancamento.oculto);
+    setOrcamentoPago(lancamento.orcamentoPago);
+    setFormaPagamento(lancamento.formaPagamento || "");
+    setParcelas(String(lancamento.parcelas || 1));
 
     if (lancamento.tipo === "receita" && lancamento.orcamentoId) {
       const relacionado = orcamentosAprovados.find((orcamento) => orcamento.id === lancamento.orcamentoId);
@@ -230,6 +240,9 @@ export default function Financeiro() {
         valor: lancamento.valor,
         data: lancamento.data,
         oculto: !lancamento.oculto,
+        orcamentoPago: lancamento.orcamentoPago,
+        formaPagamento: lancamento.formaPagamento,
+        parcelas: lancamento.parcelas,
         orcamentoId: lancamento.orcamentoId,
       });
 
@@ -246,7 +259,18 @@ export default function Financeiro() {
     }
 
     const valorNumerico = Number(valor.replace(",", "."));
+    const parcelasNumero = Number(parcelas);
     if (!descricao.trim() || !valorNumerico || !data) {
+      return;
+    }
+
+    if (habilitarDadosPagamento && !formaPagamento.trim()) {
+      setErro("Selecione a forma de pagamento para receita com orçamento quitado.");
+      return;
+    }
+
+    if (habilitarDadosPagamento && (!Number.isInteger(parcelasNumero) || parcelasNumero <= 0)) {
+      setErro("Informe uma quantidade de parcelas válida.");
       return;
     }
 
@@ -260,6 +284,9 @@ export default function Financeiro() {
         valor: Math.abs(valorNumerico),
         data,
         oculto: editandoId ? editandoOculto : false,
+        orcamentoPago,
+        formaPagamento: habilitarDadosPagamento ? formaPagamento.trim() : "",
+        parcelas: habilitarDadosPagamento ? parcelasNumero : null,
         orcamentoId,
       };
 
@@ -456,6 +483,62 @@ export default function Financeiro() {
                     onChange={(e) => setData(e.target.value)}
                     className="mt-1"
                     disabled={camposPreenchidosPorOrcamento}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="orcamento-pago">Quitado</Label>
+                  <select
+                    id="orcamento-pago"
+                    value={orcamentoPago ? "sim" : "nao"}
+                    onChange={(e) => {
+                      const pago = e.target.value === "sim";
+                      setOrcamentoPago(pago);
+                      if (!pago) {
+                        setFormaPagamento("");
+                        setParcelas("1");
+                      }
+                    }}
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  >
+                    <option value="nao">Não</option>
+                    <option value="sim">Sim</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="forma-pagamento">Forma de pagamento</Label>
+                  <select
+                    id="forma-pagamento"
+                    value={formaPagamento}
+                    onChange={(e) => setFormaPagamento(e.target.value)}
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    disabled={!habilitarDadosPagamento}
+                  >
+                    <option value="">Selecione</option>
+                    <option value="pix">PIX</option>
+                    <option value="cartao_credito">Cartão de crédito</option>
+                    <option value="cartao_debito">Cartão de débito</option>
+                    <option value="boleto">Boleto</option>
+                    <option value="transferencia">Transferência</option>
+                    <option value="dinheiro">Dinheiro</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="parcelas">Parcelado em</Label>
+                  <Input
+                    id="parcelas"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={parcelas}
+                    onChange={(e) => setParcelas(e.target.value)}
+                    placeholder="Ex.: 1"
+                    className="mt-1"
+                    disabled={!habilitarDadosPagamento}
                   />
                 </div>
               </div>

@@ -7,6 +7,9 @@ export interface LancamentoFinanceiro {
   valor: number;
   data: string;
   oculto: boolean;
+  orcamentoPago: boolean;
+  formaPagamento: string;
+  parcelas: number | null;
   orcamentoId: number | null;
   orcamentoNumero: string;
   cliente: string;
@@ -18,6 +21,9 @@ export interface LancamentoFinanceiroPayload {
   valor: number;
   data: string;
   oculto?: boolean;
+  orcamentoPago?: boolean;
+  formaPagamento?: string;
+  parcelas?: number | null;
   orcamentoId?: number | null;
 }
 
