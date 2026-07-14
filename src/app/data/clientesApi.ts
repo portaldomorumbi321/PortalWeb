@@ -3,6 +3,10 @@ export interface Cliente {
   nome: string;
   email: string;
   telefone: string;
+  cep: string;
+  endereco: string;
+  numero: string;
+  complemento: string;
   cidade: string;
   estado: string;
   status: 'Ativo' | 'Inativo';
