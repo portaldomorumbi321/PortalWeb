@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import logoImg from "@/imports/logo.png";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X, LogOut, MessageSquare, PanelRightClose, PanelRightOpen, Bot, PanelLeftOpen, Calendar } from "lucide-react";
 import WhatsAppChat from "./WhatsAppChat";
 import AIChat from "./AIChat";
@@ -25,6 +25,10 @@ export default function Root() {
   const [chatOpen, setChatOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [agendaOpen, setAgendaOpen] = useState(false);
+
+  useEffect(() => {
+    setAgendaOpen(false);
+  }, [location.pathname]);
 
   const handleToggleAgenda = () => {
     if (agendaOpen) {
