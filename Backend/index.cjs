@@ -201,6 +201,20 @@ function mapFornecedor(row) {
   };
 }
 
+function mapLead(row) {
+  return {
+    id: Number(row.id),
+    nome: row.nome,
+    email: row.email || '',
+    whatsapp: row.whatsapp || '',
+    status: row.status,
+    statusCrm: row.status_crm,
+    viagens: Number(row.viagens || 0),
+    criadoEm: row.criado_em ? new Date(row.criado_em).toISOString().slice(0, 10) : '',
+    atendente: row.atendente || '',
+  };
+}
+
 function mapTarefa(row) {
   return {
     id: Number(row.id),
@@ -308,6 +322,30 @@ function normalizeFornecedorPayload(body) {
     estado: String(body?.estado || '').trim().toUpperCase().slice(0, 2),
     status: body?.status === 'Inativo' ? 'Inativo' : 'Ativo',
     categoria: String(body?.categoria || '').trim(),
+  };
+}
+
+function normalizeLeadPayload(body) {
+  const status = body?.status;
+  const statusCrm = body?.statusCrm;
+
+  return {
+    nome: String(body?.nome || '').trim(),
+    email: String(body?.email || '').trim().toLowerCase(),
+    whatsapp: String(body?.whatsapp || '').trim(),
+    status: status === 'Em Contato' || status === 'Qualificado' || status === 'Perdido' || status === 'Vendido' ? status : 'Novo',
+    statusCrm:
+      statusCrm === 'Qualificação' ||
+      statusCrm === 'Reunião' ||
+      statusCrm === 'Follow-ups' ||
+      statusCrm === 'Pagos' ||
+      statusCrm === 'Nutrição' ||
+      statusCrm === 'Finalizados'
+        ? statusCrm
+        : 'Novo Lead',
+    viagens: Math.max(0, Number(body?.viagens || 0)),
+    criadoEm: String(body?.criadoEm || '').trim(),
+    atendente: String(body?.atendente || '').trim(),
   };
 }
 
@@ -957,6 +995,128 @@ app.put('/api/fornecedores/:id', ensureDb, async (req, res) => {
     }
 
     console.error('Erro ao atualizar fornecedor:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/leads', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, nome, email, whatsapp, status, status_crm, viagens, criado_em, atendente
+       FROM public.leads
+       ORDER BY criado_em DESC, id DESC`
+    );
+
+    res.json(result.rows.map(mapLead));
+  } catch (error) {
+    console.error('Erro ao listar leads:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/leads', ensureDb, async (req, res) => {
+  const payload = normalizeLeadPayload(req.body);
+
+  if (!payload.nome) {
+    return res.status(400).json({ error: 'Nome é obrigatório.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.leads
+        (nome, email, whatsapp, status, status_crm, viagens, criado_em, atendente)
+       VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, '')::date, $8)
+       RETURNING id, nome, email, whatsapp, status, status_crm, viagens, criado_em, atendente`,
+      [
+        payload.nome,
+        payload.email || null,
+        payload.whatsapp || null,
+        payload.status,
+        payload.statusCrm,
+        payload.viagens,
+        payload.criadoEm,
+        payload.atendente || null,
+      ]
+    );
+
+    res.status(201).json(mapLead(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao criar lead:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/leads/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeLeadPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  if (!payload.nome) {
+    return res.status(400).json({ error: 'Nome é obrigatório.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.leads
+          SET nome = $1,
+              email = $2,
+              whatsapp = $3,
+              status = $4,
+              status_crm = $5,
+              viagens = $6,
+              criado_em = NULLIF($7, '')::date,
+              atendente = $8,
+              atualizado_em = NOW()
+        WHERE id = $9
+      RETURNING id, nome, email, whatsapp, status, status_crm, viagens, criado_em, atendente`,
+      [
+        payload.nome,
+        payload.email || null,
+        payload.whatsapp || null,
+        payload.status,
+        payload.statusCrm,
+        payload.viagens,
+        payload.criadoEm,
+        payload.atendente || null,
+        id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Lead não encontrado.' });
+    }
+
+    res.json(mapLead(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao atualizar lead:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.delete('/api/leads/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM public.leads WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Lead não encontrado.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir lead:', error);
     const dbError = resolveDatabaseError(error);
     res.status(dbError.status).json({ error: dbError.message });
   }
