@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Search, Plus, Edit2, Trash2, X, Check, FileText, ChevronDown, ChevronUp,
-  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Printer, Sparkles, Link2
+  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Printer, Sparkles, Link2, Star
 } from "lucide-react"; // Adicionado Sparkles
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -267,6 +267,20 @@ export default function Orcamentos() {
 
   function toggleExpandir(id: number) {
     setExpandidos((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  const [favoritos, setFavoritos] = useState<number[]>(() => {
+    try { return JSON.parse(localStorage.getItem("favoritos_orcamentos") || "[]"); }
+    catch { return []; }
+  });
+
+  function toggleFavorito(id: number) {
+    setFavoritos((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      localStorage.setItem("favoritos_orcamentos", JSON.stringify(next));
+      window.dispatchEvent(new Event("favoritos_orcamentos_updated"));
+      return next;
+    });
   }
 
   function abrirNovo() {
@@ -1035,6 +1049,9 @@ export default function Orcamentos() {
                   ) : (
                     <button onClick={() => setConfirmarExclusao(orc.id)} title="Excluir" className="p-1.5 rounded text-red-500 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
                   )}
+                  <button onClick={() => toggleFavorito(orc.id)} title={favoritos.includes(orc.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"} className={`p-1.5 rounded transition-colors ${favoritos.includes(orc.id) ? 'text-yellow-400 hover:text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}>
+                    <Star className={`w-4 h-4 ${favoritos.includes(orc.id) ? 'fill-yellow-400' : ''}`} />
+                  </button>
                   <button onClick={() => toggleExpandir(orc.id)} className="p-1.5 rounded text-gray-400 hover:bg-gray-100 transition-colors">
                     {expandido ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </button>
