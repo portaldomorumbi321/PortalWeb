@@ -15,18 +15,32 @@ interface Cliente {
   estado: string;
   status: "Ativo" | "Inativo";
   cpfCnpj: string;
+  dataNascimento: string;
+  documentoNome: string;
 }
 
+type ClienteForm = Omit<Cliente, "id">;
+
 const clientesIniciais: Cliente[] = [
-  { id: 1, nome: "Ana Paula Souza", email: "ana.souza@email.com", telefone: "(11) 99876-5432", cidade: "São Paulo", estado: "SP", status: "Ativo", cpfCnpj: "123.456.789-00" },
-  { id: 2, nome: "Carlos Mendes", email: "carlos.mendes@empresa.com", telefone: "(21) 98765-4321", cidade: "Rio de Janeiro", estado: "RJ", status: "Ativo", cpfCnpj: "987.654.321-00" },
-  { id: 3, nome: "Fernanda Lima", email: "fernanda@loja.com.br", telefone: "(31) 97654-3210", cidade: "Belo Horizonte", estado: "MG", status: "Inativo", cpfCnpj: "456.789.123-00" },
-  { id: 4, nome: "João Victor Reis", email: "joao.reis@mail.com", telefone: "(41) 96543-2109", cidade: "Curitiba", estado: "PR", status: "Ativo", cpfCnpj: "321.654.987-00" },
-  { id: 5, nome: "Mariana Costa", email: "mariana.costa@email.com", telefone: "(51) 95432-1098", cidade: "Porto Alegre", estado: "RS", status: "Ativo", cpfCnpj: "654.321.098-00" },
-  { id: 6, nome: "Ricardo Alves", email: "r.alves@negocio.com", telefone: "(85) 94321-0987", cidade: "Fortaleza", estado: "CE", status: "Inativo", cpfCnpj: "789.012.345-00" },
+  { id: 1, nome: "Ana Paula Souza", email: "ana.souza@email.com", telefone: "(11) 99876-5432", cidade: "São Paulo", estado: "SP", status: "Ativo", cpfCnpj: "123.456.789-00", dataNascimento: "", documentoNome: "" },
+  { id: 2, nome: "Carlos Mendes", email: "carlos.mendes@empresa.com", telefone: "(21) 98765-4321", cidade: "Rio de Janeiro", estado: "RJ", status: "Ativo", cpfCnpj: "987.654.321-00", dataNascimento: "", documentoNome: "" },
+  { id: 3, nome: "Fernanda Lima", email: "fernanda@loja.com.br", telefone: "(31) 97654-3210", cidade: "Belo Horizonte", estado: "MG", status: "Inativo", cpfCnpj: "456.789.123-00", dataNascimento: "", documentoNome: "" },
+  { id: 4, nome: "João Victor Reis", email: "joao.reis@mail.com", telefone: "(41) 96543-2109", cidade: "Curitiba", estado: "PR", status: "Ativo", cpfCnpj: "321.654.987-00", dataNascimento: "", documentoNome: "" },
+  { id: 5, nome: "Mariana Costa", email: "mariana.costa@email.com", telefone: "(51) 95432-1098", cidade: "Porto Alegre", estado: "RS", status: "Ativo", cpfCnpj: "654.321.098-00", dataNascimento: "", documentoNome: "" },
+  { id: 6, nome: "Ricardo Alves", email: "r.alves@negocio.com", telefone: "(85) 94321-0987", cidade: "Fortaleza", estado: "CE", status: "Inativo", cpfCnpj: "789.012.345-00", dataNascimento: "", documentoNome: "" },
 ];
 
-const clienteVazio = { nome: "", email: "", telefone: "", cidade: "", estado: "", status: "Ativo" as const, cpfCnpj: "" };
+const clienteVazio: ClienteForm = {
+  nome: "",
+  email: "",
+  telefone: "",
+  cidade: "",
+  estado: "",
+  status: "Ativo",
+  cpfCnpj: "",
+  dataNascimento: "",
+  documentoNome: "",
+};
 
 export default function CadastroClientes() {
   const [clientes, setClientes] = useState<Cliente[]>(clientesIniciais);
@@ -34,7 +48,7 @@ export default function CadastroClientes() {
   const [filtroStatus, setFiltroStatus] = useState<"Todos" | "Ativo" | "Inativo">("Todos");
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Cliente | null>(null);
-  const [form, setForm] = useState(clienteVazio);
+  const [form, setForm] = useState<ClienteForm>(clienteVazio);
   const [confirmarExclusao, setConfirmarExclusao] = useState<number | null>(null);
 
   const clientesFiltrados = clientes.filter((c) => {
@@ -57,7 +71,17 @@ export default function CadastroClientes() {
 
   function abrirEdicao(cliente: Cliente) {
     setEditando(cliente);
-    setForm({ nome: cliente.nome, email: cliente.email, telefone: cliente.telefone, cidade: cliente.cidade, estado: cliente.estado, status: cliente.status, cpfCnpj: cliente.cpfCnpj });
+    setForm({
+      nome: cliente.nome,
+      email: cliente.email,
+      telefone: cliente.telefone,
+      cidade: cliente.cidade,
+      estado: cliente.estado,
+      status: cliente.status,
+      cpfCnpj: cliente.cpfCnpj,
+      dataNascimento: cliente.dataNascimento,
+      documentoNome: cliente.documentoNome,
+    });
     setModalAberto(true);
   }
 
@@ -311,6 +335,34 @@ export default function CadastroClientes() {
                   placeholder="cliente@email.com"
                   className="mt-1"
                 />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="dataNascimento">Data de Nascimento</Label>
+                  <Input
+                    id="dataNascimento"
+                    type="date"
+                    value={form.dataNascimento}
+                    onChange={(e) => setForm({ ...form, dataNascimento: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="documento">Documento (RG/CPF)</Label>
+                  <Input
+                    id="documento"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => {
+                      const arquivo = e.target.files?.[0];
+                      setForm({ ...form, documentoNome: arquivo ? arquivo.name : "" });
+                    }}
+                    className="mt-1"
+                  />
+                  {form.documentoNome && (
+                    <p className="text-xs text-gray-500 mt-1">Arquivo selecionado: {form.documentoNome}</p>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
