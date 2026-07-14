@@ -117,7 +117,7 @@ function Countdown({ targetDate }: { targetDate: string }) {
 export default function RoteiroOrcamento() {
   const { numero } = useParams<{ numero: string }>();
   const [orc, setOrc] = useState<Orcamento | null>(null);
-  const [itemAtivo, setItemAtivo] = useState<string>("");
+  const [itemAtivo, setItemAtivo] = useState<string>("voos");
 
   useEffect(() => {
     if (numero) {
@@ -221,7 +221,7 @@ export default function RoteiroOrcamento() {
       )}
 
       {/* VOOS */}
-      {orc.voos && orc.voos.length > 0 && (
+      {orc.voos && orc.voos.length > 0 && itemAtivo === "voos" && (
         <Card id="voos" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-blue-100 p-3">
             <h2 className="font-bold text-blue-800 flex items-center gap-2"><Plane className="w-5 h-5"/> Voos</h2>
@@ -244,7 +244,7 @@ export default function RoteiroOrcamento() {
       )}
 
       {/* HOSPEDAGEM */}
-      {orc.hospedagem && orc.hospedagem.length > 0 && (
+      {orc.hospedagem && orc.hospedagem.length > 0 && itemAtivo === "hospedagem" && (
         <Card id="hospedagem" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-green-100 p-3">
             <h2 className="font-bold text-green-800 flex items-center gap-2"><Bed className="w-5 h-5"/> Hospedagem</h2>
@@ -281,7 +281,7 @@ export default function RoteiroOrcamento() {
       )}
 
       {/* ROTEIRO */}
-      {orc.roteiro && (
+      {orc.roteiro && itemAtivo === "roteiro" && (
         <Card id="roteiro" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-sky-100 p-3">
             <h2 className="font-bold text-sky-800 flex items-center gap-2"><Map className="w-5 h-5"/> Roteiro</h2>
@@ -291,7 +291,7 @@ export default function RoteiroOrcamento() {
       )}
 
       {/* DAY BY DAY */}
-      {orc.dayByDay && orc.dayByDay.length > 0 && (
+      {orc.dayByDay && orc.dayByDay.length > 0 && itemAtivo === "dia-a-dia" && (
         <Card id="dia-a-dia" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-purple-100 p-3">
             <h2 className="font-bold text-purple-800 flex items-center gap-2"><CalendarDays className="w-5 h-5"/> Dia a Dia</h2>
@@ -308,7 +308,7 @@ export default function RoteiroOrcamento() {
       )}
 
       {/* TRANSPORTE */}
-      {orc.transporte && orc.transporte.length > 0 && (
+      {orc.transporte && orc.transporte.length > 0 && itemAtivo === "transporte" && (
         <Card id="transporte" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-yellow-100 p-3">
             <h2 className="font-bold text-yellow-800 flex items-center gap-2"><Car className="w-5 h-5"/> Transporte</h2>
@@ -360,7 +360,7 @@ export default function RoteiroOrcamento() {
       )}
 
       {/* RESTAURANTE */}
-      {orc.restaurante && orc.restaurante.length > 0 && (
+      {orc.restaurante && orc.restaurante.length > 0 && itemAtivo === "restaurantes" && (
         <Card id="restaurantes" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-red-100 p-3">
             <h2 className="font-bold text-red-800 flex items-center gap-2"><Utensils className="w-5 h-5"/> Restaurantes</h2>
@@ -377,7 +377,7 @@ export default function RoteiroOrcamento() {
       )}
 
       {/* EXPERIÊNCIAS */}
-      {orc.experiencias && orc.experiencias.length > 0 && (
+      {orc.experiencias && orc.experiencias.length > 0 && itemAtivo === "experiencias" && (
         <Card id="experiencias" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-pink-100 p-3">
             <h2 className="font-bold text-pink-800 flex items-center gap-2"><Sparkles className="w-5 h-5"/> Experiências</h2>
@@ -394,7 +394,7 @@ export default function RoteiroOrcamento() {
       )}
 
       {/* SEGURO */}
-      {orc.seguro && orc.seguro.length > 0 && (
+      {orc.seguro && orc.seguro.length > 0 && itemAtivo === "seguro" && (
         <Card id="seguro" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-teal-100 p-3">
             <h2 className="font-bold text-teal-800 flex items-center gap-2"><Shield className="w-5 h-5"/> Seguro</h2>
