@@ -2,10 +2,11 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import logoImg from "@/imports/logo.png";
 import { useEffect, useState } from "react";
-import { Menu, X, LogOut, MessageSquare, PanelRightClose, PanelRightOpen, Bot, PanelLeftOpen, Calendar } from "lucide-react";
+import { Menu, X, LogOut, MessageSquare, PanelRightClose, PanelRightOpen, Bot, PanelLeftOpen, Calendar, Star } from "lucide-react";
 import WhatsAppChat from "./WhatsAppChat";
 import AIChat from "./AIChat";
 import Agenda from "./Agenda";
+import FavoritosOrcamentos from "./FavoritosOrcamentos";
 
 const menuItems = [
   { name: "DASHBOARD", path: "/" },
@@ -25,6 +26,7 @@ export default function Root() {
   const [chatOpen, setChatOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [agendaOpen, setAgendaOpen] = useState(false);
+  const [favoritosOpen, setFavoritosOpen] = useState(false);
 
   useEffect(() => {
     setAgendaOpen(false);
@@ -40,13 +42,24 @@ export default function Root() {
     setChatOpen(false);
   };
 
-  const handleOpenAiChat = () => {
-    setAiChatOpen(true);
+  const handleToggleAiChat = () => {
+    setAiChatOpen((prev) => !prev);
     setAgendaOpen(false);
+    setChatOpen(false);
+    setFavoritosOpen(false);
   };
 
-  const handleOpenWhatsApp = () => {
-    setChatOpen(true);
+  const handleToggleWhatsApp = () => {
+    setChatOpen((prev) => !prev);
+    setAgendaOpen(false);
+    setFavoritosOpen(false);
+    setAiChatOpen(false);
+  };
+
+  const handleToggleFavoritos = () => {
+    setFavoritosOpen((prev) => !prev);
+    setChatOpen(false);
+    setAiChatOpen(false);
     setAgendaOpen(false);
   };
 
@@ -154,6 +167,21 @@ export default function Root() {
             {agendaOpen ? <Agenda /> : <Outlet />}
           </main>
 
+          {/* Painel dos Favoritos */}
+          {!agendaOpen && (
+            <aside className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out ${favoritosOpen ? 'w-[380px]' : 'w-0'}`} style={{ overflow: 'hidden' }}>
+              <FavoritosOrcamentos setFavoritosOpen={setFavoritosOpen} />
+            </aside>
+          )}
+          {/* Painel dos Favoritos - Mobile (Overlay) */}
+          {!agendaOpen && favoritosOpen && (
+            <div className="md:hidden fixed inset-0 z-40 bg-black/30" onClick={() => setFavoritosOpen(false)} aria-hidden="true">
+              <div className="fixed bottom-0 left-0 right-0 h-[70vh] bg-white rounded-t-2xl shadow-2xl p-4" onClick={(e) => e.stopPropagation()}>
+                <FavoritosOrcamentos setFavoritosOpen={setFavoritosOpen} isMobile={true} />
+              </div>
+            </div>
+          )}
+
           {/* Painel do WhatsApp */}
           {!agendaOpen && (
             <aside className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out ${chatOpen ? 'w-[550px]' : 'w-0'}`} style={{ overflow: 'hidden' }}>
@@ -182,27 +210,38 @@ export default function Root() {
         </button>
       </div>
 
-      {/* Botão flutuante para MAXIMIZAR o chat de IA */}
-      {!aiChatOpen && (
-        <div className="fixed bottom-6 left-6 z-50">
-          <button
-            onClick={handleOpenAiChat}
-            className="w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 transition-all transform hover:scale-110"
-            title="Abrir Agente IA"
-          >
-            <Bot size={24} />
-          </button>
-        </div>
-      )}
+      {/* Botão flutuante do chat de IA */}
+      <div className="fixed bottom-6 left-6 z-50">
+        <button
+          onClick={handleToggleAiChat}
+          className={`w-14 h-14 text-white rounded-full shadow-lg flex items-center justify-center transition-all transform hover:scale-110 ${aiChatOpen ? 'bg-blue-700 hover:bg-blue-800' : 'bg-blue-600 hover:bg-blue-700'}`}
+          title={aiChatOpen ? "Fechar Agente IA" : "Abrir Agente IA"}
+        >
+          <Bot size={24} />
+        </button>
+      </div>
 
-      {/* Botão flutuante para MAXIMIZAR o chat do WhatsApp */}
-      {!chatOpen && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <button onClick={handleOpenWhatsApp} className="w-14 h-14 bg-green-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-600 transition-all transform hover:scale-110" title="Abrir WhatsApp">
-            <MessageSquare size={24} />
-          </button>
-        </div>
-      )}
+      {/* Botão flutuante de Favoritos */}
+      <div className="fixed bottom-24 right-6 z-50">
+        <button
+          onClick={handleToggleFavoritos}
+          className={`w-14 h-14 text-white rounded-full shadow-lg flex items-center justify-center transition-all transform hover:scale-110 ${favoritosOpen ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-yellow-400 hover:bg-yellow-500'}`}
+          title={favoritosOpen ? "Fechar Favoritos" : "Orçamentos Favoritos"}
+        >
+          <Star size={24} className={favoritosOpen ? 'fill-white' : ''} />
+        </button>
+      </div>
+
+      {/* Botão flutuante do chat do WhatsApp */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={handleToggleWhatsApp}
+          className={`w-14 h-14 text-white rounded-full shadow-lg flex items-center justify-center transition-all transform hover:scale-110 ${chatOpen ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'}`}
+          title={chatOpen ? "Fechar WhatsApp" : "Abrir WhatsApp"}
+        >
+          <MessageSquare size={24} />
+        </button>
+      </div>
 
     </div>
   );
