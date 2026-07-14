@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "./ui/card";
 import { Phone, Edit2, GripVertical, X } from "lucide-react";
 
@@ -6,22 +6,27 @@ import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
+import {
+  atualizarLead,
+  listarLeads,
+  type Lead,
+  type LeadPayload,
+  type StatusCrm,
+  type StatusLead,
+} from "../data/leadsApi";
+import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
 
-// Tipos e dados agora são importados ou simulados da lista de Leads
-// Em um app real, isso viria de uma API ou estado global (Context/Redux)
-type StatusCrm = "Novo Lead" | "Qualificação" | "Reunião" | "Follow-ups" | "Pagos" | "Nutrição" | "Finalizados";
 interface LeadCardData {
-  id: string;
-  name: string;
-  phone: string;
+  id: number;
+  nome: string;
+  whatsapp: string;
   statusCrm: StatusCrm;
-  // Campos adicionais para o formulário de edição
   email: string;
-  status: "Novo" | "Em Contato" | "Qualificado" | "Perdido" | "Vendido";
+  status: StatusLead;
   atendente: string;
   criadoEm: string;
-  // Adicionei um status visual para o card, que pode ser diferente do status do CRM
   statusVisual: "Atendido" | "Agendado" | "Qualificado" | "Pago Concluído" | "Novo" | "Negociando";
+  viagens: number;
 }
 
 interface Columns {
@@ -31,8 +36,6 @@ interface Columns {
     items: LeadCardData[];
   };
 }
-
-const CRM_STORAGE_KEY = "crm-columns-v2";
 
 const initialColumns: Columns = {
   'novo-lead': {
@@ -72,26 +75,39 @@ const initialColumns: Columns = {
   },
 };
 
-function buildColumnsFromLeads(leads: LeadCardData[]): Columns {
+function mapStatusVisual(status: StatusLead): LeadCardData["statusVisual"] {
+  if (status === "Em Contato") return "Negociando";
+  if (status === "Qualificado") return "Qualificado";
+  if (status === "Vendido") return "Pago Concluído";
+  if (status === "Perdido") return "Atendido";
+  return "Novo";
+}
+
+function toLeadCard(lead: Lead): LeadCardData {
+  return {
+    id: lead.id,
+    nome: lead.nome,
+    whatsapp: lead.whatsapp,
+    statusCrm: lead.statusCrm,
+    email: lead.email,
+    status: lead.status,
+    atendente: lead.atendente,
+    criadoEm: lead.criadoEm,
+    statusVisual: mapStatusVisual(lead.status),
+    viagens: lead.viagens,
+  };
+}
+
+function buildColumnsFromLeads(leads: Lead[]): Columns {
   const columnsWithLeads: Columns = JSON.parse(JSON.stringify(initialColumns));
   leads.forEach((lead) => {
-    const columnKey = Object.keys(columnsWithLeads).find((key) => columnsWithLeads[key].status === lead.statusCrm);
+    const card = toLeadCard(lead);
+    const columnKey = Object.keys(columnsWithLeads).find((key) => columnsWithLeads[key].status === card.statusCrm);
     if (columnKey) {
-      columnsWithLeads[columnKey].items.push(lead);
+      columnsWithLeads[columnKey].items.push(card);
     }
   });
   return columnsWithLeads;
-}
-
-function getColumnIdByStatus(status: StatusCrm, columns: Columns): string | undefined {
-  return Object.keys(columns).find((key) => columns[key].status === status);
-}
-
-function getColumnIdFromDropTarget(targetId: string, columns: Columns): string | undefined {
-  if (columns[targetId]) {
-    return targetId;
-  }
-  return Object.keys(columns).find((key) => columns[key].items.some((item) => item.id === targetId));
 }
 
 const statusColors: Record<LeadCardData['statusVisual'], string> = {
@@ -110,8 +126,8 @@ function LeadCard({
   onDragEnd,
 }: {
   card: LeadCardData;
-  onEdit: (card: LeadCardData) => void;
-  onDragStart: (cardId: string) => void;
+  onEdit: (cardId: number) => void;
+  onDragStart: (cardId: number) => void;
   onDragEnd: () => void;
 }) {
 
@@ -119,13 +135,13 @@ function LeadCard({
     <Card
       draggable
       onDragStart={(event) => {
-        event.dataTransfer.setData("text/plain", card.id);
+        event.dataTransfer.setData("text/plain", String(card.id));
         event.dataTransfer.effectAllowed = "move";
         onDragStart(card.id);
       }}
       onDragEnd={onDragEnd}
       className="p-2 mb-2 bg-white cursor-move"
-      onDoubleClick={() => onEdit(card)}
+      onDoubleClick={() => onEdit(card.id)}
       title="Clique duplo para editar"
     >
       <div className="flex items-start">
@@ -133,15 +149,15 @@ function LeadCard({
           <GripVertical size={14} />
         </div>
         <div className="flex-1">
-          <p className="font-semibold text-xs text-gray-800 leading-tight">{card.name}</p>
+          <p className="font-semibold text-xs text-gray-800 leading-tight">{card.nome}</p>
           <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-1">
-            <Phone size={12} /> {card.phone}
+            <Phone size={12} /> {card.whatsapp || "Sem telefone"}
           </p>
           <div className="flex items-center justify-between mt-1.5">
             <div className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full inline-block ${statusColors[card.statusVisual]}`}>
               {card.statusVisual}
             </div>
-            <button onClick={() => onEdit(card)} title="Editar Lead" className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors">
+            <button onClick={() => onEdit(card.id)} title="Editar Lead" className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors">
               <Edit2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -165,8 +181,8 @@ function Column({
   id: string;
   title: string;
   items: LeadCardData[];
-  onEdit: (card: LeadCardData) => void;
-  onCardDragStart: (cardId: string) => void;
+  onEdit: (cardId: number) => void;
+  onCardDragStart: (cardId: number) => void;
   onCardDragEnd: () => void;
   onColumnDragOver: (columnId: string) => void;
   onColumnDrop: (columnId: string) => void;
@@ -201,47 +217,61 @@ function Column({
   );
 }
 
-// Dados mocados que simulam a busca dos leads
-const mockLeads: LeadCardData[] = [
-    { id: '1', name: 'Juliana Martins', phone: '(11) 98877-6655', statusCrm: 'Novo Lead', statusVisual: 'Novo', email: 'juliana.m@email.com', status: 'Novo', atendente: 'Ana Paula', criadoEm: '2024-07-28' },
-    { id: '2', name: 'Marcos Andrade', phone: '(21) 97766-5544', statusCrm: 'Qualificação', statusVisual: 'Qualificado', email: 'marcos.a@corp.com', status: 'Em Contato', atendente: 'Carlos Mendes', criadoEm: '2024-07-27' },
-    { id: '3', name: 'Beatriz Costa', phone: '(31) 96655-4433', statusCrm: 'Reunião', statusVisual: 'Agendado', email: 'bia.costa@email.com', status: 'Qualificado', atendente: 'Ana Paula', criadoEm: '2024-07-25' },
-    { id: '4', name: 'Lucas Pereira', phone: '(41) 95544-3322', statusCrm: 'Pagos', statusVisual: 'Pago Concluído', email: 'lucas.p@mail.com', status: 'Vendido', atendente: 'Carlos Mendes', criadoEm: '2024-07-22' },
-    { id: '5', name: 'Sofia Ribeiro', phone: '(51) 94433-2211', statusCrm: 'Finalizados', statusVisual: 'Atendido', email: 'sofia.r@email.com', status: 'Perdido', atendente: 'Ana Paula', criadoEm: '2024-07-20' },
-    { id: '6', name: 'Fernanda Lima', phone: '(31) 97654-3210', statusCrm: 'Follow-ups', statusVisual: 'Negociando', email: 'fernanda.l@email.com', status: 'Em Contato', atendente: 'Carlos Mendes', criadoEm: '2024-07-18' },
-    { id: '7', name: 'Ricardo Alves', phone: '(85) 94321-0987', statusCrm: 'Novo Lead', statusVisual: 'Novo', email: 'r.alves@negocio.com', status: 'Novo', atendente: 'Ana Paula', criadoEm: '2024-07-29' },
-];
-
-// Constantes para os dropdowns do modal
-const allStatus: LeadCardData['status'][] = ["Novo", "Em Contato", "Qualificado", "Perdido", "Vendido"];
+const allStatus: StatusLead[] = ["Novo", "Em Contato", "Qualificado", "Perdido", "Vendido"];
 const allCrmStatus: StatusCrm[] = ["Novo Lead", "Qualificação", "Reunião", "Follow-ups", "Pagos", "Nutrição", "Finalizados"];
-const allAtendentes = ["Ana Paula", "Carlos Mendes", "Fernanda Lima"];
 
 export default function CRM() {
   const [modalAberto, setModalAberto] = useState(false);
-  const [editando, setEditando] = useState<LeadCardData | null>(null);
-  const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
+  const [editando, setEditando] = useState<Lead | null>(null);
+  const [draggedCardId, setDraggedCardId] = useState<number | null>(null);
   const [overColumnId, setOverColumnId] = useState<string | null>(null);
-  const [columns, setColumns] = useState<Columns>(() => {
-    if (typeof window !== "undefined") {
-      const savedColumns = localStorage.getItem(CRM_STORAGE_KEY);
-      if (savedColumns) {
-        try {
-          return JSON.parse(savedColumns) as Columns;
-        } catch {
-          localStorage.removeItem(CRM_STORAGE_KEY);
-        }
-      }
-    }
-    return buildColumnsFromLeads(mockLeads);
-  });
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [funcionariosAtivos, setFuncionariosAtivos] = useState<Funcionario[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify(columns));
-  }, [columns]);
+    let mounted = true;
 
-  function abrirEdicao(card: LeadCardData) {
-    setEditando(card);
+    async function carregarDados() {
+      try {
+        setErro(null);
+        const [listaLeads, funcionarios] = await Promise.all([listarLeads(), listarFuncionarios()]);
+        if (!mounted) return;
+        setLeads(listaLeads);
+        setFuncionariosAtivos(funcionarios.filter((funcionario) => funcionario.status === "Ativo"));
+      } catch (error) {
+        if (!mounted) return;
+        setErro(error instanceof Error ? error.message : "Erro ao carregar leads do CRM.");
+        setLeads([]);
+      } finally {
+        if (mounted) setCarregando(false);
+      }
+    }
+
+    carregarDados();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const columns = useMemo(() => buildColumnsFromLeads(leads), [leads]);
+
+  const atendentesDisponiveis = useMemo(() => {
+    const nomesFuncionarios = funcionariosAtivos.map((funcionario) => funcionario.name).filter(Boolean);
+    const nomesLeads = leads.map((lead) => lead.atendente).filter(Boolean);
+    return Array.from(new Set([...nomesFuncionarios, ...nomesLeads])).sort((a, b) => a.localeCompare(b));
+  }, [funcionariosAtivos, leads]);
+
+  function abrirEdicao(cardId: number) {
+    const lead = leads.find((item) => item.id === cardId);
+    if (!lead) {
+      toast.error("Lead não encontrado.");
+      return;
+    }
+    setEditando(lead);
     setModalAberto(true);
   }
 
@@ -250,63 +280,51 @@ export default function CRM() {
     setEditando(null);
   }
 
-  function salvarEdicao(form: LeadCardData) {
+  async function salvarEdicao(form: LeadPayload) {
     if (!editando) return;
+    setSalvando(true);
 
-    setColumns((prev) => {
-      const newColumns: Columns = JSON.parse(JSON.stringify(prev));
-
-      // Remove o card da coluna atual para poder reposicionar pelo status CRM editado.
-      for (const colId in newColumns) {
-        newColumns[colId].items = newColumns[colId].items.filter((item) => item.id !== editando.id);
-      }
-
-      const destinationColumnId = getColumnIdByStatus(form.statusCrm, newColumns);
-      if (!destinationColumnId) {
-        return prev;
-      }
-
-      newColumns[destinationColumnId].items.push(form);
-      toast.success(`Lead movido para ${newColumns[destinationColumnId].title}`);
-      return newColumns;
-    });
-    fecharModal();
+    try {
+      const atualizado = await atualizarLead(editando.id, form);
+      setLeads((prev) => prev.map((lead) => (lead.id === atualizado.id ? atualizado : lead)));
+      toast.success("Lead atualizado com sucesso.");
+      fecharModal();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar edição do lead.");
+    } finally {
+      setSalvando(false);
+    }
   }
 
-  function moveCardToColumn(cardId: string, targetColumnId: string) {
-    setColumns((prev) => {
-      const newColumns: Columns = JSON.parse(JSON.stringify(prev));
-      let sourceColumnId: string | undefined;
-      let activeCard: LeadCardData | undefined;
+  async function moveCardToColumn(cardId: number, targetColumnId: string) {
+    const lead = leads.find((item) => item.id === cardId);
+    const destinationColumn = columns[targetColumnId];
 
-      for (const colId in newColumns) {
-        const foundCard = newColumns[colId].items.find((item) => item.id === cardId);
-        if (foundCard) {
-          sourceColumnId = colId;
-          activeCard = foundCard;
-          break;
-        }
-      }
+    if (!lead || !destinationColumn || lead.statusCrm === destinationColumn.status) {
+      return;
+    }
 
-      const destColumnId = getColumnIdFromDropTarget(targetColumnId, newColumns);
-      if (!activeCard || !sourceColumnId || !destColumnId || sourceColumnId === destColumnId) {
-        return prev;
-      }
+    const payload: LeadPayload = {
+      nome: lead.nome,
+      email: lead.email,
+      whatsapp: lead.whatsapp,
+      status: lead.status,
+      statusCrm: destinationColumn.status,
+      viagens: lead.viagens,
+      criadoEm: lead.criadoEm,
+      atendente: lead.atendente,
+    };
 
-      const movedCard: LeadCardData = {
-        ...activeCard,
-        statusCrm: newColumns[destColumnId].status,
-      };
-
-      newColumns[sourceColumnId].items = newColumns[sourceColumnId].items.filter((item: LeadCardData) => item.id !== cardId);
-      newColumns[destColumnId].items.push(movedCard);
-
-      toast.success(`${movedCard.name} movido para ${newColumns[destColumnId].title}`);
-      return newColumns;
-    });
+    try {
+      const atualizado = await atualizarLead(lead.id, payload);
+      setLeads((prev) => prev.map((item) => (item.id === atualizado.id ? atualizado : item)));
+      toast.success(`${atualizado.nome} movido para ${destinationColumn.title}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao mover lead no CRM.");
+    }
   }
 
-  function handleCardDragStart(cardId: string) {
+  function handleCardDragStart(cardId: number) {
     setDraggedCardId(cardId);
   }
 
@@ -323,7 +341,7 @@ export default function CRM() {
     if (!draggedCardId) {
       return;
     }
-    moveCardToColumn(draggedCardId, columnId);
+    void moveCardToColumn(draggedCardId, columnId);
     setDraggedCardId(null);
     setOverColumnId(null);
   }
@@ -333,9 +351,16 @@ export default function CRM() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">CRM</h1>
-          <p className="text-sm text-gray-500 mt-1">Funil de Vendas e Oportunidades</p>
+          <p className="text-sm text-gray-500 mt-1">Funil de Vendas e Oportunidades {carregando ? "(carregando...)" : `(${leads.length} leads)`}</p>
         </div>
       </div>
+
+      {erro && (
+        <Card className="mb-4 border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {erro}
+        </Card>
+      )}
+
       <div className="flex flex-col md:flex-row gap-4">
         {Object.entries(columns).map(([id, column]) => (
           <Column
@@ -355,24 +380,39 @@ export default function CRM() {
 
       {/* Modal de Edição */}
       {modalAberto && editando && (
-        <EditModal lead={editando} onClose={fecharModal} onSave={salvarEdicao} />
+        <EditModal
+          lead={editando}
+          atendentesDisponiveis={atendentesDisponiveis}
+          salvando={salvando}
+          onClose={fecharModal}
+          onSave={salvarEdicao}
+        />
       )}
     </div>
   );
 }
 
 interface EditModalProps {
-  lead: LeadCardData;
+  lead: Lead;
+  atendentesDisponiveis: string[];
+  salvando: boolean;
   onClose: () => void;
-  onSave: (form: LeadCardData) => void;
+  onSave: (form: LeadPayload) => Promise<void>;
 }
 
-function EditModal({ lead, onClose, onSave }: EditModalProps) {
-  const [form, setForm] = useState(lead);
+function EditModal({ lead, atendentesDisponiveis, salvando, onClose, onSave }: EditModalProps) {
+  const [form, setForm] = useState<LeadPayload>({
+    nome: lead.nome,
+    email: lead.email,
+    whatsapp: lead.whatsapp,
+    status: lead.status,
+    statusCrm: lead.statusCrm,
+    viagens: lead.viagens,
+    criadoEm: lead.criadoEm,
+    atendente: lead.atendente,
+  });
 
-  const handleSave = () => {
-    onSave(form);
-  };
+  const handleSave = () => onSave(form);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -387,7 +427,7 @@ function EditModal({ lead, onClose, onSave }: EditModalProps) {
         <div className="grid gap-4">
           <div>
             <Label htmlFor="nome">Nome *</Label>
-            <Input id="nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do lead" className="mt-1" />
+            <Input id="nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Nome do lead" className="mt-1" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -396,13 +436,13 @@ function EditModal({ lead, onClose, onSave }: EditModalProps) {
             </div>
             <div>
               <Label htmlFor="whatsapp">Whatsapp</Label>
-              <Input id="whatsapp" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="(00) 00000-0000" className="mt-1" />
+              <Input id="whatsapp" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="(00) 00000-0000" className="mt-1" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="status">Status</Label>
-              <select id="status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as LeadCardData['status'] })} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm">
+              <select id="status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as StatusLead })} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm">
                 {allStatus.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -414,18 +454,50 @@ function EditModal({ lead, onClose, onSave }: EditModalProps) {
             </div>
             <div>
               <Label htmlFor="atendente">Atendente</Label>
-              <select id="atendente" value={form.atendente} onChange={(e) => setForm({ ...form, atendente: e.target.value })} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm">
-                <option value="">Nenhum</option>
-                {allAtendentes.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
+              <Input
+                id="atendente"
+                value={form.atendente}
+                onChange={(e) => setForm({ ...form, atendente: e.target.value })}
+                placeholder="Selecione ou digite um atendente"
+                className="mt-1"
+                list="crm-atendentes-list"
+              />
+              <datalist id="crm-atendentes-list">
+                {atendentesDisponiveis.map((atendente) => (
+                  <option key={atendente} value={atendente} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="viagens">Nº de Viagens</Label>
+              <Input
+                id="viagens"
+                type="number"
+                min="0"
+                value={form.viagens}
+                onChange={(e) => setForm({ ...form, viagens: parseInt(e.target.value, 10) || 0 })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="criadoEm">Criado em</Label>
+              <Input
+                id="criadoEm"
+                type="date"
+                value={form.criadoEm}
+                onChange={(e) => setForm({ ...form, criadoEm: e.target.value })}
+                className="mt-1"
+              />
             </div>
           </div>
         </div>
 
         <div className="flex justify-end gap-2 mt-6">
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={!form.name.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
-            Salvar Alterações
+          <Button variant="outline" onClick={onClose} disabled={salvando}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={salvando || !form.nome.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {salvando ? "Salvando..." : "Salvar Alterações"}
           </Button>
         </div>
       </div>
