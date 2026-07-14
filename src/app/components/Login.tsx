@@ -6,6 +6,7 @@ import { Label } from "./ui/label";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import logoImg from "@/imports/logo.png";
 import { useNavigate } from "react-router";
+import { loginFuncionario } from "../data/funcionariosApi";
 
 // A simple SVG for Google icon
 const GoogleIcon = () => (
@@ -20,15 +21,26 @@ const GoogleIcon = () => (
 export default function Login() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  // Placeholder function for login logic
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Add actual authentication logic here
-    console.log("Attempting to log in...");
-    // On successful login, navigate to the dashboard
-    sessionStorage.setItem("isAuthenticated", "true");
-    navigate("/");
+    setErro(null);
+    setLoading(true);
+
+    try {
+      const response = await loginFuncionario(email, password);
+      sessionStorage.setItem("isAuthenticated", "true");
+      sessionStorage.setItem("authFuncionario", JSON.stringify(response.funcionario));
+      navigate("/");
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Falha ao autenticar.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Placeholder function for Google login
@@ -51,11 +63,12 @@ export default function Login() {
 
         <div className="bg-white p-8 rounded-lg shadow-md">
           <form onSubmit={handleLogin} className="space-y-6">
+            {erro && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
             <div>
               <Label htmlFor="email">E-mail</Label>
               <div className="relative mt-1">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input id="email" type="email" placeholder="seu@email.com" required className="pl-9" />
+                <Input id="email" type="email" placeholder="seu@email.com" required className="pl-9" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
             </div>
 
@@ -63,7 +76,7 @@ export default function Login() {
               <Label htmlFor="password">Senha</Label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input id="password" type={showPassword ? "text" : "password"} placeholder="Sua senha" required className="pl-9 pr-10" />
+                <Input id="password" type={showPassword ? "text" : "password"} placeholder="Sua senha" required className="pl-9 pr-10" value={password} onChange={(e) => setPassword(e.target.value)} />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -75,8 +88,8 @@ export default function Login() {
               <a href="#" className="text-xs text-blue-600 hover:underline mt-2 block text-right">Esqueceu a senha?</a>
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-              Entrar
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
 

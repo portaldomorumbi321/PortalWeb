@@ -11,12 +11,7 @@ export interface FuncionarioCadastro {
   photo?: string;
 }
 
-export const funcionariosIniciais: FuncionarioCadastro[] = [
-  { id: 1, name: "Carol", role: "Gerente de Vendas", department: "Comercial", status: "Ativo", initials: "MS", accessLevel: "Administrador", email: "carol@321go.com" },
-  { id: 2, name: "Ricardo", role: "Analista Financeiro", department: "Financeiro", status: "Ativo", initials: "JS", accessLevel: "Agente", email: "ricardo@321go.com" },
-  { id: 3, name: "Miguel", role: "Designer", department: "Marketing", status: "Ativo", initials: "AC", accessLevel: "Agente", email: "miguel@321go.com" },
-  { id: 4, name: "João Pedro", role: "Desenvolvedor", department: "TI", status: "Inativo", initials: "PO", accessLevel: "Administrador", email: "jp@321go.com" },
-];
+export const funcionariosIniciais: FuncionarioCadastro[] = [];
 
 const CHAVE_FUNCIONARIOS = "funcionarios";
 

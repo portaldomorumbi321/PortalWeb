@@ -1,42 +1,46 @@
-import { useState, type ChangeEvent } from "react";
-import { User, Calendar, Clock, Award, Plus, Edit2, Trash2, X, Check, Camera } from "lucide-react";
+import { useEffect, useState, type ChangeEvent } from "react";
+import { User, Calendar, Clock, Award, Plus, Edit2, X, Camera } from "lucide-react";
 import { Card } from "./ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { obterFuncionarios, salvarFuncionarios } from "../data/funcionarios";
-
-interface Funcionario {
-  id: number;
-  name: string;
-  role: string;
-  department: string;
-  status: "Ativo" | "Inativo";
-  initials: string;
-  accessLevel: "Administrador" | "Agente";
-  email: string;
-  password?: string;
-  photo?: string;
-}
-
-const dadosIniciais: Funcionario[] = [
-  { id: 1, name: "Carol", role: "Gerente de Vendas", department: "Comercial", status: "Ativo", initials: "MS", accessLevel: "Administrador", email: "carol@321go.com" },
-  { id: 2, name: "Ricardo", role: "Analista Financeiro", department: "Financeiro", status: "Ativo", initials: "JS", accessLevel: "Agente", email: "ricardo@321go.com" },
-  { id: 3, name: "Miguel", role: "Designer", department: "Marketing", status: "Ativo", initials: "AC", accessLevel: "Agente", email: "miguel@321go.com" },
-  { id: 4, name: "João Pedro", role: "Desenvolvedor", department: "TI", status: "Inativo", initials: "PO", accessLevel: "Administrador", email: "jp@321go.com" },
-];
+import {
+  atualizarFuncionario,
+  criarFuncionario,
+  listarFuncionarios,
+  type Funcionario,
+} from "../data/funcionariosApi";
 
 const funcionarioVazio: Omit<Funcionario, 'id' | 'initials'> = { name: "", role: "", department: "", status: "Ativo", accessLevel: "Agente", email: "", password: "" };
 
 export default function Funcionario() {
-  const [funcionarios, setFuncionarios] = useState<Funcionario[]>(obterFuncionarios);
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Funcionario | null>(null);
   const [form, setForm] = useState<Omit<Funcionario, 'id' | 'initials'>>(funcionarioVazio);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  function abrirNovo() { setEditando(null); setForm(funcionarioVazio); setModalAberto(true); }
-  function abrirEdicao(func: Funcionario) { setEditando(func); setForm(func); setModalAberto(true); }
+  async function carregarFuncionarios() {
+    setErro(null);
+    try {
+      const itens = await listarFuncionarios();
+      setFuncionarios(itens);
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao carregar funcionários.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => {
+    carregarFuncionarios();
+  }, []);
+
+  function abrirNovo() { setErro(null); setEditando(null); setForm(funcionarioVazio); setModalAberto(true); }
+  function abrirEdicao(func: Funcionario) { setErro(null); setEditando(func); setForm({ ...func, password: "" }); setModalAberto(true); }
   function fecharModal() { setModalAberto(false); setEditando(null); }
 
   function selecionarFoto(event: ChangeEvent<HTMLInputElement>) {
@@ -48,60 +52,60 @@ export default function Funcionario() {
     leitor.readAsDataURL(arquivo);
   }
 
-  function salvar() {
-    if (!form.name.trim()) return;
-    const iniciais = form.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-    if (editando) {
-      setFuncionarios(prev => {
-        const atualizados = prev.map(f => f.id === editando.id ? { ...editando, ...form, initials: iniciais } : f);
-        salvarFuncionarios(atualizados);
-        return atualizados;
-      });
-    } else {
-      const novoId = funcionarios.length > 0 ? Math.max(...funcionarios.map(f => f.id)) + 1 : 1;
-      setFuncionarios(prev => {
-        const atualizados = [...prev, { id: novoId, ...form, initials: iniciais }];
-        salvarFuncionarios(atualizados);
-        return atualizados;
-      });
-    }
-    fecharModal();
-  }
+  async function salvar() {
+    if (!form.name.trim() || !form.email.trim()) return;
 
-  function excluir(id: number) {
-    setFuncionarios(prev => {
-      const atualizados = prev.filter(f => f.id !== id);
-      salvarFuncionarios(atualizados);
-      return atualizados;
-    });
+    setSalvando(true);
+    setErro(null);
+
+    try {
+      const payload = {
+        ...form,
+        name: form.name.trim(),
+        email: form.email.trim(),
+      };
+
+      if (editando) {
+        await atualizarFuncionario(editando.id, payload);
+      } else {
+        await criarFuncionario(payload);
+      }
+
+      await carregarFuncionarios();
+      fecharModal();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao salvar funcionário.");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   const stats = [
     {
       icon: User,
       title: "Total de Funcionários",
-      value: "47",
+      value: String(funcionarios.length),
       color: "text-blue-600",
       bgColor: "bg-blue-100",
     },
     {
       icon: Calendar,
       title: "Aniversariantes do Mês",
-      value: "3",
+      value: "0",
       color: "text-green-600",
       bgColor: "bg-green-100",
     },
     {
       icon: Clock,
       title: "Em Férias",
-      value: "5",
+      value: "0",
       color: "text-orange-600",
       bgColor: "bg-orange-100",
     },
     {
       icon: Award,
       title: "Destaques do Mês",
-      value: "2",
+      value: "0",
       color: "text-purple-600",
       bgColor: "bg-purple-100",
     },
@@ -134,6 +138,9 @@ export default function Funcionario() {
 
       <Card className="p-6">
         <h3 className="font-semibold text-gray-900 mb-4">Equipe</h3>
+        {erro && <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+        {carregando && <p className="text-sm text-gray-500">Carregando funcionários...</p>}
+        {!carregando && funcionarios.length === 0 && <p className="text-sm text-gray-500">Nenhum funcionário cadastrado.</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {funcionarios.map((employee) => (
             <div
@@ -158,7 +165,6 @@ export default function Funcionario() {
                 </span>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="icon" onClick={() => abrirEdicao(employee)} className="h-7 w-7 text-blue-600 hover:text-blue-600"><Edit2 className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => excluir(employee.id)} className="h-7 w-7 text-red-500 hover:text-red-500"><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </div>
             </div>
@@ -207,7 +213,7 @@ export default function Funcionario() {
                 </div>
                 <div>
                   <Label htmlFor="password">Senha</Label>
-                  <Input id="password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editando ? "Deixe em branco para não alterar" : "Senha de acesso"} className="mt-1" />
+                  <Input id="password" type="password" value={form.password ?? ""} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={editando ? "Deixe em branco para não alterar" : "Senha de acesso"} className="mt-1" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -262,8 +268,8 @@ export default function Funcionario() {
 
             <div className="flex justify-end gap-2 mt-6">
               <Button variant="outline" onClick={fecharModal}>Cancelar</Button>
-              <Button onClick={salvar} disabled={!form.name.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
-                {editando ? "Salvar Alterações" : "Cadastrar Funcionário"}
+              <Button onClick={salvar} disabled={salvando || !form.name.trim() || !form.email.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
+                {salvando ? "Salvando..." : editando ? "Salvar Alterações" : "Cadastrar Funcionário"}
               </Button>
             </div>
           </div>

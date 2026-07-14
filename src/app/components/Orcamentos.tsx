@@ -18,7 +18,7 @@ import RestauranteForm from "./RestauranteForm";
 import ExperienciasForm from "./ExperienciasForm";
 import SeguroForm from "./SeguroForm";
 import { obterClientes } from "../data/clientes";
-import { obterFuncionarios } from "../data/funcionarios";
+import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
 
 type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
 
@@ -227,8 +227,31 @@ export default function Orcamentos() {
   const [restaurante, setRestaurante] = useState<any[]>([]);
   const [experiencias, setExperiencias] = useState<any[]>([]);
   const [seguro, setSeguro] = useState<any[]>([]);
+  const [funcionariosAtivos, setFuncionariosAtivos] = useState<Funcionario[]>([]);
   const clientesAtivos = obterClientes().filter((cliente) => cliente.status === "Ativo");
-  const funcionariosAtivos = obterFuncionarios().filter((funcionario) => funcionario.status === "Ativo");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function carregarFuncionarios() {
+      try {
+        const funcionarios = await listarFuncionarios();
+        if (mounted) {
+          setFuncionariosAtivos(funcionarios.filter((funcionario) => funcionario.status === "Ativo"));
+        }
+      } catch {
+        if (mounted) {
+          setFuncionariosAtivos([]);
+        }
+      }
+    }
+
+    carregarFuncionarios();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Handle state params from ResumoOrcamentos
   useEffect(() => {

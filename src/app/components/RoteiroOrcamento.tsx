@@ -5,7 +5,7 @@ import {
   Share2, X, Plane, Bed, Map, CalendarDays, Car, Utensils, Sparkles, Shield, Info, Instagram, Mail, MessageCircle
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { obterFuncionarios } from "../data/funcionarios";
+import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
 
 interface Voo {
   id: number;
@@ -118,6 +118,7 @@ export default function RoteiroOrcamento() {
   const { numero } = useParams<{ numero: string }>();
   const [orc, setOrc] = useState<Orcamento | null>(null);
   const [itemAtivo, setItemAtivo] = useState<string>("voos");
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
 
   useEffect(() => {
     if (numero) {
@@ -127,6 +128,29 @@ export default function RoteiroOrcamento() {
       }
     }
   }, [numero]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function carregarFuncionarios() {
+      try {
+        const lista = await listarFuncionarios();
+        if (mounted) {
+          setFuncionarios(lista);
+        }
+      } catch {
+        if (mounted) {
+          setFuncionarios([]);
+        }
+      }
+    }
+
+    carregarFuncionarios();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   if (!orc) {
     return (
@@ -149,7 +173,7 @@ export default function RoteiroOrcamento() {
   const origemPrincipal = orc.voos && orc.voos.length > 0 ? orc.voos[0].origem : null;
   const dataViagemPrincipal = dataCheckinPrincipal || orc.voos?.[0]?.data || null;
   const agente = orc.agenteViagem
-    ? obterFuncionarios().find((funcionario) => funcionario.name === orc.agenteViagem)
+    ? funcionarios.find((funcionario) => funcionario.name === orc.agenteViagem)
     : null;
   const nomeAgente = agente?.name || orc.agenteViagem;
   const iniciaisAgente = nomeAgente
