@@ -201,6 +201,19 @@ function mapFornecedor(row) {
   };
 }
 
+function mapTarefa(row) {
+  return {
+    id: Number(row.id),
+    titulo: row.titulo,
+    descricao: row.descricao || '',
+    responsavel: row.responsavel || '',
+    prioridade: row.prioridade,
+    status: row.status,
+    prazo: row.prazo ? new Date(row.prazo).toISOString().slice(0, 10) : '',
+    categoria: row.categoria || '',
+  };
+}
+
 function normalizePayload(body) {
   return {
     name: String(body.name || '').trim(),
@@ -258,6 +271,21 @@ function normalizeFornecedorPayload(body) {
     cidade: String(body?.cidade || '').trim(),
     estado: String(body?.estado || '').trim().toUpperCase().slice(0, 2),
     status: body?.status === 'Inativo' ? 'Inativo' : 'Ativo',
+    categoria: String(body?.categoria || '').trim(),
+  };
+}
+
+function normalizeTarefaPayload(body) {
+  const status = body?.status;
+  const prioridade = body?.prioridade;
+
+  return {
+    titulo: String(body?.titulo || '').trim(),
+    descricao: String(body?.descricao || '').trim(),
+    responsavel: String(body?.responsavel || '').trim(),
+    prioridade: prioridade === 'Alta' || prioridade === 'Baixa' ? prioridade : 'Média',
+    status: status === 'Em andamento' || status === 'Concluída' || status === 'Cancelada' ? status : 'Pendente',
+    prazo: String(body?.prazo || '').trim(),
     categoria: String(body?.categoria || '').trim(),
   };
 }
@@ -855,6 +883,125 @@ app.put('/api/fornecedores/:id', ensureDb, async (req, res) => {
     }
 
     console.error('Erro ao atualizar fornecedor:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/tarefas', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, titulo, descricao, responsavel, prioridade, status, prazo, categoria
+       FROM public.tarefas
+       ORDER BY criado_em DESC, id DESC`
+    );
+
+    res.json(result.rows.map(mapTarefa));
+  } catch (error) {
+    console.error('Erro ao listar tarefas:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/tarefas', ensureDb, async (req, res) => {
+  const payload = normalizeTarefaPayload(req.body);
+
+  if (!payload.titulo) {
+    return res.status(400).json({ error: 'Título é obrigatório.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.tarefas
+        (titulo, descricao, responsavel, prioridade, status, prazo, categoria)
+       VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')::date, $7)
+       RETURNING id, titulo, descricao, responsavel, prioridade, status, prazo, categoria`,
+      [
+        payload.titulo,
+        payload.descricao || null,
+        payload.responsavel || null,
+        payload.prioridade,
+        payload.status,
+        payload.prazo,
+        payload.categoria || null,
+      ]
+    );
+
+    res.status(201).json(mapTarefa(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao criar tarefa:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/tarefas/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeTarefaPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  if (!payload.titulo) {
+    return res.status(400).json({ error: 'Título é obrigatório.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.tarefas
+          SET titulo = $1,
+              descricao = $2,
+              responsavel = $3,
+              prioridade = $4,
+              status = $5,
+              prazo = NULLIF($6, '')::date,
+              categoria = $7,
+              atualizado_em = NOW()
+        WHERE id = $8
+      RETURNING id, titulo, descricao, responsavel, prioridade, status, prazo, categoria`,
+      [
+        payload.titulo,
+        payload.descricao || null,
+        payload.responsavel || null,
+        payload.prioridade,
+        payload.status,
+        payload.prazo,
+        payload.categoria || null,
+        id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Tarefa não encontrada.' });
+    }
+
+    res.json(mapTarefa(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao atualizar tarefa:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.delete('/api/tarefas/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM public.tarefas WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Tarefa não encontrada.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir tarefa:', error);
     const dbError = resolveDatabaseError(error);
     res.status(dbError.status).json({ error: dbError.message });
   }

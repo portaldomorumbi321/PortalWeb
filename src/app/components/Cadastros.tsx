@@ -1,4 +1,4 @@
-import { Users, UserPlus, Package, MapPin, CheckSquare, Briefcase } from "lucide-react";
+import { Users, UserPlus, Package, CheckSquare, Briefcase } from "lucide-react";
 import { Card } from "./ui/card";
 import { useNavigate } from "react-router";
 
@@ -26,14 +26,6 @@ const cadastroOptions = [
     color: "text-purple-600",
     bgColor: "bg-purple-100",
     route: "/cadastros/produtos",
-  },
-  {
-    icon: MapPin,
-    title: "Endereços",
-    description: "Gerenciar localizações",
-    color: "text-orange-600",
-    bgColor: "bg-orange-100",
-    route: "/cadastros/enderecos",
   },
   {
     icon: CheckSquare,

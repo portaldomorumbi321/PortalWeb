@@ -11,7 +11,8 @@
     "db:create-funcionarios": "node Backend/scripts/create-funcionarios-table.mjs",
     "db:create-clientes": "node Backend/scripts/create-clientes-table.mjs",
     "db:create-produtos": "node Backend/scripts/create-produtos-table.mjs",
-    "db:create-fornecedores": "node Backend/scripts/create-fornecedores-table.mjs"
+    "db:create-fornecedores": "node Backend/scripts/create-fornecedores-table.mjs",
+    "db:create-tarefas": "node Backend/scripts/create-tarefas-table.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
