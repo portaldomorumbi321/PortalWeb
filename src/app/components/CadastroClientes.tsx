@@ -19,6 +19,10 @@ const clienteVazio: ClienteForm = {
   nome: "",
   email: "",
   telefone: "",
+  cep: "",
+  endereco: "",
+  numero: "",
+  complemento: "",
   cidade: "",
   estado: "",
   status: "Ativo",
@@ -60,6 +64,8 @@ export default function CadastroClientes() {
       c.nome.toLowerCase().includes(termo) ||
       c.email.toLowerCase().includes(termo) ||
       c.telefone.includes(termo) ||
+      c.cep.includes(termo) ||
+      c.endereco.toLowerCase().includes(termo) ||
       c.cidade.toLowerCase().includes(termo) ||
       c.cpfCnpj.includes(termo);
     const matchStatus = filtroStatus === "Todos" || c.status === filtroStatus;
@@ -80,6 +86,10 @@ export default function CadastroClientes() {
       nome: cliente.nome,
       email: cliente.email,
       telefone: cliente.telefone,
+      cep: cliente.cep,
+      endereco: cliente.endereco,
+      numero: cliente.numero,
+      complemento: cliente.complemento,
       cidade: cliente.cidade,
       estado: cliente.estado,
       status: cliente.status,
@@ -214,6 +224,7 @@ export default function CadastroClientes() {
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold">Nome</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold hidden md:table-cell">CPF / CNPJ</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold hidden lg:table-cell">Contato</th>
+                <th className="text-left px-4 py-3 text-gray-600 font-semibold hidden lg:table-cell">CEP</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold hidden xl:table-cell">Localização</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold">Status</th>
                 <th className="text-right px-4 py-3 text-gray-600 font-semibold">Ações</th>
@@ -266,11 +277,17 @@ export default function CadastroClientes() {
                         </span>
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-gray-500 hidden lg:table-cell">{cliente.cep || "-"}</td>
                     <td className="px-4 py-3 hidden xl:table-cell">
-                      <span className="flex items-center gap-1 text-gray-600">
+                      <div className="flex items-start gap-1 text-gray-600">
                         <MapPin className="w-3 h-3" />
-                        {cliente.cidade} — {cliente.estado}
-                      </span>
+                        <div>
+                          <p>{[cliente.endereco, cliente.numero].filter(Boolean).join(", ") || "-"}</p>
+                          <p className="text-xs text-gray-500">
+                            {[cliente.complemento, cliente.cidade, cliente.estado].filter(Boolean).join(" - ") || "-"}
+                          </p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <Badge
@@ -363,6 +380,48 @@ export default function CadastroClientes() {
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="cliente@email.com"
+                  className="mt-1"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="cep">CEP</Label>
+                  <Input
+                    id="cep"
+                    value={form.cep}
+                    onChange={(e) => setForm({ ...form, cep: e.target.value })}
+                    placeholder="00000-000"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="numero">Número</Label>
+                  <Input
+                    id="numero"
+                    value={form.numero}
+                    onChange={(e) => setForm({ ...form, numero: e.target.value })}
+                    placeholder="123"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="endereco">Endereço</Label>
+                <Input
+                  id="endereco"
+                  value={form.endereco}
+                  onChange={(e) => setForm({ ...form, endereco: e.target.value })}
+                  placeholder="Rua, avenida, etc."
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="complemento">Complemento</Label>
+                <Input
+                  id="complemento"
+                  value={form.complemento}
+                  onChange={(e) => setForm({ ...form, complemento: e.target.value })}
+                  placeholder="Apto, bloco, referência"
                   className="mt-1"
                 />
               </div>

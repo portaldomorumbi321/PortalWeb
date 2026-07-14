@@ -156,6 +156,10 @@ function mapCliente(row) {
     nome: row.nome,
     email: row.email || '',
     telefone: row.telefone || '',
+    cep: row.cep || '',
+    endereco: row.endereco || '',
+    numero: row.numero || '',
+    complemento: row.complemento || '',
     cidade: row.cidade || '',
     estado: row.estado || '',
     status: row.status,
@@ -183,6 +187,10 @@ function normalizeClientePayload(body) {
     nome: String(body?.nome || '').trim(),
     email: String(body?.email || '').trim().toLowerCase(),
     telefone: String(body?.telefone || '').trim(),
+    cep: String(body?.cep || '').trim(),
+    endereco: String(body?.endereco || '').trim(),
+    numero: String(body?.numero || '').trim(),
+    complemento: String(body?.complemento || '').trim(),
     cidade: String(body?.cidade || '').trim(),
     estado: String(body?.estado || '').trim().toUpperCase().slice(0, 2),
     status: body?.status === 'Inativo' ? 'Inativo' : 'Ativo',
@@ -398,7 +406,7 @@ app.delete('/api/funcionarios/:id', ensureDb, async (req, res) => {
 app.get('/api/clientes', ensureDb, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, nome, email, telefone, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome
+      `SELECT id, nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome
        FROM public.clientes
        ORDER BY nome ASC`
     );
@@ -421,13 +429,17 @@ app.post('/api/clientes', ensureDb, async (req, res) => {
   try {
     const result = await pool.query(
       `INSERT INTO public.clientes
-        (nome, email, telefone, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, '')::date, $9)
-       RETURNING id, nome, email, telefone, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome`,
+        (nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, '')::date, $13)
+       RETURNING id, nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome`,
       [
         payload.nome,
         payload.email || null,
         payload.telefone || null,
+        payload.cep || null,
+        payload.endereco || null,
+        payload.numero || null,
+        payload.complemento || null,
         payload.cidade || null,
         payload.estado || null,
         payload.status,
@@ -467,19 +479,27 @@ app.put('/api/clientes/:id', ensureDb, async (req, res) => {
           SET nome = $1,
               email = $2,
               telefone = $3,
-              cidade = $4,
-              estado = $5,
-              status = $6,
-              cpf_cnpj = $7,
-              data_nascimento = NULLIF($8, '')::date,
-              documento_nome = $9,
+              cep = $4,
+              endereco = $5,
+              numero = $6,
+              complemento = $7,
+              cidade = $8,
+              estado = $9,
+              status = $10,
+              cpf_cnpj = $11,
+              data_nascimento = NULLIF($12, '')::date,
+              documento_nome = $13,
               atualizado_em = NOW()
-        WHERE id = $10
-      RETURNING id, nome, email, telefone, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome`,
+        WHERE id = $14
+      RETURNING id, nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome`,
       [
         payload.nome,
         payload.email || null,
         payload.telefone || null,
+        payload.cep || null,
+        payload.endereco || null,
+        payload.numero || null,
+        payload.complemento || null,
         payload.cidade || null,
         payload.estado || null,
         payload.status,

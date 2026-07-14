@@ -3,6 +3,10 @@ CREATE TABLE IF NOT EXISTS public.clientes (
   nome VARCHAR(150) NOT NULL,
   email VARCHAR(255),
   telefone VARCHAR(40),
+  cep VARCHAR(16),
+  endereco VARCHAR(255),
+  numero VARCHAR(20),
+  complemento VARCHAR(120),
   cidade VARCHAR(120),
   estado VARCHAR(2),
   status VARCHAR(10) NOT NULL DEFAULT 'Ativo' CHECK (status IN ('Ativo', 'Inativo')),
@@ -20,3 +24,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_cpf_cnpj_unico
 CREATE INDEX IF NOT EXISTS idx_clientes_nome ON public.clientes (nome);
 CREATE INDEX IF NOT EXISTS idx_clientes_status ON public.clientes (status);
 CREATE INDEX IF NOT EXISTS idx_clientes_email ON public.clientes (email);
+
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS cep VARCHAR(16);
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS endereco VARCHAR(255);
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS numero VARCHAR(20);
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS complemento VARCHAR(120);
