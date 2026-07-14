@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Search, Plus, Edit2, Phone, Mail, MapPin, X } from "lucide-react";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
@@ -123,6 +124,28 @@ export default function CadastroClientes() {
     }
   }
 
+  function normalizarTelefoneWhatsApp(telefone: string) {
+    const digitos = telefone.replace(/\D/g, "");
+
+    if (!digitos) return null;
+
+    if (digitos.startsWith("55") && digitos.length >= 12) {
+      return digitos;
+    }
+
+    if (digitos.length === 10 || digitos.length === 11) {
+      return `55${digitos}`;
+    }
+
+    return digitos;
+  }
+
+  function linkWhatsApp(telefone: string) {
+    const numero = normalizarTelefoneWhatsApp(telefone);
+    if (!numero) return null;
+    return `https://wa.me/${numero}`;
+  }
+
   return (
     <div>
       {/* Cabeçalho */}
@@ -228,6 +251,18 @@ export default function CadastroClientes() {
                         <span className="flex items-center gap-1 text-gray-500">
                           <Phone className="w-3 h-3" />
                           {cliente.telefone}
+                          {linkWhatsApp(cliente.telefone) && (
+                            <a
+                              href={linkWhatsApp(cliente.telefone) || "#"}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label={`Abrir WhatsApp de ${cliente.nome}`}
+                              title="Abrir no WhatsApp"
+                              className="ml-1 inline-flex items-center justify-center rounded text-green-600 hover:text-green-700"
+                            >
+                              <WhatsAppIcon fontSize="inherit" className="text-base" />
+                            </a>
+                          )}
                         </span>
                       </div>
                     </td>
