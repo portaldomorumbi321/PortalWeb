@@ -8,7 +8,8 @@
     "dev:frontend": "vite",
     "dev:backend": "node Backend/index.cjs",
     "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\"",
-    "db:create-funcionarios": "node Backend/scripts/create-funcionarios-table.mjs"
+    "db:create-funcionarios": "node Backend/scripts/create-funcionarios-table.mjs",
+    "db:create-clientes": "node Backend/scripts/create-clientes-table.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

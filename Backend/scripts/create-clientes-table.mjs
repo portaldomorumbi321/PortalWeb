@@ -62,7 +62,7 @@ async function run() {
     throw new Error('Variável de conexão não definida. Use DATABASE_URL (ou POSTGRES_URL/POSTGRES_PRISMA_URL/POSTGRES_URL_NON_POOLING/NEON_DATABASE_URL).');
   }
 
-  const sql = await readFile(new URL('../sql/create_funcionarios_table.sql', import.meta.url), 'utf8');
+  const sql = await readFile(new URL('../sql/create_clientes_table.sql', import.meta.url), 'utf8');
 
   const client = new Client({
     connectionString,
@@ -73,7 +73,7 @@ async function run() {
   await client.query(sql);
 
   const tableCheck = await client.query(
-    "SELECT to_regclass('public.funcionarios') AS tabela, COUNT(*)::int AS total FROM public.funcionarios"
+    "SELECT to_regclass('public.clientes') AS tabela, COUNT(*)::int AS total FROM public.clientes"
   );
 
   console.log('Tabela criada/verificada com sucesso:', tableCheck.rows[0]);
@@ -82,6 +82,6 @@ async function run() {
 }
 
 run().catch((error) => {
-  console.error('Erro ao criar tabela funcionarios:', error.message);
+  console.error('Erro ao criar tabela clientes:', error.message);
   process.exitCode = 1;
 });
