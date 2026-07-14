@@ -10,7 +10,8 @@
     "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\"",
     "db:create-funcionarios": "node Backend/scripts/create-funcionarios-table.mjs",
     "db:create-clientes": "node Backend/scripts/create-clientes-table.mjs",
-    "db:create-produtos": "node Backend/scripts/create-produtos-table.mjs"
+    "db:create-produtos": "node Backend/scripts/create-produtos-table.mjs",
+    "db:create-fornecedores": "node Backend/scripts/create-fornecedores-table.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
