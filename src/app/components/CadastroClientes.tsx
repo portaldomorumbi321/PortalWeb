@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
+import { obterClientes, salvarClientes } from "../data/clientes";
 
 interface Cliente {
   id: number;
@@ -43,7 +44,7 @@ const clienteVazio: ClienteForm = {
 };
 
 export default function CadastroClientes() {
-  const [clientes, setClientes] = useState<Cliente[]>(clientesIniciais);
+  const [clientes, setClientes] = useState<Cliente[]>(obterClientes);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<"Todos" | "Ativo" | "Inativo">("Todos");
   const [modalAberto, setModalAberto] = useState(false);
@@ -93,16 +94,28 @@ export default function CadastroClientes() {
   function salvar() {
     if (!form.nome.trim()) return;
     if (editando) {
-      setClientes((prev) => prev.map((c) => (c.id === editando.id ? { ...editando, ...form } : c)));
+      setClientes((prev) => {
+        const atualizados = prev.map((c) => (c.id === editando.id ? { ...editando, ...form } : c));
+        salvarClientes(atualizados);
+        return atualizados;
+      });
     } else {
       const novoId = clientes.length > 0 ? Math.max(...clientes.map((c) => c.id)) + 1 : 1;
-      setClientes((prev) => [...prev, { id: novoId, ...form }]);
+      setClientes((prev) => {
+        const atualizados = [...prev, { id: novoId, ...form }];
+        salvarClientes(atualizados);
+        return atualizados;
+      });
     }
     fecharModal();
   }
 
   function excluir(id: number) {
-    setClientes((prev) => prev.filter((c) => c.id !== id));
+    setClientes((prev) => {
+      const atualizados = prev.filter((c) => c.id !== id);
+      salvarClientes(atualizados);
+      return atualizados;
+    });
     setConfirmarExclusao(null);
   }
 

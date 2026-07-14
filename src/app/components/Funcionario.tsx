@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { User, Calendar, Clock, Award, Plus, Edit2, Trash2, X, Check } from "lucide-react";
+import { useState, type ChangeEvent } from "react";
+import { User, Calendar, Clock, Award, Plus, Edit2, Trash2, X, Check, Camera } from "lucide-react";
 import { Card } from "./ui/card";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { obterFuncionarios, salvarFuncionarios } from "../data/funcionarios";
 
 interface Funcionario {
   id: number;
@@ -16,6 +17,7 @@ interface Funcionario {
   accessLevel: "Administrador" | "Agente";
   email: string;
   password?: string;
+  photo?: string;
 }
 
 const dadosIniciais: Funcionario[] = [
@@ -28,7 +30,7 @@ const dadosIniciais: Funcionario[] = [
 const funcionarioVazio: Omit<Funcionario, 'id' | 'initials'> = { name: "", role: "", department: "", status: "Ativo", accessLevel: "Agente", email: "", password: "" };
 
 export default function Funcionario() {
-  const [funcionarios, setFuncionarios] = useState<Funcionario[]>(dadosIniciais);
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>(obterFuncionarios);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Funcionario | null>(null);
   const [form, setForm] = useState<Omit<Funcionario, 'id' | 'initials'>>(funcionarioVazio);
@@ -37,19 +39,42 @@ export default function Funcionario() {
   function abrirEdicao(func: Funcionario) { setEditando(func); setForm(func); setModalAberto(true); }
   function fecharModal() { setModalAberto(false); setEditando(null); }
 
+  function selecionarFoto(event: ChangeEvent<HTMLInputElement>) {
+    const arquivo = event.target.files?.[0];
+    if (!arquivo || !arquivo.type.startsWith("image/")) return;
+
+    const leitor = new FileReader();
+    leitor.onload = () => setForm((atual) => ({ ...atual, photo: String(leitor.result) }));
+    leitor.readAsDataURL(arquivo);
+  }
+
   function salvar() {
     if (!form.name.trim()) return;
     const iniciais = form.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
     if (editando) {
-      setFuncionarios(prev => prev.map(f => f.id === editando.id ? { ...editando, ...form, initials: iniciais } : f));
+      setFuncionarios(prev => {
+        const atualizados = prev.map(f => f.id === editando.id ? { ...editando, ...form, initials: iniciais } : f);
+        salvarFuncionarios(atualizados);
+        return atualizados;
+      });
     } else {
       const novoId = funcionarios.length > 0 ? Math.max(...funcionarios.map(f => f.id)) + 1 : 1;
-      setFuncionarios(prev => [...prev, { id: novoId, ...form, initials: iniciais }]);
+      setFuncionarios(prev => {
+        const atualizados = [...prev, { id: novoId, ...form, initials: iniciais }];
+        salvarFuncionarios(atualizados);
+        return atualizados;
+      });
     }
     fecharModal();
   }
 
-  function excluir(id: number) { setFuncionarios(prev => prev.filter(f => f.id !== id)); }
+  function excluir(id: number) {
+    setFuncionarios(prev => {
+      const atualizados = prev.filter(f => f.id !== id);
+      salvarFuncionarios(atualizados);
+      return atualizados;
+    });
+  }
 
   const stats = [
     {
@@ -116,6 +141,7 @@ export default function Funcionario() {
               className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
             >
               <Avatar>
+                {employee.photo && <AvatarImage src={employee.photo} alt={`Foto de ${employee.name}`} />}
                 <AvatarFallback className="bg-blue-600 text-white">
                   {employee.initials}
                 </AvatarFallback>
@@ -152,6 +178,24 @@ export default function Funcionario() {
             </div>
 
             <div className="grid gap-4">
+              <div>
+                <Label>Foto do Funcionário</Label>
+                <div className="mt-2 flex items-center gap-3">
+                  <Avatar className="size-16">
+                    {form.photo && <AvatarImage src={form.photo} alt="Prévia da foto do funcionário" />}
+                    <AvatarFallback className="bg-indigo-100 text-indigo-700 text-lg">
+                      {form.name ? form.name.split(" ").map((nome) => nome[0]).slice(0, 2).join("").toUpperCase() : <Camera className="w-5 h-5" />}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-wrap gap-2">
+                    <label htmlFor="foto-funcionario" className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-input bg-white px-3 text-sm font-medium hover:bg-gray-50">
+                      <Camera className="w-4 h-4" /> Anexar foto
+                    </label>
+                    <input id="foto-funcionario" type="file" accept="image/*" onChange={selecionarFoto} className="hidden" />
+                    {form.photo && <Button type="button" variant="ghost" onClick={() => setForm({ ...form, photo: undefined })} className="h-9 text-red-600 hover:text-red-700">Remover</Button>}
+                  </div>
+                </div>
+              </div>
               <div>
                 <Label htmlFor="name">Nome Completo *</Label>
                 <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do funcionário" className="mt-1" />

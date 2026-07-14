@@ -2,9 +2,10 @@ import { useParams } from "react-router";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import {
-  Share2, X, Plane, Bed, Map, CalendarDays, Car, Utensils, Sparkles, Shield, Info
+  Share2, X, Plane, Bed, Map, CalendarDays, Car, Utensils, Sparkles, Shield, Info, Instagram, Mail, MessageCircle
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { obterFuncionarios } from "../data/funcionarios";
 
 interface Voo {
   id: number;
@@ -32,6 +33,7 @@ interface Orcamento {
   numero: string;
   cliente: string;
   email: string;
+  agenteViagem?: string;
   status: "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
   dataCriacao: string;
   dataValidade: string;
@@ -99,13 +101,13 @@ function Countdown({ targetDate }: { targetDate: string }) {
   }
 
   return (
-    <div className="flex justify-center gap-2 sm:gap-4">
+    <div className="grid grid-cols-5 gap-2 sm:gap-3">
       {timerComponents.map(([interval, value]) => (
-        <div key={interval} className="text-center flex flex-col items-center">
-          <div className="text-xl sm:text-2xl font-bold text-white bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg min-w-[45px] sm:min-w-[55px] shadow-lg">
+        <div key={interval} className="min-w-0 text-center">
+          <div className="rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 px-1 py-2 sm:py-3 text-lg font-bold text-white shadow-md sm:text-2xl">
             {String(value).padStart(2, '0')}
           </div>
-          <div className="text-xs text-gray-500 mt-1">{interval}</div>
+          <div className="mt-1 truncate text-[10px] font-medium text-gray-500 sm:text-xs">{interval}</div>
         </div>
       ))}
     </div>
@@ -115,6 +117,7 @@ function Countdown({ targetDate }: { targetDate: string }) {
 export default function RoteiroOrcamento() {
   const { numero } = useParams<{ numero: string }>();
   const [orc, setOrc] = useState<Orcamento | null>(null);
+  const [itemAtivo, setItemAtivo] = useState<string>("");
 
   useEffect(() => {
     if (numero) {
@@ -144,6 +147,32 @@ export default function RoteiroOrcamento() {
   const destinoPrincipal = orc.hospedagem && orc.hospedagem.length > 0 ? orc.hospedagem[0].local : "Sua Viagem";
   const dataCheckinPrincipal = orc.hospedagem && orc.hospedagem.length > 0 ? orc.hospedagem[0].checkin : null;
   const origemPrincipal = orc.voos && orc.voos.length > 0 ? orc.voos[0].origem : null;
+  const dataViagemPrincipal = dataCheckinPrincipal || orc.voos?.[0]?.data || null;
+  const agente = orc.agenteViagem
+    ? obterFuncionarios().find((funcionario) => funcionario.name === orc.agenteViagem)
+    : null;
+  const nomeAgente = agente?.name || orc.agenteViagem;
+  const iniciaisAgente = nomeAgente
+    ?.split(" ")
+    .map((nome) => nome[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  const itensRoteiro = [
+    { id: "voos", titulo: "Voos", icone: Plane, classe: "bg-blue-100 text-blue-700 hover:bg-blue-200", disponivel: Boolean(orc.voos?.length) },
+    { id: "hospedagem", titulo: "Hospedagem", icone: Bed, classe: "bg-green-100 text-green-700 hover:bg-green-200", disponivel: Boolean(orc.hospedagem?.length) },
+    { id: "roteiro", titulo: "Roteiro", icone: Map, classe: "bg-sky-100 text-sky-700 hover:bg-sky-200", disponivel: Boolean(orc.roteiro) },
+    { id: "dia-a-dia", titulo: "Dia a Dia", icone: CalendarDays, classe: "bg-purple-100 text-purple-700 hover:bg-purple-200", disponivel: Boolean(orc.dayByDay?.length) },
+    { id: "transporte", titulo: "Transporte", icone: Car, classe: "bg-yellow-100 text-yellow-700 hover:bg-yellow-200", disponivel: Boolean(orc.transporte?.length) },
+    { id: "restaurantes", titulo: "Restaurantes", icone: Utensils, classe: "bg-red-100 text-red-700 hover:bg-red-200", disponivel: Boolean(orc.restaurante?.length) },
+    { id: "experiencias", titulo: "Experiências", icone: Sparkles, classe: "bg-pink-100 text-pink-700 hover:bg-pink-200", disponivel: Boolean(orc.experiencias?.length) },
+    { id: "seguro", titulo: "Seguro", icone: Shield, classe: "bg-teal-100 text-teal-700 hover:bg-teal-200", disponivel: Boolean(orc.seguro?.length) },
+  ].filter((item) => item.disponivel);
+
+  const navegarParaItem = (id: string) => {
+    setItemAtivo(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className="px-4 py-6 sm:px-6 sm:py-8 max-w-4xl mx-auto bg-white min-h-screen">
@@ -163,16 +192,37 @@ export default function RoteiroOrcamento() {
         </button>
       </div>
 
-      {dataCheckinPrincipal && (
+      {dataViagemPrincipal && (
         <Card className="p-4 mb-6 text-center">
           <h2 className="font-bold text-purple-700 mb-3">Sr(a) {orc.cliente}, falta para sua viagem:</h2>
-          <Countdown targetDate={dataCheckinPrincipal} />
+          <Countdown targetDate={dataViagemPrincipal} />
         </Card>
+      )}
+
+      {itensRoteiro.length > 0 && (
+        <nav aria-label="Itens do roteiro" className="mb-6 print:hidden">
+          <p className="text-sm font-semibold text-gray-700 mb-2">Itens do roteiro</p>
+          <div className="flex gap-2 overflow-x-auto px-1 pt-2 pb-3">
+            {itensRoteiro.map(({ id, titulo, icone: Icone, classe }) => (
+              <Button
+                key={id}
+                type="button"
+                onClick={() => navegarParaItem(id)}
+                title={titulo}
+                aria-label={`Ir para ${titulo}`}
+                className={`group relative h-11 w-11 shrink-0 rounded-xl border-0 p-0 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${classe} ${itemAtivo === id ? "ring-2 ring-offset-2 ring-purple-500" : ""}`}
+              >
+                <Icone className="w-5 h-5" />
+                <span className="sr-only">{titulo}</span>
+              </Button>
+            ))}
+          </div>
+        </nav>
       )}
 
       {/* VOOS */}
       {orc.voos && orc.voos.length > 0 && (
-        <Card className="overflow-hidden mb-6">
+        <Card id="voos" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-blue-100 p-3">
             <h2 className="font-bold text-blue-800 flex items-center gap-2"><Plane className="w-5 h-5"/> Voos</h2>
           </div>
@@ -195,7 +245,7 @@ export default function RoteiroOrcamento() {
 
       {/* HOSPEDAGEM */}
       {orc.hospedagem && orc.hospedagem.length > 0 && (
-        <Card className="overflow-hidden mb-6">
+        <Card id="hospedagem" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-green-100 p-3">
             <h2 className="font-bold text-green-800 flex items-center gap-2"><Bed className="w-5 h-5"/> Hospedagem</h2>
           </div>
@@ -232,7 +282,7 @@ export default function RoteiroOrcamento() {
 
       {/* ROTEIRO */}
       {orc.roteiro && (
-        <Card className="overflow-hidden mb-6">
+        <Card id="roteiro" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-sky-100 p-3">
             <h2 className="font-bold text-sky-800 flex items-center gap-2"><Map className="w-5 h-5"/> Roteiro</h2>
           </div>
@@ -242,7 +292,7 @@ export default function RoteiroOrcamento() {
 
       {/* DAY BY DAY */}
       {orc.dayByDay && orc.dayByDay.length > 0 && (
-        <Card className="overflow-hidden mb-6">
+        <Card id="dia-a-dia" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-purple-100 p-3">
             <h2 className="font-bold text-purple-800 flex items-center gap-2"><CalendarDays className="w-5 h-5"/> Dia a Dia</h2>
           </div>
@@ -259,7 +309,7 @@ export default function RoteiroOrcamento() {
 
       {/* TRANSPORTE */}
       {orc.transporte && orc.transporte.length > 0 && (
-        <Card className="overflow-hidden mb-6">
+        <Card id="transporte" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-yellow-100 p-3">
             <h2 className="font-bold text-yellow-800 flex items-center gap-2"><Car className="w-5 h-5"/> Transporte</h2>
           </div>
@@ -311,7 +361,7 @@ export default function RoteiroOrcamento() {
 
       {/* RESTAURANTE */}
       {orc.restaurante && orc.restaurante.length > 0 && (
-        <Card className="overflow-hidden mb-6">
+        <Card id="restaurantes" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-red-100 p-3">
             <h2 className="font-bold text-red-800 flex items-center gap-2"><Utensils className="w-5 h-5"/> Restaurantes</h2>
           </div>
@@ -328,7 +378,7 @@ export default function RoteiroOrcamento() {
 
       {/* EXPERIÊNCIAS */}
       {orc.experiencias && orc.experiencias.length > 0 && (
-        <Card className="overflow-hidden mb-6">
+        <Card id="experiencias" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-pink-100 p-3">
             <h2 className="font-bold text-pink-800 flex items-center gap-2"><Sparkles className="w-5 h-5"/> Experiências</h2>
           </div>
@@ -345,7 +395,7 @@ export default function RoteiroOrcamento() {
 
       {/* SEGURO */}
       {orc.seguro && orc.seguro.length > 0 && (
-        <Card className="overflow-hidden mb-6">
+        <Card id="seguro" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-teal-100 p-3">
             <h2 className="font-bold text-teal-800 flex items-center gap-2"><Shield className="w-5 h-5"/> Seguro</h2>
           </div>
@@ -374,6 +424,41 @@ export default function RoteiroOrcamento() {
           <Share2 className="w-4 h-4 mr-2" /> WhatsApp
         </Button>
       </div>
+
+      <footer className="mt-10 border-t border-gray-200 pt-6">
+        {nomeAgente && (
+          <div className="mb-5 max-w-2xl">
+            <div className="flex items-center gap-4">
+              {agente?.photo ? (
+                <img src={agente.photo} alt={`Foto de ${nomeAgente}`} className="h-16 w-16 rounded-full object-cover ring-2 ring-purple-100" />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-lg font-bold text-white ring-2 ring-purple-100">
+                  {iniciaisAgente}
+                </div>
+              )}
+              <div>
+                <p className="font-bold text-gray-900">{nomeAgente}</p>
+                <p className="mt-1 text-sm font-medium text-purple-700">Especialista em viagens personalizadas</p>
+              </div>
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-gray-600">
+              Planejo viagens personalizadas com atenção aos mínimos detalhes, unindo praticidade, conforto e segurança. Meu compromisso é transformar seus planos em experiências únicas, com suporte dedicado do início ao fim.
+            </p>
+          </div>
+        )}
+        <div className="mb-5 flex items-center gap-4 print:hidden">
+          <a href="https://wa.me/5511942000321" target="_blank" rel="noreferrer" title="WhatsApp" aria-label="WhatsApp" className="text-green-500 transition-transform hover:scale-110 hover:text-green-600">
+            <MessageCircle className="h-5 w-5" />
+          </a>
+          <a href="https://www.instagram.com/321go.portaldomorumbi" target="_blank" rel="noreferrer" title="Instagram" aria-label="Instagram" className="text-pink-500 transition-transform hover:scale-110 hover:text-pink-600">
+            <Instagram className="h-5 w-5" />
+          </a>
+          <a href="mailto:portaldomorumbi@321go.com.br" title="E-mail" aria-label="E-mail" className="text-red-500 transition-transform hover:scale-110 hover:text-red-600">
+            <Mail className="h-5 w-5" />
+          </a>
+        </div>
+        <p className="text-xs text-gray-500">© 2026 321Go Portal do Morumbi. Todos os direitos reservados.</p>
+      </footer>
     </div>
   );
 }
