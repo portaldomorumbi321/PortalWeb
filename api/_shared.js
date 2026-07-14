@@ -5,14 +5,27 @@ const { Pool } = pg;
 
 let pool;
 
+function resolveConnectionString() {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.NEON_DATABASE_URL ||
+    ''
+  );
+}
+
 export function getPool() {
-  if (!process.env.DATABASE_URL) {
+  const connectionString = resolveConnectionString();
+
+  if (!connectionString) {
     return null;
   }
 
   if (!pool) {
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString,
       ssl: { rejectUnauthorized: false },
     });
   }
@@ -98,7 +111,7 @@ export function ensureDb(res) {
   const activePool = getPool();
 
   if (!activePool) {
-    res.status(500).json({ error: 'DATABASE_URL não configurada no backend.' });
+    res.status(500).json({ error: 'String de conexão não configurada. Defina DATABASE_URL (ou POSTGRES_URL/POSTGRES_PRISMA_URL).' });
     return null;
   }
 
