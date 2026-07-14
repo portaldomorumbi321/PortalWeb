@@ -11,6 +11,8 @@
     { "src": "/api/fornecedores", "dest": "/api/fornecedores/index.js" },
     { "src": "/api/tarefas/([^/]+)", "dest": "/api/tarefas/[id].js?id=$1" },
     { "src": "/api/tarefas", "dest": "/api/tarefas/index.js" },
+    { "src": "/api/eventos/([^/]+)", "dest": "/api/eventos/[id].js?id=$1" },
+    { "src": "/api/eventos", "dest": "/api/eventos/index.js" },
     { "handle": "filesystem" },
     { "src": "/.*", "dest": "/index.html" }
   ]

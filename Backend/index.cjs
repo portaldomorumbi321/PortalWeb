@@ -214,6 +214,19 @@ function mapTarefa(row) {
   };
 }
 
+function mapEvento(row) {
+  return {
+    id: Number(row.id),
+    titulo: row.titulo,
+    descricao: row.descricao || '',
+    data: row.data_evento ? new Date(row.data_evento).toISOString().slice(0, 10) : '',
+    hora: row.hora || '',
+    tipo: row.tipo,
+    cliente: row.cliente || '',
+    agente: row.agente || '',
+  };
+}
+
 function normalizePayload(body) {
   return {
     name: String(body.name || '').trim(),
@@ -287,6 +300,20 @@ function normalizeTarefaPayload(body) {
     status: status === 'Em andamento' || status === 'Concluída' || status === 'Cancelada' ? status : 'Pendente',
     prazo: String(body?.prazo || '').trim(),
     categoria: String(body?.categoria || '').trim(),
+  };
+}
+
+function normalizeEventoPayload(body) {
+  const tipo = body?.tipo;
+
+  return {
+    titulo: String(body?.titulo || '').trim(),
+    descricao: String(body?.descricao || '').trim(),
+    data: String(body?.data || '').trim(),
+    hora: String(body?.hora || '').trim(),
+    tipo: tipo === 'Viagem' || tipo === 'Tarefa' || tipo === 'Lembrete' || tipo === 'Outro' ? tipo : 'Reunião',
+    cliente: String(body?.cliente || '').trim(),
+    agente: String(body?.agente || '').trim(),
   };
 }
 
@@ -1002,6 +1029,125 @@ app.delete('/api/tarefas/:id', ensureDb, async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Erro ao excluir tarefa:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/eventos', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, titulo, descricao, data_evento, hora, tipo, cliente, agente
+       FROM public.eventos
+       ORDER BY data_evento ASC, hora ASC, id ASC`
+    );
+
+    res.json(result.rows.map(mapEvento));
+  } catch (error) {
+    console.error('Erro ao listar eventos:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/eventos', ensureDb, async (req, res) => {
+  const payload = normalizeEventoPayload(req.body);
+
+  if (!payload.titulo || !payload.data) {
+    return res.status(400).json({ error: 'Título e data são obrigatórios.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.eventos
+        (titulo, descricao, data_evento, hora, tipo, cliente, agente)
+       VALUES ($1, $2, $3::date, $4, $5, $6, $7)
+       RETURNING id, titulo, descricao, data_evento, hora, tipo, cliente, agente`,
+      [
+        payload.titulo,
+        payload.descricao || null,
+        payload.data,
+        payload.hora || null,
+        payload.tipo,
+        payload.cliente || null,
+        payload.agente || null,
+      ]
+    );
+
+    res.status(201).json(mapEvento(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao criar evento:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/eventos/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeEventoPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  if (!payload.titulo || !payload.data) {
+    return res.status(400).json({ error: 'Título e data são obrigatórios.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.eventos
+          SET titulo = $1,
+              descricao = $2,
+              data_evento = $3::date,
+              hora = $4,
+              tipo = $5,
+              cliente = $6,
+              agente = $7,
+              atualizado_em = NOW()
+        WHERE id = $8
+      RETURNING id, titulo, descricao, data_evento, hora, tipo, cliente, agente`,
+      [
+        payload.titulo,
+        payload.descricao || null,
+        payload.data,
+        payload.hora || null,
+        payload.tipo,
+        payload.cliente || null,
+        payload.agente || null,
+        id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Evento não encontrado.' });
+    }
+
+    res.json(mapEvento(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao atualizar evento:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.delete('/api/eventos/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM public.eventos WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Evento não encontrado.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir evento:', error);
     const dbError = resolveDatabaseError(error);
     res.status(dbError.status).json({ error: dbError.message });
   }

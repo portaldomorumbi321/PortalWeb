@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   ChevronLeft, ChevronRight, Plus, Calendar, Clock, User, X, Check, Trash2, Edit2,
 } from "lucide-react";
@@ -7,19 +7,19 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
+import { listarClientes, type Cliente } from "../data/clientesApi";
+import {
+  atualizarEvento,
+  criarEvento,
+  listarEventos,
+  removerEvento,
+  type Evento,
+  type EventoPayload,
+  type TipoEvento,
+} from "../data/eventosApi";
+import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
 
-type TipoEvento = "Reunião" | "Viagem" | "Tarefa" | "Lembrete" | "Outro";
 type FiltroPeriodo = "semana" | "mes" | "ano";
-
-interface Evento {
-  id: number;
-  titulo: string;
-  descricao: string;
-  data: string;
-  hora: string;
-  tipo: TipoEvento;
-  responsavel: string;
-}
 
 const tipoConfig: Record<TipoEvento, { cor: string; bg: string; dot: string }> = {
   "Reunião":  { cor: "text-blue-700",   bg: "bg-blue-100",   dot: "bg-blue-500" },
@@ -35,13 +35,6 @@ const hoje = new Date();
 const pad = (n: number) => String(n).padStart(2, "0");
 const toDateStr = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-const eventosIniciais: Evento[] = [
-  { id: 1, titulo: "Reunião com cliente", descricao: "Apresentar proposta de roteiro Europa.", data: toDateStr(hoje), hora: "09:00", tipo: "Reunião", responsavel: "Ana Paula" },
-  { id: 2, titulo: "Viagem para Lisboa", descricao: "Acompanhar grupo de 15 pessoas.", data: toDateStr(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 3)), hora: "06:30", tipo: "Viagem", responsavel: "Carlos Mendes" },
-  { id: 3, titulo: "Fechar relatório mensal", descricao: "Consolidar dados financeiros.", data: toDateStr(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1)), hora: "17:00", tipo: "Tarefa", responsavel: "João Victor" },
-  { id: 4, titulo: "Lembrete: Renovar seguro", descricao: "Contatar seguradora para renovação anual.", data: toDateStr(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 5)), hora: "10:00", tipo: "Lembrete", responsavel: "Mariana Costa" },
-];
 
 const nomeMeses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const nomeDias  = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
@@ -77,7 +70,7 @@ function fimDaSemana(data: Date) {
   return addDias(inicioDaSemana(data), 6);
 }
 
-const vazio: Omit<Evento, "id"> = { titulo: "", descricao: "", data: toDateStr(hoje), hora: "09:00", tipo: "Reunião", responsavel: "" };
+const vazio: EventoPayload = { titulo: "", descricao: "", data: toDateStr(hoje), hora: "09:00", tipo: "Reunião", cliente: "", agente: "" };
 
 function formatarData(d: string) {
   if (!d) return "";
@@ -85,14 +78,51 @@ function formatarData(d: string) {
   return `${day}/${m}/${y}`;
 }
 export default function Agenda() {
-  const [eventos, setEventos]           = useState<Evento[]>(eventosIniciais);
+  const [eventos, setEventos]           = useState<Evento[]>([]);
+  const [clientes, setClientes]         = useState<Cliente[]>([]);
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [anoAtual, setAnoAtual]         = useState(hoje.getFullYear());
   const [mesAtual, setMesAtual]         = useState(hoje.getMonth());
   const [diaSelecionado, setDiaSel]     = useState<string | null>(toDateStr(hoje));
   const [filtroPeriodo, setFiltroPeriodo] = useState<FiltroPeriodo>("mes");
   const [modalAberto, setModalAberto]   = useState(false);
-  const [form, setForm]                 = useState<Omit<Evento, "id">>(vazio);
+  const [form, setForm]                 = useState<EventoPayload>(vazio);
   const [editandoId, setEditandoId]     = useState<number | null>(null);
+  const [carregando, setCarregando]     = useState(true);
+  const [salvando, setSalvando]         = useState(false);
+  const [erro, setErro]                 = useState<string | null>(null);
+
+  async function carregarEventos() {
+    setErro(null);
+    try {
+      const lista = await listarEventos();
+      setEventos(lista);
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao carregar eventos.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function carregarRelacionamentos() {
+    try {
+      const [clientesLista, funcionariosLista] = await Promise.all([
+        listarClientes(),
+        listarFuncionarios(),
+      ]);
+
+      setClientes(clientesLista);
+      setFuncionarios(funcionariosLista.filter((funcionario) => funcionario.status === "Ativo"));
+    } catch {
+      setClientes([]);
+      setFuncionarios([]);
+    }
+  }
+
+  useEffect(() => {
+    carregarEventos();
+    carregarRelacionamentos();
+  }, []);
 
   const { primeiro, total } = getDiasDoMes(anoAtual, mesAtual);
 
@@ -181,16 +211,52 @@ export default function Agenda() {
     };
   });
 
-  const abrirNovo   = () => { setForm({ ...vazio, data: diaSelecionado ?? toDateStr(hoje) }); setEditandoId(null); setModalAberto(true); };
-  const abrirEditar = (ev: Evento) => { setForm({ titulo: ev.titulo, descricao: ev.descricao, data: ev.data, hora: ev.hora, tipo: ev.tipo, responsavel: ev.responsavel }); setEditandoId(ev.id); setModalAberto(true); };
-  const fechar      = () => { setModalAberto(false); setForm(vazio); setEditandoId(null); };
-  const salvar      = () => {
-    if (!form.titulo.trim()) return;
-    if (editandoId !== null) { setEventos(ev => ev.map(e => e.id === editandoId ? { ...form, id: editandoId } : e)); }
-    else { setEventos(ev => [...ev, { ...form, id: Date.now() }]); }
-    fechar();
+  const abrirNovo   = () => { setErro(null); setForm({ ...vazio, data: diaSelecionado ?? toDateStr(hoje) }); setEditandoId(null); setModalAberto(true); };
+  const abrirEditar = (ev: Evento) => {
+    setErro(null);
+    setForm({ titulo: ev.titulo, descricao: ev.descricao, data: ev.data, hora: ev.hora, tipo: ev.tipo, cliente: ev.cliente, agente: ev.agente });
+    setEditandoId(ev.id);
+    setModalAberto(true);
   };
-  const excluir = (id: number) => setEventos(ev => ev.filter(e => e.id !== id));
+  const fechar      = () => { setModalAberto(false); setForm(vazio); setEditandoId(null); };
+  const salvar      = async () => {
+    if (!form.titulo.trim()) return;
+
+    setSalvando(true);
+    setErro(null);
+
+    try {
+      const payload: EventoPayload = {
+        ...form,
+        titulo: form.titulo.trim(),
+        descricao: form.descricao.trim(),
+        cliente: form.cliente.trim(),
+        agente: form.agente.trim(),
+      };
+
+      if (editandoId !== null) {
+        await atualizarEvento(editandoId, payload);
+      } else {
+        await criarEvento(payload);
+      }
+
+      await carregarEventos();
+      fechar();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao salvar evento.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+  const excluir = async (id: number) => {
+    setErro(null);
+    try {
+      await removerEvento(id);
+      await carregarEventos();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao excluir evento.");
+    }
+  };
 
   const proximosEventos = [...eventos]
     .filter(e => e.data >= toDateStr(hoje))
@@ -223,6 +289,8 @@ export default function Agenda() {
           </Button>
         </div>
       </div>
+      {erro && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+      {carregando && <p className="text-sm text-gray-500">Carregando eventos...</p>}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Navegação e visão do período */}
         <Card className="lg:col-span-2">
@@ -355,7 +423,8 @@ export default function Agenda() {
                           <p className="text-sm font-medium text-gray-800 truncate">{ev.titulo}</p>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="flex items-center gap-1 text-xs text-gray-500"><Clock className="w-3 h-3" />{ev.hora}</span>
-                            {ev.responsavel && <span className="flex items-center gap-1 text-xs text-gray-500"><User className="w-3 h-3" />{ev.responsavel}</span>}
+                            {ev.cliente && <span className="flex items-center gap-1 text-xs text-gray-500"><User className="w-3 h-3" />{ev.cliente}</span>}
+                            {ev.agente && <span className="flex items-center gap-1 text-xs text-gray-500"><User className="w-3 h-3" />{ev.agente}</span>}
                           </div>
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
@@ -444,7 +513,36 @@ export default function Agenda() {
                 <div><Label htmlFor="data">Data</Label><Input id="data" type="date" value={form.data} onChange={e => setForm({ ...form, data: e.target.value })} className="mt-1" /></div>
                 <div><Label htmlFor="hora">Hora</Label><Input id="hora" type="time" value={form.hora} onChange={e => setForm({ ...form, hora: e.target.value })} className="mt-1" /></div>
               </div>
-              <div><Label htmlFor="responsavel">Responsável</Label><Input id="responsavel" value={form.responsavel} onChange={e => setForm({ ...form, responsavel: e.target.value })} placeholder="Nome do responsável" className="mt-1" /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="cliente">Cliente</Label>
+                  <select
+                    id="cliente"
+                    value={form.cliente}
+                    onChange={e => setForm({ ...form, cliente: e.target.value })}
+                    className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione...</option>
+                    {clientes.filter((cliente) => cliente.status === "Ativo").map((cliente) => (
+                      <option key={cliente.id} value={cliente.nome}>{cliente.nome}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="agente">Agente</Label>
+                  <select
+                    id="agente"
+                    value={form.agente}
+                    onChange={e => setForm({ ...form, agente: e.target.value })}
+                    className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione...</option>
+                    {funcionarios.map((funcionario) => (
+                      <option key={funcionario.id} value={funcionario.name}>{funcionario.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div>
                 <Label>Tipo</Label>
                 <div className="flex flex-wrap gap-2 mt-1">
@@ -463,7 +561,7 @@ export default function Agenda() {
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <Button variant="outline" onClick={fechar}>Cancelar</Button>
-              <Button onClick={salvar} disabled={!form.titulo.trim()} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
+              <Button onClick={salvar} disabled={salvando || !form.titulo.trim()} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
                 <Check className="w-4 h-4" />{editandoId !== null ? "Salvar" : "Criar Evento"}
               </Button>
             </div>
