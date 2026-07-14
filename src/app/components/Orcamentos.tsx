@@ -17,6 +17,8 @@ import TransporteForm from "./TransporteForm";
 import RestauranteForm from "./RestauranteForm";
 import ExperienciasForm from "./ExperienciasForm";
 import SeguroForm from "./SeguroForm";
+import { obterClientes } from "../data/clientes";
+import { obterFuncionarios } from "../data/funcionarios";
 
 type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
 
@@ -34,6 +36,7 @@ interface Orcamento {
   numero: string;
   cliente: string;
   email: string;
+  agenteViagem?: string;
   status: StatusOrc;
   dataCriacao: string;
   dataValidade: string;
@@ -186,7 +189,7 @@ function gerarNumero(lista: Orcamento[]) {
 type Tela = "lista" | "form" | "preview";
 
 const orcVazio = (): Omit<Orcamento, "id"> => ({
-  numero: "", cliente: "", email: "", status: "Rascunho",
+  numero: "", cliente: "", email: "", agenteViagem: "", status: "Rascunho",
   dataCriacao: new Date().toISOString().split("T")[0],
   dataValidade: "", observacoes: "", itens: [itemVazio()],
 });
@@ -213,6 +216,8 @@ export default function Orcamentos() {
   const [restaurante, setRestaurante] = useState<any[]>([]);
   const [experiencias, setExperiencias] = useState<any[]>([]);
   const [seguro, setSeguro] = useState<any[]>([]);
+  const clientesAtivos = obterClientes().filter((cliente) => cliente.status === "Ativo");
+  const funcionariosAtivos = obterFuncionarios().filter((funcionario) => funcionario.status === "Ativo");
 
   // Handle state params from ResumoOrcamentos
   useEffect(() => {
@@ -229,7 +234,7 @@ export default function Orcamentos() {
       const orc = lista.find(o => o.id === state.editId);
       if (orc) {
         setEditando(orc);
-        setForm({ numero: orc.numero, cliente: orc.cliente, email: orc.email, status: orc.status, dataCriacao: orc.dataCriacao, dataValidade: orc.dataValidade, observacoes: orc.observacoes, itens: orc.itens.map((i) => ({ ...i })) });
+        setForm({ numero: orc.numero, cliente: orc.cliente, email: orc.email, agenteViagem: orc.agenteViagem || "", status: orc.status, dataCriacao: orc.dataCriacao, dataValidade: orc.dataValidade, observacoes: orc.observacoes, itens: orc.itens.map((i) => ({ ...i })) });
         setTela("form");
         navigate(location.pathname, { replace: true });
       }
@@ -270,7 +275,7 @@ export default function Orcamentos() {
 
   function abrirEdicao(o: Orcamento) {
     setEditando(o);
-    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i })) });
+    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, agenteViagem: o.agenteViagem || "", status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i })) });
     // Carrega os dados das seções para os estados correspondentes
     setVoos(o.voos || []);
     setHospedagem(o.hospedagem || []);
@@ -543,14 +548,47 @@ export default function Orcamentos() {
             {/* Dados do cliente */}
             <Card className="p-5">
               <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><User className="w-4 h-4 text-indigo-500" /> Dados do Cliente</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                <div>
                   <Label htmlFor="cliente">Cliente *</Label>
-                  <Input id="cliente" value={form.cliente} onChange={(e) => setForm({ ...form, cliente: e.target.value })} placeholder="Nome do cliente" className="mt-1" />
+                  <select
+                    id="cliente"
+                    value={form.cliente}
+                    onChange={(e) => {
+                      const cliente = clientesAtivos.find((item) => item.nome === e.target.value);
+                      setForm({ ...form, cliente: cliente?.nome ?? "", email: cliente?.email ?? "" });
+                    }}
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  >
+                    <option value="">Selecione um cliente</option>
+                    {clientesAtivos.map((cliente) => (
+                      <option key={cliente.id} value={cliente.nome}>{cliente.nome}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="sm:col-span-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@cliente.com" className="mt-1" />
+                <div>
+                  <Button type="button" variant="outline" onClick={() => navigate("/cadastros/clientes")} className="w-full gap-2">
+                    <Plus className="w-4 h-4" /> Cadastrar cliente
+                  </Button>
+                </div>
+                <div>
+                  <Label htmlFor="agente-viagem">Agente de Viagem</Label>
+                  <select
+                    id="agente-viagem"
+                    value={form.agenteViagem || ""}
+                    onChange={(e) => setForm({ ...form, agenteViagem: e.target.value })}
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  >
+                    <option value="">Selecione um agente</option>
+                    {funcionariosAtivos.map((funcionario) => (
+                      <option key={funcionario.id} value={funcionario.name}>{funcionario.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Button type="button" variant="outline" onClick={() => navigate("/funcionario")} className="w-full gap-2">
+                    <Plus className="w-4 h-4" /> Cadastrar funcionário
+                  </Button>
                 </div>
               </div>
             </Card>
