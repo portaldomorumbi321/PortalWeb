@@ -1,35 +1,18 @@
-import { useState } from "react";
-import { Search, Plus, Edit2, Trash2, Phone, Mail, MapPin, X, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, Plus, Edit2, Phone, Mail, MapPin, X } from "lucide-react";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
-import { obterClientes, salvarClientes } from "../data/clientes";
-
-interface Cliente {
-  id: number;
-  nome: string;
-  email: string;
-  telefone: string;
-  cidade: string;
-  estado: string;
-  status: "Ativo" | "Inativo";
-  cpfCnpj: string;
-  dataNascimento: string;
-  documentoNome: string;
-}
+import {
+  atualizarCliente,
+  criarCliente,
+  listarClientes,
+  type Cliente,
+} from "../data/clientesApi";
 
 type ClienteForm = Omit<Cliente, "id">;
-
-const clientesIniciais: Cliente[] = [
-  { id: 1, nome: "Ana Paula Souza", email: "ana.souza@email.com", telefone: "(11) 99876-5432", cidade: "São Paulo", estado: "SP", status: "Ativo", cpfCnpj: "123.456.789-00", dataNascimento: "", documentoNome: "" },
-  { id: 2, nome: "Carlos Mendes", email: "carlos.mendes@empresa.com", telefone: "(21) 98765-4321", cidade: "Rio de Janeiro", estado: "RJ", status: "Ativo", cpfCnpj: "987.654.321-00", dataNascimento: "", documentoNome: "" },
-  { id: 3, nome: "Fernanda Lima", email: "fernanda@loja.com.br", telefone: "(31) 97654-3210", cidade: "Belo Horizonte", estado: "MG", status: "Inativo", cpfCnpj: "456.789.123-00", dataNascimento: "", documentoNome: "" },
-  { id: 4, nome: "João Victor Reis", email: "joao.reis@mail.com", telefone: "(41) 96543-2109", cidade: "Curitiba", estado: "PR", status: "Ativo", cpfCnpj: "321.654.987-00", dataNascimento: "", documentoNome: "" },
-  { id: 5, nome: "Mariana Costa", email: "mariana.costa@email.com", telefone: "(51) 95432-1098", cidade: "Porto Alegre", estado: "RS", status: "Ativo", cpfCnpj: "654.321.098-00", dataNascimento: "", documentoNome: "" },
-  { id: 6, nome: "Ricardo Alves", email: "r.alves@negocio.com", telefone: "(85) 94321-0987", cidade: "Fortaleza", estado: "CE", status: "Inativo", cpfCnpj: "789.012.345-00", dataNascimento: "", documentoNome: "" },
-];
 
 const clienteVazio: ClienteForm = {
   nome: "",
@@ -44,13 +27,31 @@ const clienteVazio: ClienteForm = {
 };
 
 export default function CadastroClientes() {
-  const [clientes, setClientes] = useState<Cliente[]>(obterClientes);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<"Todos" | "Ativo" | "Inativo">("Todos");
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Cliente | null>(null);
   const [form, setForm] = useState<ClienteForm>(clienteVazio);
-  const [confirmarExclusao, setConfirmarExclusao] = useState<number | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function carregarClientes() {
+    setErro(null);
+    try {
+      const itens = await listarClientes();
+      setClientes(itens);
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao carregar clientes.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => {
+    carregarClientes();
+  }, []);
 
   const clientesFiltrados = clientes.filter((c) => {
     const termo = busca.toLowerCase();
@@ -65,12 +66,14 @@ export default function CadastroClientes() {
   });
 
   function abrirNovo() {
+    setErro(null);
     setEditando(null);
     setForm(clienteVazio);
     setModalAberto(true);
   }
 
   function abrirEdicao(cliente: Cliente) {
+    setErro(null);
     setEditando(cliente);
     setForm({
       nome: cliente.nome,
@@ -91,32 +94,33 @@ export default function CadastroClientes() {
     setEditando(null);
   }
 
-  function salvar() {
+  async function salvar() {
     if (!form.nome.trim()) return;
-    if (editando) {
-      setClientes((prev) => {
-        const atualizados = prev.map((c) => (c.id === editando.id ? { ...editando, ...form } : c));
-        salvarClientes(atualizados);
-        return atualizados;
-      });
-    } else {
-      const novoId = clientes.length > 0 ? Math.max(...clientes.map((c) => c.id)) + 1 : 1;
-      setClientes((prev) => {
-        const atualizados = [...prev, { id: novoId, ...form }];
-        salvarClientes(atualizados);
-        return atualizados;
-      });
-    }
-    fecharModal();
-  }
 
-  function excluir(id: number) {
-    setClientes((prev) => {
-      const atualizados = prev.filter((c) => c.id !== id);
-      salvarClientes(atualizados);
-      return atualizados;
-    });
-    setConfirmarExclusao(null);
+    setSalvando(true);
+    setErro(null);
+
+    try {
+      const payload = {
+        ...form,
+        nome: form.nome.trim(),
+        email: form.email.trim(),
+        estado: form.estado.trim().toUpperCase().slice(0, 2),
+      };
+
+      if (editando) {
+        await atualizarCliente(editando.id, payload);
+      } else {
+        await criarCliente(payload);
+      }
+
+      await carregarClientes();
+      fecharModal();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao salvar cliente.");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (
@@ -178,6 +182,8 @@ export default function CadastroClientes() {
 
       {/* Tabela */}
       <Card className="overflow-hidden">
+        {erro && <p className="m-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+        {carregando && <p className="m-4 text-sm text-gray-500">Carregando clientes...</p>}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -191,7 +197,7 @@ export default function CadastroClientes() {
               </tr>
             </thead>
             <tbody>
-              {clientesFiltrados.length === 0 ? (
+              {!carregando && clientesFiltrados.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-gray-400">
                     <Search className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -243,38 +249,14 @@ export default function CadastroClientes() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {confirmarExclusao === cliente.id ? (
-                        <div className="flex items-center justify-end gap-1">
-                          <span className="text-xs text-gray-500 mr-1">Excluir?</span>
-                          <button
-                            onClick={() => excluir(cliente.id)}
-                            className="p-1.5 rounded text-green-600 hover:bg-green-50"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setConfirmarExclusao(null)}
-                            className="p-1.5 rounded text-gray-400 hover:bg-gray-100"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => abrirEdicao(cliente)}
-                            className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setConfirmarExclusao(cliente.id)}
-                            className="p-1.5 rounded text-red-500 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => abrirEdicao(cliente)}
+                          className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -430,10 +412,10 @@ export default function CadastroClientes() {
               </Button>
               <Button
                 onClick={salvar}
-                disabled={!form.nome.trim()}
+                disabled={salvando || !form.nome.trim()}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
-                {editando ? "Salvar alterações" : "Cadastrar"}
+                {salvando ? "Salvando..." : editando ? "Salvar alterações" : "Cadastrar"}
               </Button>
             </div>
           </div>

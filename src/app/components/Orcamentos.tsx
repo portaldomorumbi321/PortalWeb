@@ -17,7 +17,7 @@ import TransporteForm from "./TransporteForm";
 import RestauranteForm from "./RestauranteForm";
 import ExperienciasForm from "./ExperienciasForm";
 import SeguroForm from "./SeguroForm";
-import { obterClientes } from "../data/clientes";
+import { listarClientes, type Cliente } from "../data/clientesApi";
 import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
 
 type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
@@ -228,25 +228,28 @@ export default function Orcamentos() {
   const [experiencias, setExperiencias] = useState<any[]>([]);
   const [seguro, setSeguro] = useState<any[]>([]);
   const [funcionariosAtivos, setFuncionariosAtivos] = useState<Funcionario[]>([]);
-  const clientesAtivos = obterClientes().filter((cliente) => cliente.status === "Ativo");
+  const [clientesAtivos, setClientesAtivos] = useState<Cliente[]>([]);
 
   useEffect(() => {
     let mounted = true;
 
-    async function carregarFuncionarios() {
+    async function carregarDadosCadastros() {
       try {
-        const funcionarios = await listarFuncionarios();
+        const [clientes, funcionarios] = await Promise.all([listarClientes(), listarFuncionarios()]);
+
         if (mounted) {
+          setClientesAtivos(clientes.filter((cliente) => cliente.status === "Ativo"));
           setFuncionariosAtivos(funcionarios.filter((funcionario) => funcionario.status === "Ativo"));
         }
       } catch {
         if (mounted) {
+          setClientesAtivos([]);
           setFuncionariosAtivos([]);
         }
       }
     }
 
-    carregarFuncionarios();
+    carregarDadosCadastros();
 
     return () => {
       mounted = false;
