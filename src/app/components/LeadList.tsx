@@ -1,37 +1,32 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Search, Plus, Edit2, Trash2, X, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Edit2, X, ArrowUp, ArrowDown } from "lucide-react";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
+import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
+import {
+  atualizarLead,
+  criarLead,
+  listarLeads,
+  type Lead,
+  type LeadPayload,
+  type StatusCrm,
+  type StatusLead,
+} from "../data/leadsApi";
 
-type StatusLead = "Novo" | "Em Contato" | "Qualificado" | "Perdido" | "Vendido";
-type StatusCrm = "Novo Lead" | "Qualificação" | "Reunião" | "Follow-ups" | "Pagos" | "Nutrição" | "Finalizados";
-
-interface Lead {
-  id: number;
-  nome: string;
-  email: string;
-  whatsapp: string;
-  status: StatusLead;
-  statusCrm: StatusCrm;
-  viagens: number;
-  criadoEm: string;
-  atendente: string;
-}
-
-const dadosIniciais: Lead[] = [
-  { id: 1, nome: "Juliana Martins", email: "juliana.m@email.com", whatsapp: "(11) 98877-6655", status: "Novo", statusCrm: "Novo Lead", viagens: 0, criadoEm: "2024-07-28", atendente: "Ana Paula" },
-  { id: 2, nome: "Marcos Andrade", email: "marcos.a@corp.com", whatsapp: "(21) 97766-5544", status: "Em Contato", statusCrm: "Qualificação", viagens: 1, criadoEm: "2024-07-27", atendente: "Carlos Mendes" },
-  { id: 3, nome: "Beatriz Costa", email: "bia.costa@email.com", whatsapp: "(31) 96655-4433", status: "Qualificado", statusCrm: "Reunião", viagens: 3, criadoEm: "2024-07-25", atendente: "Ana Paula" },
-  { id: 4, nome: "Lucas Pereira", email: "lucas.p@mail.com", whatsapp: "(41) 95544-3322", status: "Vendido", statusCrm: "Pagos", viagens: 1, criadoEm: "2024-07-22", atendente: "Carlos Mendes" },
-  { id: 5, nome: "Sofia Ribeiro", email: "sofia.r@email.com", whatsapp: "(51) 94433-2211", status: "Perdido", statusCrm: "Finalizados", viagens: 0, criadoEm: "2024-07-20", atendente: "Ana Paula" },
-  { id: 6, nome: "Fernanda Lima", email: "fernanda.l@email.com", whatsapp: "(31) 97654-3210", status: "Em Contato", statusCrm: "Follow-ups", viagens: 2, criadoEm: "2024-07-18", atendente: "Carlos Mendes" },
-];
-
-const leadVazio: Omit<Lead, 'id'> = { nome: "", email: "", whatsapp: "", status: "Novo", statusCrm: "Novo Lead", viagens: 0, criadoEm: new Date().toISOString().split("T")[0], atendente: "" };
+const leadVazio = (): LeadPayload => ({
+  nome: "",
+  email: "",
+  whatsapp: "",
+  status: "Novo",
+  statusCrm: "Novo Lead",
+  viagens: 0,
+  criadoEm: new Date().toISOString().split("T")[0],
+  atendente: "",
+});
 
 const statusConfig: Record<StatusLead, { bg: string; cor: string }> = {
   "Novo": { bg: "bg-blue-100", cor: "text-blue-700" },
@@ -43,12 +38,12 @@ const statusConfig: Record<StatusLead, { bg: string; cor: string }> = {
 
 const allStatus: StatusLead[] = ["Novo", "Em Contato", "Qualificado", "Perdido", "Vendido"];
 const allCrmStatus: StatusCrm[] = ["Novo Lead", "Qualificação", "Reunião", "Follow-ups", "Pagos", "Nutrição", "Finalizados"];
-const allAtendentes = ["Ana Paula", "Carlos Mendes", "Fernanda Lima"];
 
 export default function LeadList() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [leads, setLeads] = useState<Lead[]>(dadosIniciais);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [funcionariosAtivos, setFuncionariosAtivos] = useState<Funcionario[]>([]);
   const [filtroNome, setFiltroNome] = useState("");
   const [filtroEmail, setFiltroEmail] = useState("");
   const [filtroWhatsapp, setFiltroWhatsapp] = useState("");
@@ -57,7 +52,29 @@ export default function LeadList() {
   const [modalAberto, setModalAberto] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: keyof Lead; direction: 'asc' | 'desc' } | null>({ key: 'criadoEm', direction: 'desc' });
   const [editando, setEditando] = useState<Lead | null>(null);
-  const [form, setForm] = useState(leadVazio);
+  const [form, setForm] = useState<LeadPayload>(leadVazio());
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function carregarDados() {
+    try {
+      setErro(null);
+      const [listaLeads, funcionarios] = await Promise.all([listarLeads(), listarFuncionarios()]);
+      setLeads(listaLeads);
+      setFuncionariosAtivos(funcionarios.filter((funcionario) => funcionario.status === "Ativo"));
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao carregar leads.");
+      setLeads([]);
+      setFuncionariosAtivos([]);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => {
+    carregarDados();
+  }, []);
 
   useEffect(() => {
     const state = location.state as { editLeadId?: number };
@@ -69,9 +86,13 @@ export default function LeadList() {
         navigate(location.pathname, { replace: true });
       }
     }
-  // Adicionamos 'leads' como dependência para garantir que a busca funcione mesmo se os leads carregarem depois
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state, leads]);
+
+  const atendentesDisponiveis = useMemo(() => {
+    const nomesFuncionarios = funcionariosAtivos.map((funcionario) => funcionario.name).filter(Boolean);
+    const nomesLeads = leads.map((lead) => lead.atendente).filter(Boolean);
+    return Array.from(new Set([...nomesFuncionarios, ...nomesLeads])).sort((a, b) => a.localeCompare(b));
+  }, [funcionariosAtivos, leads]);
 
   const leadsFiltrados = leads.filter((lead) => {
     const matchNome = filtroNome ? lead.nome.toLowerCase().includes(filtroNome.toLowerCase()) : true;
@@ -108,13 +129,13 @@ export default function LeadList() {
 
   function abrirNovo() {
     setEditando(null);
-    setForm(leadVazio);
+    setForm(leadVazio());
     setModalAberto(true);
   }
 
   function abrirEdicao(lead: Lead) {
     setEditando(lead);
-    setForm(lead);
+    setForm({ ...lead });
     setModalAberto(true);
   }
 
@@ -123,19 +144,36 @@ export default function LeadList() {
     setEditando(null);
   }
 
-  function salvar() {
+  async function salvar() {
     if (!form.nome.trim()) return;
-    if (editando) {
-      setLeads((prev) => prev.map((l) => (l.id === editando.id ? { ...editando, ...form } : l)));
-    } else {
-      const novoId = leads.length > 0 ? Math.max(...leads.map((l) => l.id)) + 1 : 1;
-      setLeads((prev) => [{ id: novoId, ...form }, ...prev]);
-    }
-    fecharModal();
-  }
+    setSalvando(true);
+    setErro(null);
 
-  function excluir(id: number) {
-    setLeads((prev) => prev.filter((l) => l.id !== id));
+    const payload: LeadPayload = {
+      ...form,
+      nome: form.nome.trim(),
+      email: form.email.trim(),
+      whatsapp: form.whatsapp.trim(),
+      atendente: form.atendente.trim(),
+      criadoEm: form.criadoEm || new Date().toISOString().split("T")[0],
+      viagens: Math.max(0, Number(form.viagens || 0)),
+    };
+
+    try {
+      if (editando) {
+        const atualizado = await atualizarLead(editando.id, payload);
+        setLeads((prev) => prev.map((lead) => (lead.id === editando.id ? atualizado : lead)));
+      } else {
+        const criado = await criarLead(payload);
+        setLeads((prev) => [criado, ...prev]);
+      }
+
+      fecharModal();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao salvar lead.");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (
@@ -144,7 +182,7 @@ export default function LeadList() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Lista de Leads</h1>
-          <p className="text-sm text-gray-500 mt-1">{leads.length} leads no total</p>
+          <p className="text-sm text-gray-500 mt-1">{carregando ? "Carregando..." : `${leads.length} leads no total`}</p>
         </div>
         <Button onClick={abrirNovo} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
           <Plus className="w-4 h-4" />
@@ -164,10 +202,16 @@ export default function LeadList() {
           </select>
           <select value={filtroAtendente} onChange={(e) => setFiltroAtendente(e.target.value)} className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm">
             <option value="Todos">Todos Atendentes</option>
-            {allAtendentes.map(a => <option key={a} value={a}>{a}</option>)}
+            {atendentesDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
       </Card>
+
+      {erro && (
+        <Card className="mb-4 border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {erro}
+        </Card>
+      )}
 
       {/* Tabela de Leads */}
       <Card className="overflow-hidden">
@@ -203,13 +247,17 @@ export default function LeadList() {
                       <Button variant="ghost" size="icon" onClick={() => abrirEdicao(lead)} className="h-8 w-8 text-blue-600 hover:text-blue-600">
                         <Edit2 className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => excluir(lead.id)} className="h-8 w-8 text-red-500 hover:text-red-500">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
                   </td>
                 </tr>
               ))}
+              {!carregando && sortedLeads.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                    Nenhum lead encontrado.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -269,10 +317,19 @@ export default function LeadList() {
                 </div>
                 <div>
                   <Label htmlFor="atendente">Atendente</Label>
-                  <select id="atendente" value={form.atendente} onChange={(e) => setForm({ ...form, atendente: e.target.value })} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm">
-                    <option value="">Nenhum</option>
-                    {allAtendentes.map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
+                  <Input
+                    id="atendente"
+                    value={form.atendente}
+                    onChange={(e) => setForm({ ...form, atendente: e.target.value })}
+                    placeholder="Selecione ou digite outro atendente"
+                    className="mt-1"
+                    list="atendentes-list"
+                  />
+                  <datalist id="atendentes-list">
+                    {funcionariosAtivos.map((funcionario) => (
+                      <option key={funcionario.id} value={funcionario.name} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -288,9 +345,9 @@ export default function LeadList() {
             </div>
 
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={fecharModal}>Cancelar</Button>
-              <Button onClick={salvar} disabled={!form.nome.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
-                {editando ? "Salvar Alterações" : "Criar Lead"}
+              <Button variant="outline" onClick={fecharModal} disabled={salvando}>Cancelar</Button>
+              <Button onClick={salvar} disabled={salvando || !form.nome.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
+                {salvando ? "Salvando..." : editando ? "Salvar Alterações" : "Criar Lead"}
               </Button>
             </div>
           </div>

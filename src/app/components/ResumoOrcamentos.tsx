@@ -1,88 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, Edit2, Trash2, Plus, FileText, ChevronRight, MapPin } from "lucide-react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { useNavigate } from "react-router";
-
-interface ItemOrc {
-  id: number;
-  descricao: string;
-  quantidade: number;
-  unidade: string;
-  valorUnitario: number;
-  desconto: number;
-}
-
-interface Orcamento {
-  id: number;
-  numero: string;
-  cliente: string;
-  email: string;
-  status: "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
-  dataCriacao: string;
-  dataValidade: string;
-  observacoes: string;
-  itens: ItemOrc[];
-}
-
-const dados: Orcamento[] = [
-  {
-    id: 1,
-    numero: "25060101",
-    cliente: "Ana Paula Souza",
-    email: "ana@email.com",
-    status: "Aprovado",
-    dataCriacao: "2025-06-01",
-    dataValidade: "2025-07-01",
-    observacoes: "",
-    itens: [
-      { id: 1, descricao: "Notebook Pro 15\"", quantidade: 2, unidade: "un", valorUnitario: 4599.90, desconto: 5 },
-      { id: 2, descricao: "Mouse Sem Fio", quantidade: 2, unidade: "un", valorUnitario: 89.90, desconto: 0 },
-    ],
-  },
-  {
-    id: 2,
-    numero: "25061501",
-    cliente: "Carlos Mendes",
-    email: "carlos@empresa.com",
-    status: "Enviado",
-    dataCriacao: "2025-06-15",
-    dataValidade: "2025-07-15",
-    observacoes: "",
-    itens: [
-      { id: 1, descricao: "Cadeira Ergonômica", quantidade: 5, unidade: "un", valorUnitario: 1299.00, desconto: 10 },
-    ],
-  },
-  {
-    id: 3,
-    numero: "25070101",
-    cliente: "Fernanda Lima",
-    email: "fernanda@loja.com",
-    status: "Rascunho",
-    dataCriacao: "2025-07-01",
-    dataValidade: "2025-08-01",
-    observacoes: "Aguardando confirmação de modelo.",
-    itens: [
-      { id: 1, descricao: "Serviço de Consultoria", quantidade: 10, unidade: "h", valorUnitario: 250.00, desconto: 0 },
-      { id: 2, descricao: "Relatório Técnico", quantidade: 1, unidade: "un", valorUnitario: 800.00, desconto: 0 },
-    ],
-  },
-  {
-    id: 4,
-    numero: "25070501",
-    cliente: "Roberto Silva",
-    email: "roberto@tech.com",
-    status: "Aprovado",
-    dataCriacao: "2025-07-05",
-    dataValidade: "2025-08-05",
-    observacoes: "Cliente VIP - desconto especial aplicado.",
-    itens: [
-      { id: 1, descricao: "Impressora Laser Color", quantidade: 1, unidade: "un", valorUnitario: 2899.90, desconto: 15 },
-      { id: 2, descricao: "Papel A4 (resma)", quantidade: 10, unidade: "un", valorUnitario: 35.00, desconto: 5 },
-    ],
-  },
-];
+import { listarOrcamentos, type ItemOrc, type Orcamento } from "../data/orcamentosApi";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -111,8 +33,26 @@ const calcularTotal = (itens: ItemOrc[]) => {
 
 export default function ResumoOrcamentos() {
   const navigate = useNavigate();
-  const [orcamentos] = useState(dados);
+  const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [expandidos, setExpandidos] = useState<number[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function carregar() {
+      setErro(null);
+      try {
+        const lista = await listarOrcamentos();
+        setOrcamentos(lista);
+      } catch (error) {
+        setErro(error instanceof Error ? error.message : "Erro ao carregar orçamentos.");
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    carregar();
+  }, []);
 
   const toggleExpand = (id: number) => {
     setExpandidos((prev) =>
@@ -142,6 +82,9 @@ export default function ResumoOrcamentos() {
           Novo
         </Button>
       </div>
+
+      {erro && <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+      {carregando && <p className="text-sm text-gray-500">Carregando orçamentos...</p>}
 
       <div className="space-y-3">
         {orcamentosRecentes.map((orcamento) => (

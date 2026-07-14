@@ -4,7 +4,6 @@ import Cadastros from "./components/Cadastros";
 import CadastroClientes from "./components/CadastroClientes";
 import CadastroFornecedores from "./components/CadastroFornecedores";
 import CadastroProdutos from "./components/CadastroProdutos";
-import CadastroEnderecos from "./components/CadastroEnderecos";
 import CadastroTarefas from "./components/CadastroTarefas";
 import Financeiro from "./components/Financeiro";
 import Orcamentos from "./components/Orcamentos";
@@ -42,7 +41,6 @@ export const router = createBrowserRouter([
           { path: "cadastros/clientes", Component: CadastroClientes },
           { path: "cadastros/fornecedores", Component: CadastroFornecedores },
           { path: "cadastros/produtos", Component: CadastroProdutos },
-          { path: "cadastros/enderecos", Component: CadastroEnderecos },
           { path: "cadastros/tarefas", Component: CadastroTarefas },
           { path: "financeiro", Component: Financeiro },
           { path: "financeiro/orcamentos", Component: Orcamentos },

@@ -1,44 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Plus, Edit2, Trash2, X, Check, CheckSquare, Calendar, User, Flag, Clock } from "lucide-react";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
+import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
+import {
+  atualizarTarefa,
+  criarTarefa,
+  listarTarefas,
+  removerTarefa,
+  type PrioridadeTarefa,
+  type StatusTarefa,
+  type Tarefa,
+  type TarefaPayload,
+} from "../data/tarefasApi";
 
-type Status = "Pendente" | "Em andamento" | "Concluída" | "Cancelada";
-type Prioridade = "Alta" | "Média" | "Baixa";
+const vazio: TarefaPayload = { titulo: "", descricao: "", responsavel: "", prioridade: "Média", status: "Pendente", prazo: "", categoria: "" };
 
-interface Tarefa {
-  id: number;
-  titulo: string;
-  descricao: string;
-  responsavel: string;
-  prioridade: Prioridade;
-  status: Status;
-  prazo: string;
-  categoria: string;
-}
-
-const dados: Tarefa[] = [
-  { id: 1, titulo: "Revisar contratos de fornecedores", descricao: "Analisar e atualizar todos os contratos vencidos ou próximos do vencimento.", responsavel: "Ana Paula", prioridade: "Alta", status: "Em andamento", prazo: "2025-07-15", categoria: "Jurídico" },
-  { id: 2, titulo: "Atualizar cadastro de clientes inativos", descricao: "Verificar e ativar clientes com mais de 6 meses sem movimentação.", responsavel: "Carlos Mendes", prioridade: "Média", status: "Pendente", prazo: "2025-07-20", categoria: "Comercial" },
-  { id: 3, titulo: "Levantamento de estoque mensal", descricao: "Realizar contagem física e reconciliar com sistema.", responsavel: "Fernanda Lima", prioridade: "Alta", status: "Concluída", prazo: "2025-06-30", categoria: "Estoque" },
-  { id: 4, titulo: "Preparar relatório financeiro", descricao: "Consolidar dados do trimestre e enviar para diretoria.", responsavel: "João Victor", prioridade: "Alta", status: "Pendente", prazo: "2025-07-10", categoria: "Financeiro" },
-  { id: 5, titulo: "Treinamento de novos funcionários", descricao: "Planejar e executar onboarding da nova turma.", responsavel: "Mariana Costa", prioridade: "Média", status: "Em andamento", prazo: "2025-07-25", categoria: "RH" },
-  { id: 6, titulo: "Atualizar site institucional", descricao: "Revisar textos e imagens desatualizados.", responsavel: "Ricardo Alves", prioridade: "Baixa", status: "Cancelada", prazo: "2025-06-15", categoria: "Marketing" },
-];
-
-const vazio: Omit<Tarefa, "id"> = { titulo: "", descricao: "", responsavel: "", prioridade: "Média", status: "Pendente", prazo: "", categoria: "" };
-
-const statusConfig: Record<Status, { cor: string; bg: string }> = {
+const statusConfig: Record<StatusTarefa, { cor: string; bg: string }> = {
   "Pendente":      { cor: "text-yellow-700", bg: "bg-yellow-100" },
   "Em andamento":  { cor: "text-blue-700",   bg: "bg-blue-100" },
   "Concluída":     { cor: "text-green-700",  bg: "bg-green-100" },
   "Cancelada":     { cor: "text-red-600",    bg: "bg-red-100" },
 };
 
-const prioridadeConfig: Record<Prioridade, { cor: string; dot: string }> = {
+const prioridadeConfig: Record<PrioridadeTarefa, { cor: string; dot: string }> = {
   Alta:  { cor: "text-red-600",    dot: "bg-red-500" },
   Média: { cor: "text-yellow-600", dot: "bg-yellow-400" },
   Baixa: { cor: "text-green-600",  dot: "bg-green-500" },
@@ -55,19 +43,49 @@ function prazoVencido(d: string) {
   return new Date(d) < new Date() ;
 }
 
-const allStatus: Status[] = ["Pendente", "Em andamento", "Concluída", "Cancelada"];
-const allPrioridades: Prioridade[] = ["Alta", "Média", "Baixa"];
+const allStatus: StatusTarefa[] = ["Pendente", "Em andamento", "Concluída", "Cancelada"];
+const allPrioridades: PrioridadeTarefa[] = ["Alta", "Média", "Baixa"];
 
 export default function CadastroTarefas() {
-  const [itens, setItens] = useState<Tarefa[]>(dados);
+  const [itens, setItens] = useState<Tarefa[]>([]);
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [busca, setBusca] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState<Status | "Todos">("Todos");
-  const [filtroPrioridade, setFiltroPrioridade] = useState<Prioridade | "Todos">("Todos");
+  const [filtroStatus, setFiltroStatus] = useState<StatusTarefa | "Todos">("Todos");
+  const [filtroPrioridade, setFiltroPrioridade] = useState<PrioridadeTarefa | "Todos">("Todos");
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Tarefa | null>(null);
-  const [form, setForm] = useState<Omit<Tarefa, "id">>(vazio);
+  const [form, setForm] = useState<TarefaPayload>(vazio);
   const [confirmarExclusao, setConfirmarExclusao] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"lista" | "kanban">("lista");
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function carregarTarefas() {
+    setErro(null);
+    try {
+      const lista = await listarTarefas();
+      setItens(lista);
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao carregar tarefas.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function carregarFuncionarios() {
+    try {
+      const lista = await listarFuncionarios();
+      setFuncionarios(lista);
+    } catch {
+      setFuncionarios([]);
+    }
+  }
+
+  useEffect(() => {
+    carregarTarefas();
+    carregarFuncionarios();
+  }, []);
 
   const filtrados = itens.filter((t) => {
     const q = busca.toLowerCase();
@@ -75,29 +93,67 @@ export default function CadastroTarefas() {
     return match && (filtroStatus === "Todos" || t.status === filtroStatus) && (filtroPrioridade === "Todos" || t.prioridade === filtroPrioridade);
   });
 
-  function abrirNovo() { setEditando(null); setForm(vazio); setModalAberto(true); }
-  function abrirEdicao(t: Tarefa) { setEditando(t); setForm({ titulo: t.titulo, descricao: t.descricao, responsavel: t.responsavel, prioridade: t.prioridade, status: t.status, prazo: t.prazo, categoria: t.categoria }); setModalAberto(true); }
+  function abrirNovo() { setErro(null); setEditando(null); setForm(vazio); setModalAberto(true); }
+  function abrirEdicao(t: Tarefa) { setErro(null); setEditando(t); setForm({ titulo: t.titulo, descricao: t.descricao, responsavel: t.responsavel, prioridade: t.prioridade, status: t.status, prazo: t.prazo, categoria: t.categoria }); setModalAberto(true); }
   function fechar() { setModalAberto(false); setEditando(null); }
 
-  function salvar() {
+  async function salvar() {
     if (!form.titulo.trim()) return;
-    if (editando) {
-      setItens((prev) => prev.map((t) => (t.id === editando.id ? { ...editando, ...form } : t)));
-    } else {
-      const id = itens.length > 0 ? Math.max(...itens.map((t) => t.id)) + 1 : 1;
-      setItens((prev) => [...prev, { id, ...form }]);
+
+    setSalvando(true);
+    setErro(null);
+
+    try {
+      const payload: TarefaPayload = {
+        ...form,
+        titulo: form.titulo.trim(),
+        descricao: form.descricao.trim(),
+        responsavel: form.responsavel.trim(),
+        categoria: form.categoria.trim(),
+      };
+
+      if (editando) {
+        await atualizarTarefa(editando.id, payload);
+      } else {
+        await criarTarefa(payload);
+      }
+
+      await carregarTarefas();
+      fechar();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao salvar tarefa.");
+    } finally {
+      setSalvando(false);
     }
-    fechar();
   }
 
-  function excluir(id: number) { setItens((prev) => prev.filter((t) => t.id !== id)); setConfirmarExclusao(null); }
+  async function excluir(id: number) {
+    setErro(null);
+    try {
+      await removerTarefa(id);
+      await carregarTarefas();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao excluir tarefa.");
+    } finally {
+      setConfirmarExclusao(null);
+    }
+  }
 
-  function moverStatus(id: number, status: Status) {
+  async function moverStatus(id: number, status: StatusTarefa) {
     setItens((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+
+    const atualizada = itens.find((t) => t.id === id);
+    if (!atualizada) return;
+
+    try {
+      await atualizarTarefa(id, { ...atualizada, status });
+    } catch {
+      await carregarTarefas();
+    }
   }
 
   // Contadores por status
-  const counts = allStatus.reduce((acc, s) => ({ ...acc, [s]: itens.filter((t) => t.status === s).length }), {} as Record<Status, number>);
+  const counts = allStatus.reduce((acc, s) => ({ ...acc, [s]: itens.filter((t) => t.status === s).length }), {} as Record<StatusTarefa, number>);
 
   return (
     <div>
@@ -144,10 +200,13 @@ export default function CadastroTarefas() {
         <div className="flex flex-wrap gap-2 mt-3">
           <span className="text-xs text-gray-400 self-center">Prioridade:</span>
           {(["Todos", ...allPrioridades] as const).map((p) => (
-            <button key={p} onClick={() => setFiltroPrioridade(p as Prioridade | "Todos")} className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${filtroPrioridade === p ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"}`}>{p}</button>
+            <button key={p} onClick={() => setFiltroPrioridade(p as PrioridadeTarefa | "Todos")} className={`px-3 py-1 rounded-md text-sm font-medium border transition-colors ${filtroPrioridade === p ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"}`}>{p}</button>
           ))}
         </div>
       </Card>
+
+      {erro && <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+      {carregando && <p className="mb-4 text-sm text-gray-500">Carregando tarefas...</p>}
 
       {/* VIEW: Lista */}
       {viewMode === "lista" && (
@@ -166,7 +225,7 @@ export default function CadastroTarefas() {
                 </tr>
               </thead>
               <tbody>
-                {filtrados.length === 0 ? (
+                {!carregando && filtrados.length === 0 ? (
                   <tr><td colSpan={7} className="text-center py-12 text-gray-400"><CheckSquare className="w-8 h-8 mx-auto mb-2 opacity-40" /><p>Nenhuma tarefa encontrada</p></td></tr>
                 ) : filtrados.map((item, idx) => {
                   const pcfg = prioridadeConfig[item.prioridade];
@@ -296,7 +355,21 @@ export default function CadastroTarefas() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="responsavel">Responsável</Label>
-                  <Input id="responsavel" value={form.responsavel} onChange={(e) => setForm({ ...form, responsavel: e.target.value })} placeholder="Nome do responsável" className="mt-1" />
+                  <select
+                    id="responsavel"
+                    value={form.responsavel}
+                    onChange={(e) => setForm({ ...form, responsavel: e.target.value })}
+                    className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione...</option>
+                    {funcionarios
+                      .filter((f) => f.status === "Ativo")
+                      .map((funcionario) => (
+                        <option key={funcionario.id} value={funcionario.name}>
+                          {funcionario.name}
+                        </option>
+                      ))}
+                  </select>
                 </div>
                 <div>
                   <Label htmlFor="categoria">Categoria</Label>
@@ -334,7 +407,7 @@ export default function CadastroTarefas() {
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <Button variant="outline" onClick={fechar}>Cancelar</Button>
-              <Button onClick={salvar} disabled={!form.titulo.trim()} className="bg-indigo-600 hover:bg-indigo-700 text-white">{editando ? "Salvar alterações" : "Cadastrar"}</Button>
+              <Button onClick={salvar} disabled={salvando || !form.titulo.trim()} className="bg-indigo-600 hover:bg-indigo-700 text-white">{salvando ? "Salvando..." : editando ? "Salvar alterações" : "Cadastrar"}</Button>
             </div>
           </div>
         </div>

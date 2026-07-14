@@ -40,6 +40,7 @@ export default function CadastroClientes() {
   const [form, setForm] = useState<ClienteForm>(clienteVazio);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [buscandoCep, setBuscandoCep] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   async function carregarClientes() {
@@ -154,6 +155,45 @@ export default function CadastroClientes() {
     const numero = normalizarTelefoneWhatsApp(telefone);
     if (!numero) return null;
     return `https://wa.me/${numero}`;
+  }
+
+  async function buscarEnderecoPorCep(cepDigitado: string) {
+    const cepLimpo = cepDigitado.replace(/\D/g, "");
+
+    if (cepLimpo.length !== 8) {
+      return;
+    }
+
+    setBuscandoCep(true);
+    setErro(null);
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+
+      if (!response.ok) {
+        throw new Error("Falha ao consultar CEP.");
+      }
+
+      const data = await response.json();
+
+      if (data?.erro) {
+        setErro("CEP não encontrado.");
+        return;
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        cep: `${cepLimpo.slice(0, 5)}-${cepLimpo.slice(5)}`,
+        endereco: data.logradouro || prev.endereco,
+        complemento: prev.complemento || data.complemento || "",
+        cidade: data.localidade || prev.cidade,
+        estado: String(data.uf || prev.estado).toUpperCase().slice(0, 2),
+      }));
+    } catch {
+      setErro("Não foi possível buscar o CEP.");
+    } finally {
+      setBuscandoCep(false);
+    }
   }
 
   return (
@@ -390,9 +430,13 @@ export default function CadastroClientes() {
                     id="cep"
                     value={form.cep}
                     onChange={(e) => setForm({ ...form, cep: e.target.value })}
+                    onBlur={(e) => {
+                      void buscarEnderecoPorCep(e.target.value);
+                    }}
                     placeholder="00000-000"
                     className="mt-1"
                   />
+                  {buscandoCep && <p className="text-xs text-gray-500 mt-1">Buscando endereço pelo CEP...</p>}
                 </div>
                 <div>
                   <Label htmlFor="numero">Número</Label>

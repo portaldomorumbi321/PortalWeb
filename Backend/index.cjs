@@ -169,6 +169,101 @@ function mapCliente(row) {
   };
 }
 
+function mapProduto(row) {
+  return {
+    id: Number(row.id),
+    nome: row.nome,
+    codigo: row.codigo || '',
+    categoria: row.categoria || '',
+    preco: Number(row.preco || 0),
+    fornecedor: row.fornecedor || '',
+    operadora: row.operadora || '',
+    unidade: row.unidade || 'un',
+    status: row.status,
+  };
+}
+
+function mapFornecedor(row) {
+  return {
+    id: Number(row.id),
+    razaoSocial: row.razao_social,
+    nomeFantasia: row.nome_fantasia || '',
+    cnpj: row.cnpj || '',
+    email: row.email || '',
+    telefone: row.telefone || '',
+    cep: row.cep || '',
+    endereco: row.endereco || '',
+    complemento: row.complemento || '',
+    cidade: row.cidade || '',
+    estado: row.estado || '',
+    status: row.status,
+    categoria: row.categoria || '',
+  };
+}
+
+function mapLead(row) {
+  return {
+    id: Number(row.id),
+    nome: row.nome,
+    email: row.email || '',
+    whatsapp: row.whatsapp || '',
+    status: row.status,
+    statusCrm: row.status_crm,
+    viagens: Number(row.viagens || 0),
+    criadoEm: row.criado_em ? new Date(row.criado_em).toISOString().slice(0, 10) : '',
+    atendente: row.atendente || '',
+  };
+}
+
+function mapTarefa(row) {
+  return {
+    id: Number(row.id),
+    titulo: row.titulo,
+    descricao: row.descricao || '',
+    responsavel: row.responsavel || '',
+    prioridade: row.prioridade,
+    status: row.status,
+    prazo: row.prazo ? new Date(row.prazo).toISOString().slice(0, 10) : '',
+    categoria: row.categoria || '',
+  };
+}
+
+function mapEvento(row) {
+  return {
+    id: Number(row.id),
+    titulo: row.titulo,
+    descricao: row.descricao || '',
+    data: row.data_evento ? new Date(row.data_evento).toISOString().slice(0, 10) : '',
+    hora: row.hora || '',
+    tipo: row.tipo,
+    cliente: row.cliente || '',
+    agente: row.agente || '',
+  };
+}
+
+function mapOrcamento(row) {
+  return {
+    id: Number(row.id),
+    numero: row.numero,
+    cliente: row.cliente,
+    email: row.email || '',
+    agenteViagem: row.agente_viagem || '',
+    status: row.status,
+    dataCriacao: row.data_criacao ? new Date(row.data_criacao).toISOString().slice(0, 10) : '',
+    dataValidade: row.data_validade ? new Date(row.data_validade).toISOString().slice(0, 10) : '',
+    observacoes: row.observacoes || '',
+    itens: Array.isArray(row.itens) ? row.itens : [],
+    voos: Array.isArray(row.voos) ? row.voos : [],
+    hospedagem: Array.isArray(row.hospedagem) ? row.hospedagem : [],
+    roteiro: row.roteiro || '',
+    dayByDay: Array.isArray(row.day_by_day) ? row.day_by_day : [],
+    transporte: Array.isArray(row.transporte) ? row.transporte : [],
+    restaurante: Array.isArray(row.restaurante) ? row.restaurante : [],
+    experiencias: Array.isArray(row.experiencias) ? row.experiencias : [],
+    seguro: Array.isArray(row.seguro) ? row.seguro : [],
+  };
+}
+
 function normalizePayload(body) {
   return {
     name: String(body.name || '').trim(),
@@ -197,6 +292,113 @@ function normalizeClientePayload(body) {
     cpfCnpj: String(body?.cpfCnpj || '').trim(),
     dataNascimento: String(body?.dataNascimento || '').trim(),
     documentoNome: String(body?.documentoNome || '').trim(),
+  };
+}
+
+function normalizeProdutoPayload(body) {
+  return {
+    nome: String(body?.nome || '').trim(),
+    codigo: String(body?.codigo || '').trim().toUpperCase(),
+    categoria: String(body?.categoria || '').trim(),
+    preco: Number(body?.preco || 0),
+    fornecedor: String(body?.fornecedor || '').trim(),
+    operadora: String(body?.operadora || '').trim(),
+    unidade: String(body?.unidade || 'un').trim() || 'un',
+    status: body?.status === 'Inativo' ? 'Inativo' : 'Ativo',
+  };
+}
+
+function normalizeFornecedorPayload(body) {
+  return {
+    razaoSocial: String(body?.razaoSocial || '').trim(),
+    nomeFantasia: String(body?.nomeFantasia || '').trim(),
+    cnpj: String(body?.cnpj || '').trim(),
+    email: String(body?.email || '').trim().toLowerCase(),
+    telefone: String(body?.telefone || '').trim(),
+    cep: String(body?.cep || '').trim(),
+    endereco: String(body?.endereco || '').trim(),
+    complemento: String(body?.complemento || '').trim(),
+    cidade: String(body?.cidade || '').trim(),
+    estado: String(body?.estado || '').trim().toUpperCase().slice(0, 2),
+    status: body?.status === 'Inativo' ? 'Inativo' : 'Ativo',
+    categoria: String(body?.categoria || '').trim(),
+  };
+}
+
+function normalizeLeadPayload(body) {
+  const status = body?.status;
+  const statusCrm = body?.statusCrm;
+
+  return {
+    nome: String(body?.nome || '').trim(),
+    email: String(body?.email || '').trim().toLowerCase(),
+    whatsapp: String(body?.whatsapp || '').trim(),
+    status: status === 'Em Contato' || status === 'Qualificado' || status === 'Perdido' || status === 'Vendido' ? status : 'Novo',
+    statusCrm:
+      statusCrm === 'Qualificação' ||
+      statusCrm === 'Reunião' ||
+      statusCrm === 'Follow-ups' ||
+      statusCrm === 'Pagos' ||
+      statusCrm === 'Nutrição' ||
+      statusCrm === 'Finalizados'
+        ? statusCrm
+        : 'Novo Lead',
+    viagens: Math.max(0, Number(body?.viagens || 0)),
+    criadoEm: String(body?.criadoEm || '').trim(),
+    atendente: String(body?.atendente || '').trim(),
+  };
+}
+
+function normalizeTarefaPayload(body) {
+  const status = body?.status;
+  const prioridade = body?.prioridade;
+
+  return {
+    titulo: String(body?.titulo || '').trim(),
+    descricao: String(body?.descricao || '').trim(),
+    responsavel: String(body?.responsavel || '').trim(),
+    prioridade: prioridade === 'Alta' || prioridade === 'Baixa' ? prioridade : 'Média',
+    status: status === 'Em andamento' || status === 'Concluída' || status === 'Cancelada' ? status : 'Pendente',
+    prazo: String(body?.prazo || '').trim(),
+    categoria: String(body?.categoria || '').trim(),
+  };
+}
+
+function normalizeEventoPayload(body) {
+  const tipo = body?.tipo;
+
+  return {
+    titulo: String(body?.titulo || '').trim(),
+    descricao: String(body?.descricao || '').trim(),
+    data: String(body?.data || '').trim(),
+    hora: String(body?.hora || '').trim(),
+    tipo: tipo === 'Viagem' || tipo === 'Tarefa' || tipo === 'Lembrete' || tipo === 'Outro' ? tipo : 'Reunião',
+    cliente: String(body?.cliente || '').trim(),
+    agente: String(body?.agente || '').trim(),
+  };
+}
+
+function normalizeOrcamentoPayload(body) {
+  const status = body?.status;
+
+  return {
+    numero: String(body?.numero || '').trim(),
+    cliente: String(body?.cliente || '').trim(),
+    email: String(body?.email || '').trim().toLowerCase(),
+    agenteViagem: String(body?.agenteViagem || '').trim(),
+    status: status === 'Enviado' || status === 'Aprovado' || status === 'Rejeitado' || status === 'Cancelado' ? status : 'Rascunho',
+    dataCriacao: String(body?.dataCriacao || '').trim(),
+    dataValidade: String(body?.dataValidade || '').trim(),
+    observacoes: String(body?.observacoes || '').trim(),
+    itens: Array.isArray(body?.itens) ? body.itens : [],
+    voos: Array.isArray(body?.voos) ? body.voos : [],
+    hospedagem: Array.isArray(body?.hospedagem) ? body.hospedagem : [],
+    roteiro: typeof body?.roteiro === 'string' ? body.roteiro : '',
+    dayByDay: Array.isArray(body?.dayByDay) ? body.dayByDay : [],
+    transporte: Array.isArray(body?.transporte) ? body.transporte : [],
+    restaurante: Array.isArray(body?.restaurante) ? body.restaurante : [],
+    experiencias: Array.isArray(body?.experiencias) ? body.experiencias : [],
+    seguro: Array.isArray(body?.seguro) ? body.seguro : [],
   };
 }
 
@@ -543,6 +745,778 @@ app.delete('/api/clientes/:id', ensureDb, async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Erro ao excluir cliente:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/produtos', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, nome, codigo, categoria, preco, fornecedor, operadora, unidade, status
+       FROM public.produtos
+       ORDER BY nome ASC`
+    );
+
+    res.json(result.rows.map(mapProduto));
+  } catch (error) {
+    console.error('Erro ao listar produtos:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/produtos', ensureDb, async (req, res) => {
+  const payload = normalizeProdutoPayload(req.body);
+
+  if (!payload.nome) {
+    return res.status(400).json({ error: 'Nome e obrigatorio.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.produtos
+        (nome, codigo, categoria, preco, fornecedor, operadora, unidade, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, nome, codigo, categoria, preco, fornecedor, operadora, unidade, status`,
+      [
+        payload.nome,
+        payload.codigo || null,
+        payload.categoria || null,
+        payload.preco,
+        payload.fornecedor || null,
+        payload.operadora || null,
+        payload.unidade,
+        payload.status,
+      ]
+    );
+
+    res.status(201).json(mapProduto(result.rows[0]));
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Ja existe produto com este codigo.' });
+    }
+
+    console.error('Erro ao criar produto:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/produtos/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeProdutoPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID invalido.' });
+  }
+
+  if (!payload.nome) {
+    return res.status(400).json({ error: 'Nome e obrigatorio.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.produtos
+          SET nome = $1,
+              codigo = $2,
+              categoria = $3,
+              preco = $4,
+              fornecedor = $5,
+              operadora = $6,
+              unidade = $7,
+              status = $8,
+              atualizado_em = NOW()
+        WHERE id = $9
+      RETURNING id, nome, codigo, categoria, preco, fornecedor, operadora, unidade, status`,
+      [
+        payload.nome,
+        payload.codigo || null,
+        payload.categoria || null,
+        payload.preco,
+        payload.fornecedor || null,
+        payload.operadora || null,
+        payload.unidade,
+        payload.status,
+        id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Produto nao encontrado.' });
+    }
+
+    res.json(mapProduto(result.rows[0]));
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Ja existe produto com este codigo.' });
+    }
+
+    console.error('Erro ao atualizar produto:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.delete('/api/produtos/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID invalido.' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM public.produtos WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Produto nao encontrado.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir produto:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/fornecedores', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, razao_social, nome_fantasia, cnpj, email, telefone, cep, endereco, complemento, cidade, estado, status, categoria
+       FROM public.fornecedores
+       ORDER BY razao_social ASC`
+    );
+
+    res.json(result.rows.map(mapFornecedor));
+  } catch (error) {
+    console.error('Erro ao listar fornecedores:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/fornecedores', ensureDb, async (req, res) => {
+  const payload = normalizeFornecedorPayload(req.body);
+
+  if (!payload.razaoSocial) {
+    return res.status(400).json({ error: 'Razão social é obrigatória.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.fornecedores
+        (razao_social, nome_fantasia, cnpj, email, telefone, cep, endereco, complemento, cidade, estado, status, categoria)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING id, razao_social, nome_fantasia, cnpj, email, telefone, cep, endereco, complemento, cidade, estado, status, categoria`,
+      [
+        payload.razaoSocial,
+        payload.nomeFantasia || null,
+        payload.cnpj || null,
+        payload.email || null,
+        payload.telefone || null,
+        payload.cep || null,
+        payload.endereco || null,
+        payload.complemento || null,
+        payload.cidade || null,
+        payload.estado || null,
+        payload.status,
+        payload.categoria || null,
+      ]
+    );
+
+    res.status(201).json(mapFornecedor(result.rows[0]));
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Já existe fornecedor com este CNPJ.' });
+    }
+
+    console.error('Erro ao criar fornecedor:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/fornecedores/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeFornecedorPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  if (!payload.razaoSocial) {
+    return res.status(400).json({ error: 'Razão social é obrigatória.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.fornecedores
+          SET razao_social = $1,
+              nome_fantasia = $2,
+              cnpj = $3,
+              email = $4,
+              telefone = $5,
+              cep = $6,
+              endereco = $7,
+              complemento = $8,
+              cidade = $9,
+              estado = $10,
+              status = $11,
+              categoria = $12,
+              atualizado_em = NOW()
+        WHERE id = $13
+      RETURNING id, razao_social, nome_fantasia, cnpj, email, telefone, cep, endereco, complemento, cidade, estado, status, categoria`,
+      [
+        payload.razaoSocial,
+        payload.nomeFantasia || null,
+        payload.cnpj || null,
+        payload.email || null,
+        payload.telefone || null,
+        payload.cep || null,
+        payload.endereco || null,
+        payload.complemento || null,
+        payload.cidade || null,
+        payload.estado || null,
+        payload.status,
+        payload.categoria || null,
+        id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Fornecedor não encontrado.' });
+    }
+
+    res.json(mapFornecedor(result.rows[0]));
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Já existe fornecedor com este CNPJ.' });
+    }
+
+    console.error('Erro ao atualizar fornecedor:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/leads', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, nome, email, whatsapp, status, status_crm, viagens, criado_em, atendente
+       FROM public.leads
+       ORDER BY criado_em DESC, id DESC`
+    );
+
+    res.json(result.rows.map(mapLead));
+  } catch (error) {
+    console.error('Erro ao listar leads:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/leads', ensureDb, async (req, res) => {
+  const payload = normalizeLeadPayload(req.body);
+
+  if (!payload.nome) {
+    return res.status(400).json({ error: 'Nome é obrigatório.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.leads
+        (nome, email, whatsapp, status, status_crm, viagens, criado_em, atendente)
+       VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, '')::date, $8)
+       RETURNING id, nome, email, whatsapp, status, status_crm, viagens, criado_em, atendente`,
+      [
+        payload.nome,
+        payload.email || null,
+        payload.whatsapp || null,
+        payload.status,
+        payload.statusCrm,
+        payload.viagens,
+        payload.criadoEm,
+        payload.atendente || null,
+      ]
+    );
+
+    res.status(201).json(mapLead(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao criar lead:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/leads/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeLeadPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  if (!payload.nome) {
+    return res.status(400).json({ error: 'Nome é obrigatório.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.leads
+          SET nome = $1,
+              email = $2,
+              whatsapp = $3,
+              status = $4,
+              status_crm = $5,
+              viagens = $6,
+              criado_em = NULLIF($7, '')::date,
+              atendente = $8,
+              atualizado_em = NOW()
+        WHERE id = $9
+      RETURNING id, nome, email, whatsapp, status, status_crm, viagens, criado_em, atendente`,
+      [
+        payload.nome,
+        payload.email || null,
+        payload.whatsapp || null,
+        payload.status,
+        payload.statusCrm,
+        payload.viagens,
+        payload.criadoEm,
+        payload.atendente || null,
+        id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Lead não encontrado.' });
+    }
+
+    res.json(mapLead(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao atualizar lead:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.delete('/api/leads/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM public.leads WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Lead não encontrado.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir lead:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/tarefas', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, titulo, descricao, responsavel, prioridade, status, prazo, categoria
+       FROM public.tarefas
+       ORDER BY criado_em DESC, id DESC`
+    );
+
+    res.json(result.rows.map(mapTarefa));
+  } catch (error) {
+    console.error('Erro ao listar tarefas:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/tarefas', ensureDb, async (req, res) => {
+  const payload = normalizeTarefaPayload(req.body);
+
+  if (!payload.titulo) {
+    return res.status(400).json({ error: 'Título é obrigatório.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.tarefas
+        (titulo, descricao, responsavel, prioridade, status, prazo, categoria)
+       VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')::date, $7)
+       RETURNING id, titulo, descricao, responsavel, prioridade, status, prazo, categoria`,
+      [
+        payload.titulo,
+        payload.descricao || null,
+        payload.responsavel || null,
+        payload.prioridade,
+        payload.status,
+        payload.prazo,
+        payload.categoria || null,
+      ]
+    );
+
+    res.status(201).json(mapTarefa(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao criar tarefa:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/tarefas/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeTarefaPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  if (!payload.titulo) {
+    return res.status(400).json({ error: 'Título é obrigatório.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.tarefas
+          SET titulo = $1,
+              descricao = $2,
+              responsavel = $3,
+              prioridade = $4,
+              status = $5,
+              prazo = NULLIF($6, '')::date,
+              categoria = $7,
+              atualizado_em = NOW()
+        WHERE id = $8
+      RETURNING id, titulo, descricao, responsavel, prioridade, status, prazo, categoria`,
+      [
+        payload.titulo,
+        payload.descricao || null,
+        payload.responsavel || null,
+        payload.prioridade,
+        payload.status,
+        payload.prazo,
+        payload.categoria || null,
+        id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Tarefa não encontrada.' });
+    }
+
+    res.json(mapTarefa(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao atualizar tarefa:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.delete('/api/tarefas/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM public.tarefas WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Tarefa não encontrada.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir tarefa:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/eventos', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, titulo, descricao, data_evento, hora, tipo, cliente, agente
+       FROM public.eventos
+       ORDER BY data_evento ASC, hora ASC, id ASC`
+    );
+
+    res.json(result.rows.map(mapEvento));
+  } catch (error) {
+    console.error('Erro ao listar eventos:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/eventos', ensureDb, async (req, res) => {
+  const payload = normalizeEventoPayload(req.body);
+
+  if (!payload.titulo || !payload.data) {
+    return res.status(400).json({ error: 'Título e data são obrigatórios.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.eventos
+        (titulo, descricao, data_evento, hora, tipo, cliente, agente)
+       VALUES ($1, $2, $3::date, $4, $5, $6, $7)
+       RETURNING id, titulo, descricao, data_evento, hora, tipo, cliente, agente`,
+      [
+        payload.titulo,
+        payload.descricao || null,
+        payload.data,
+        payload.hora || null,
+        payload.tipo,
+        payload.cliente || null,
+        payload.agente || null,
+      ]
+    );
+
+    res.status(201).json(mapEvento(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao criar evento:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/eventos/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeEventoPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  if (!payload.titulo || !payload.data) {
+    return res.status(400).json({ error: 'Título e data são obrigatórios.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.eventos
+          SET titulo = $1,
+              descricao = $2,
+              data_evento = $3::date,
+              hora = $4,
+              tipo = $5,
+              cliente = $6,
+              agente = $7,
+              atualizado_em = NOW()
+        WHERE id = $8
+      RETURNING id, titulo, descricao, data_evento, hora, tipo, cliente, agente`,
+      [
+        payload.titulo,
+        payload.descricao || null,
+        payload.data,
+        payload.hora || null,
+        payload.tipo,
+        payload.cliente || null,
+        payload.agente || null,
+        id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Evento não encontrado.' });
+    }
+
+    res.json(mapEvento(result.rows[0]));
+  } catch (error) {
+    console.error('Erro ao atualizar evento:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.delete('/api/eventos/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM public.eventos WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Evento não encontrado.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir evento:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/orcamentos', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, numero, cliente, email, agente_viagem, status, data_criacao, data_validade, observacoes,
+              itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro
+       FROM public.orcamentos
+       ORDER BY data_criacao DESC, id DESC`
+    );
+
+    res.json(result.rows.map(mapOrcamento));
+  } catch (error) {
+    console.error('Erro ao listar orçamentos:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/orcamentos', ensureDb, async (req, res) => {
+  const payload = normalizeOrcamentoPayload(req.body);
+
+  if (!payload.numero || !payload.cliente) {
+    return res.status(400).json({ error: 'Número e cliente são obrigatórios.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.orcamentos
+        (numero, cliente, email, agente_viagem, status, data_criacao, data_validade, observacoes,
+         itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro)
+       VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')::date, NULLIF($7, '')::date, $8,
+               $9::jsonb, $10::jsonb, $11::jsonb, $12, $13::jsonb, $14::jsonb, $15::jsonb, $16::jsonb, $17::jsonb)
+       RETURNING id, numero, cliente, email, agente_viagem, status, data_criacao, data_validade, observacoes,
+                 itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro`,
+      [
+        payload.numero,
+        payload.cliente,
+        payload.email || null,
+        payload.agenteViagem || null,
+        payload.status,
+        payload.dataCriacao,
+        payload.dataValidade,
+        payload.observacoes || null,
+        JSON.stringify(payload.itens),
+        JSON.stringify(payload.voos),
+        JSON.stringify(payload.hospedagem),
+        payload.roteiro || null,
+        JSON.stringify(payload.dayByDay),
+        JSON.stringify(payload.transporte),
+        JSON.stringify(payload.restaurante),
+        JSON.stringify(payload.experiencias),
+        JSON.stringify(payload.seguro),
+      ]
+    );
+
+    res.status(201).json(mapOrcamento(result.rows[0]));
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Já existe orçamento com este número.' });
+    }
+
+    console.error('Erro ao criar orçamento:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeOrcamentoPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  if (!payload.numero || !payload.cliente) {
+    return res.status(400).json({ error: 'Número e cliente são obrigatórios.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.orcamentos
+          SET numero = $1,
+              cliente = $2,
+              email = $3,
+              agente_viagem = $4,
+              status = $5,
+              data_criacao = NULLIF($6, '')::date,
+              data_validade = NULLIF($7, '')::date,
+              observacoes = $8,
+              itens = $9::jsonb,
+              voos = $10::jsonb,
+              hospedagem = $11::jsonb,
+              roteiro = $12,
+              day_by_day = $13::jsonb,
+              transporte = $14::jsonb,
+              restaurante = $15::jsonb,
+              experiencias = $16::jsonb,
+              seguro = $17::jsonb,
+              atualizado_em = NOW()
+        WHERE id = $18
+      RETURNING id, numero, cliente, email, agente_viagem, status, data_criacao, data_validade, observacoes,
+                itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro`,
+      [
+        payload.numero,
+        payload.cliente,
+        payload.email || null,
+        payload.agenteViagem || null,
+        payload.status,
+        payload.dataCriacao,
+        payload.dataValidade,
+        payload.observacoes || null,
+        JSON.stringify(payload.itens),
+        JSON.stringify(payload.voos),
+        JSON.stringify(payload.hospedagem),
+        payload.roteiro || null,
+        JSON.stringify(payload.dayByDay),
+        JSON.stringify(payload.transporte),
+        JSON.stringify(payload.restaurante),
+        JSON.stringify(payload.experiencias),
+        JSON.stringify(payload.seguro),
+        id,
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Orçamento não encontrado.' });
+    }
+
+    res.json(mapOrcamento(result.rows[0]));
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Já existe orçamento com este número.' });
+    }
+
+    console.error('Erro ao atualizar orçamento:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.delete('/api/orcamentos/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM public.orcamentos WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Orçamento não encontrado.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir orçamento:', error);
     const dbError = resolveDatabaseError(error);
     res.status(dbError.status).json({ error: dbError.message });
   }
