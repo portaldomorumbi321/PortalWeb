@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Search, Plus, Edit2, Trash2, X, Check, FileText, ChevronDown, ChevronUp,
-  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Printer, Sparkles
+  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Printer, Sparkles, Link2
 } from "lucide-react"; // Adicionado Sparkles
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -29,6 +29,15 @@ interface ItemOrc {
   unidade: string;
   valorUnitario: number;
   desconto: number;
+  link?: string;
+  documentos?: DocumentoVenda[];
+}
+
+interface DocumentoVenda {
+  id: number;
+  nome: string;
+  tipo: string;
+  arquivo: string;
 }
 
 interface Orcamento {
@@ -52,7 +61,7 @@ interface Orcamento {
   seguro?: any[];
 }
 
-const itemVazio = (): ItemOrc => ({ id: Date.now(), descricao: "", quantidade: 1, unidade: "un", valorUnitario: 0, desconto: 0 });
+const itemVazio = (): ItemOrc => ({ id: Date.now(), descricao: "", quantidade: 1, unidade: "un", valorUnitario: 0, desconto: 0, link: "", documentos: [] });
 
 const dados: Orcamento[] = [
   {
@@ -236,7 +245,7 @@ export default function Orcamentos() {
       const orc = lista.find(o => o.id === state.editId);
       if (orc) {
         setEditando(orc);
-        setForm({ numero: orc.numero, cliente: orc.cliente, email: orc.email, agenteViagem: orc.agenteViagem || "", status: orc.status, dataCriacao: orc.dataCriacao, dataValidade: orc.dataValidade, observacoes: orc.observacoes, itens: orc.itens.map((i) => ({ ...i })) });
+        setForm({ numero: orc.numero, cliente: orc.cliente, email: orc.email, agenteViagem: orc.agenteViagem || "", status: orc.status, dataCriacao: orc.dataCriacao, dataValidade: orc.dataValidade, observacoes: orc.observacoes, itens: orc.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
         setTela("form");
         navigate(location.pathname, { replace: true });
       }
@@ -277,7 +286,7 @@ export default function Orcamentos() {
 
   function abrirEdicao(o: Orcamento) {
     setEditando(o);
-    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, agenteViagem: o.agenteViagem || "", status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i })) });
+    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, agenteViagem: o.agenteViagem || "", status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
     // Carrega os dados das seções para os estados correspondentes
     setVoos(o.voos || []);
     setHospedagem(o.hospedagem || []);
@@ -388,6 +397,51 @@ export default function Orcamentos() {
   function removeItem(id: number) { setForm((f) => ({ ...f, itens: f.itens.filter((i) => i.id !== id) })); }
   function updateItem(id: number, field: keyof ItemOrc, value: string | number) {
     setForm((f) => ({ ...f, itens: f.itens.map((i) => i.id === id ? { ...i, [field]: value } : i) }));
+  }
+
+  async function uploadDocumentosVenda(idItem: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivos = Array.from(e.target.files ?? []);
+    if (arquivos.length === 0) return;
+
+    const docs = await Promise.all(
+      arquivos.map(
+        (arquivo) =>
+          new Promise<DocumentoVenda>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve({
+                id: Date.now() + Math.floor(Math.random() * 10000),
+                nome: arquivo.name,
+                tipo: arquivo.type,
+                arquivo: String(reader.result || ""),
+              });
+            };
+            reader.onerror = () => reject(new Error("Falha ao carregar documento."));
+            reader.readAsDataURL(arquivo);
+          })
+      )
+    );
+
+    setForm((f) => ({
+      ...f,
+      itens: f.itens.map((item) =>
+        item.id === idItem
+          ? { ...item, documentos: [...(item.documentos || []), ...docs] }
+          : item
+      ),
+    }));
+    e.target.value = "";
+  }
+
+  function removerDocumentoVenda(idItem: number, idDocumento: number) {
+    setForm((f) => ({
+      ...f,
+      itens: f.itens.map((item) =>
+        item.id === idItem
+          ? { ...item, documentos: (item.documentos || []).filter((doc) => doc.id !== idDocumento) }
+          : item
+      ),
+    }));
   }
 
   // --- Geração de Roteiro com IA (Simulação) ---
@@ -712,7 +766,53 @@ export default function Orcamentos() {
                             <div className="col-span-1">
                               <Input type="number" min="0" max="100" value={item.desconto} onChange={(e) => updateItem(item.id, "desconto", parseFloat(e.target.value) || 0)} placeholder="% desc" />
                             </div>
+                            <div className="col-span-6 sm:col-span-3">
+                              <Label htmlFor={`item-link-${item.id}`} className="text-xs text-gray-500">Link</Label>
+                              <div className="relative mt-1">
+                                <Link2 className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                <Input
+                                  id={`item-link-${item.id}`}
+                                  value={item.link || ""}
+                                  onChange={(e) => updateItem(item.id, "link", e.target.value)}
+                                  placeholder="https://..."
+                                  className="pl-8"
+                                />
+                              </div>
+                            </div>
+                            <div className="col-span-6 sm:col-span-3">
+                              <Label htmlFor={`item-documentos-${item.id}`} className="text-xs text-gray-500">Downloads de documentos</Label>
+                              <Input
+                                id={`item-documentos-${item.id}`}
+                                type="file"
+                                multiple
+                                onChange={(e) => uploadDocumentosVenda(item.id, e)}
+                                className="mt-1"
+                              />
+                            </div>
                           </div>
+                          {(item.documentos || []).length > 0 && (
+                            <div className="mt-3 space-y-1.5">
+                              {(item.documentos || []).map((doc) => (
+                                <div key={doc.id} className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs">
+                                  <a
+                                    href={doc.arquivo}
+                                    download={doc.nome}
+                                    className="truncate text-indigo-600 hover:text-indigo-700"
+                                  >
+                                    {doc.nome}
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => removerDocumentoVenda(item.id, doc.id)}
+                                    className="ml-2 rounded p-1 text-red-500 hover:bg-red-50"
+                                    title="Remover documento"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           <div className="text-right text-sm font-semibold text-indigo-700 mt-2">
                             {moeda(calcItem(item))}
                           </div>
