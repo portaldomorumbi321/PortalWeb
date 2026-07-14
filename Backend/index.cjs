@@ -58,6 +58,17 @@ const WHATSAPP_AUTH_PATH =
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 
+function resolveConnectionString() {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.NEON_DATABASE_URL ||
+    ''
+  );
+}
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const isAllowedOrigin =
@@ -79,9 +90,11 @@ app.use((req, res, next) => {
   next();
 });
 
-const pool = process.env.DATABASE_URL
+const connectionString = resolveConnectionString();
+
+const pool = connectionString
   ? new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString,
       ssl: { rejectUnauthorized: false },
     })
   : null;
@@ -89,7 +102,7 @@ const pool = process.env.DATABASE_URL
 function ensureDb(req, res, next) {
   if (!pool) {
     return res.status(500).json({
-      error: 'DATABASE_URL não configurada no backend.',
+      error: 'String de conexão não configurada. Defina DATABASE_URL (ou POSTGRES_URL/POSTGRES_PRISMA_URL).',
     });
   }
 
