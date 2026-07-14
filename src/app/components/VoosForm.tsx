@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card } from "./ui/card";
-import { Plus, Trash2, Search, Plane } from "lucide-react";
+import { Plus, Trash2, Search, Plane, Upload, FileText, Image, Link2, X } from "lucide-react";
 
 interface Voo {
   id: number;
@@ -15,6 +15,10 @@ interface Voo {
   partida: string;
   chegada: string;
   duracao: string;
+  documento: string | null;
+  documentoTipo: "pdf" | "imagem" | null;
+  documentoNome: string;
+  linkVoo: string;
 }
 
 interface VoosFormProps {
@@ -54,8 +58,70 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
     partida: "",
     chegada: "",
     duracao: "",
+    documento: null,
+    documentoTipo: null,
+    documentoNome: "",
+    linkVoo: "",
   });
   const formManualRef = useRef<HTMLDivElement>(null);
+  const buscaFileInputRef = useRef<HTMLInputElement>(null);
+  const manualFileInputRef = useRef<HTMLInputElement>(null);
+
+  const atualizarResultado = (parcial: Partial<Voo>) => {
+    setResultados((atual) => (atual ? { ...atual, ...parcial } : atual));
+  };
+
+  const handleDocumentoUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    origem: "busca" | "manual",
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isPDF = file.type === "application/pdf";
+    const isImage = file.type.startsWith("image/");
+
+    if (!isPDF && !isImage) {
+      setErro("Apenas arquivos PDF ou imagem (JPG, PNG, etc.) são permitidos.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      const payload = {
+        documento: base64,
+        documentoTipo: isPDF ? "pdf" : "imagem" as "pdf" | "imagem",
+        documentoNome: file.name,
+      };
+
+      if (origem === "busca") {
+        atualizarResultado(payload);
+      } else {
+        setFormManual((atual) => ({ ...atual, ...payload }));
+      }
+
+      setErro("");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removerDocumento = (origem: "busca" | "manual") => {
+    const payload = { documento: null, documentoTipo: null, documentoNome: "" };
+
+    if (origem === "busca") {
+      atualizarResultado(payload);
+      if (buscaFileInputRef.current) {
+        buscaFileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    setFormManual((atual) => ({ ...atual, ...payload }));
+    if (manualFileInputRef.current) {
+      manualFileInputRef.current.value = "";
+    }
+  };
 
   const buscarVoo = async () => {
     if (!busca.companhia || !busca.numero || !busca.data) {
@@ -82,6 +148,10 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
         partida: "14:30",
         chegada: "16:00",
         duracao: "1h 30min",
+        documento: null,
+        documentoTipo: null,
+        documentoNome: "",
+        linkVoo: "",
       };
 
       setResultados(resultado);
@@ -103,6 +173,9 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
     onVoosChange([...voos, novoVoo]);
     setResultados(null);
     setBusca({ companhia: "", numero: "", data: "" });
+    if (buscaFileInputRef.current) {
+      buscaFileInputRef.current.value = "";
+    }
     setErro("");
   };
 
@@ -116,7 +189,10 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
       id: Date.now(),
     };
     onVoosChange([...voos, novoVoo]);
-    setFormManual({ companhia: "", numero: "", data: "", origem: "", destino: "", partida: "", chegada: "", duracao: "" });
+    setFormManual({ companhia: "", numero: "", data: "", origem: "", destino: "", partida: "", chegada: "", duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
+    if (manualFileInputRef.current) {
+      manualFileInputRef.current.value = "";
+    }
     setMostrarManual(false);
     setErro("");
   };
@@ -226,6 +302,62 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
               <p className="font-semibold text-gray-900">{resultados.chegada}</p>
             </div>
           </div>
+          <div className="space-y-3 mb-4">
+            <div>
+              <Label className="text-xs">Link do Voo</Label>
+              <div className="relative mt-1">
+                <Link2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="https://companhia.com/reserva"
+                  value={resultados.linkVoo}
+                  onChange={(e) => atualizarResultado({ linkVoo: e.target.value })}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Documento Anexo</Label>
+              <div className="mt-1">
+                {resultados.documento ? (
+                  <div className="flex items-center gap-3 p-3 bg-white border border-blue-200 rounded-lg">
+                    {resultados.documentoTipo === "pdf" ? (
+                      <FileText className="w-8 h-8 text-red-500 flex-shrink-0" />
+                    ) : (
+                      <Image className="w-8 h-8 text-emerald-500 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{resultados.documentoNome}</p>
+                      <p className="text-xs text-gray-500">
+                        {resultados.documentoTipo === "pdf" ? "Documento PDF" : "Imagem"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => removerDocumento("busca")}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => buscaFileInputRef.current?.click()}
+                    className="border-2 border-dashed border-blue-200 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-100/60 transition-colors"
+                  >
+                    <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                    <p className="text-xs text-gray-500">Clique para anexar o documento do voo</p>
+                    <p className="text-xs text-gray-400 mt-0.5">PDF, JPG ou PNG</p>
+                  </div>
+                )}
+                <input
+                  ref={buscaFileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => handleDocumentoUpload(e, "busca")}
+                  className="hidden"
+                />
+              </div>
+            </div>
+          </div>
           <Button onClick={adicionarVoo} className="w-full gap-2 bg-green-600 hover:bg-green-700">
             <Plus className="w-4 h-4" />
             Adicionar Voo {voos.length > 0 && "(com conexão)"}
@@ -269,6 +401,60 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
             <div>
               <Label className="text-xs">Chegada</Label>
               <Input type="time" value={formManual.chegada} onChange={(e) => setFormManual({ ...formManual, chegada: e.target.value })} className="mt-1" />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <Label className="text-xs">Link do Voo</Label>
+              <div className="relative mt-1">
+                <Link2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="https://companhia.com/reserva"
+                  value={formManual.linkVoo}
+                  onChange={(e) => setFormManual({ ...formManual, linkVoo: e.target.value })}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <Label className="text-xs">Documento Anexo</Label>
+              <div className="mt-1">
+                {formManual.documento ? (
+                  <div className="flex items-center gap-3 p-3 bg-white border border-indigo-200 rounded-lg">
+                    {formManual.documentoTipo === "pdf" ? (
+                      <FileText className="w-8 h-8 text-red-500 flex-shrink-0" />
+                    ) : (
+                      <Image className="w-8 h-8 text-emerald-500 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{formManual.documentoNome}</p>
+                      <p className="text-xs text-gray-500">
+                        {formManual.documentoTipo === "pdf" ? "Documento PDF" : "Imagem"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => removerDocumento("manual")}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => manualFileInputRef.current?.click()}
+                    className="border-2 border-dashed border-indigo-200 rounded-lg p-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-100/60 transition-colors"
+                  >
+                    <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                    <p className="text-xs text-gray-500">Clique para anexar o documento do voo</p>
+                    <p className="text-xs text-gray-400 mt-0.5">PDF, JPG ou PNG</p>
+                  </div>
+                )}
+                <input
+                  ref={manualFileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => handleDocumentoUpload(e, "manual")}
+                  className="hidden"
+                />
+              </div>
             </div>
           </div>
           {erro && <p className="text-xs text-red-500 mb-3">{erro}</p>}
@@ -317,6 +503,30 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
                       <p className="text-gray-700 font-medium">{voo.partida} → {voo.chegada} {voo.duracao && `(${voo.duracao})`}</p>
                     </div>
                   </div>
+                  {(voo.linkVoo || voo.documentoNome) && (
+                    <div className="flex flex-wrap gap-3 mt-3 text-xs">
+                      {voo.linkVoo && (
+                        <a
+                          href={voo.linkVoo}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          Abrir link do voo
+                        </a>
+                      )}
+                      {voo.documento && voo.documentoNome && (
+                        <a
+                          href={voo.documento}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-indigo-600 hover:text-indigo-700 font-medium"
+                        >
+                          Ver anexo: {voo.documentoNome}
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => removerVoo(voo.id)}

@@ -2,9 +2,10 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import logoImg from "@/imports/logo.png";
 import { useState } from "react";
-import { Menu, X, LogOut, MessageSquare, PanelRightClose, PanelRightOpen, Bot, PanelLeftOpen } from "lucide-react";
+import { Menu, X, LogOut, MessageSquare, PanelRightClose, PanelRightOpen, Bot, PanelLeftOpen, Calendar } from "lucide-react";
 import WhatsAppChat from "./WhatsAppChat";
 import AIChat from "./AIChat";
+import Agenda from "./Agenda";
 
 const menuItems = [
   { name: "DASHBOARD", path: "/" },
@@ -23,6 +24,27 @@ export default function Root() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [agendaOpen, setAgendaOpen] = useState(false);
+
+  const handleToggleAgenda = () => {
+    if (agendaOpen) {
+      setAgendaOpen(false);
+      return;
+    }
+    setAgendaOpen(true);
+    setAiChatOpen(false);
+    setChatOpen(false);
+  };
+
+  const handleOpenAiChat = () => {
+    setAiChatOpen(true);
+    setAgendaOpen(false);
+  };
+
+  const handleOpenWhatsApp = () => {
+    setChatOpen(true);
+    setAgendaOpen(false);
+  };
 
   const isActive = (path: string) => {
     if (path === "/" && location.pathname === "/") return true;
@@ -110,11 +132,13 @@ export default function Root() {
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8 relative">
           {/* Painel do Agente IA */}
-          <aside className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out ${aiChatOpen ? 'w-[400px]' : 'w-0'}`} style={{ overflow: 'hidden' }}>
-            <AIChat setAiChatOpen={setAiChatOpen} />
-          </aside>
+          {!agendaOpen && (
+            <aside className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out ${aiChatOpen ? 'w-[400px]' : 'w-0'}`} style={{ overflow: 'hidden' }}>
+              <AIChat setAiChatOpen={setAiChatOpen} />
+            </aside>
+          )}
           {/* Painel do Agente IA - Mobile (Overlay) */}
-          {aiChatOpen && (
+          {!agendaOpen && aiChatOpen && (
             <div className="md:hidden fixed inset-0 z-40 bg-black/30" onClick={() => setAiChatOpen(false)} aria-hidden="true">
               <div className="fixed bottom-0 left-0 right-0 h-[70vh] bg-white rounded-t-2xl shadow-2xl p-4" onClick={(e) => e.stopPropagation()}>
                 <AIChat setAiChatOpen={setAiChatOpen} isMobile={true} />
@@ -122,16 +146,18 @@ export default function Root() {
             </div>
           )}
 
-          <main className={`flex-1 min-w-0 transition-all duration-300 ${!chatOpen ? 'w-full' : ''}`}>
-            <Outlet />
+          <main className="flex-1 min-w-0 transition-all duration-300 w-full">
+            {agendaOpen ? <Agenda /> : <Outlet />}
           </main>
 
           {/* Painel do WhatsApp */}
-          <aside className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out ${chatOpen ? 'w-[550px]' : 'w-0'}`} style={{ overflow: 'hidden' }}>
-            <WhatsAppChat setChatOpen={setChatOpen} isVisible={chatOpen} />
-          </aside>
+          {!agendaOpen && (
+            <aside className={`hidden md:block flex-shrink-0 transition-all duration-300 ease-in-out ${chatOpen ? 'w-[550px]' : 'w-0'}`} style={{ overflow: 'hidden' }}>
+              <WhatsAppChat setChatOpen={setChatOpen} isVisible={chatOpen} />
+            </aside>
+          )}
           {/* Painel do WhatsApp - Mobile (Overlay) */}
-          {chatOpen && (
+          {!agendaOpen && chatOpen && (
             <div className="md:hidden fixed inset-0 z-40 bg-black/30" onClick={() => setChatOpen(false)} aria-hidden="true">
               <div className="fixed bottom-0 left-0 right-0 h-[70vh] bg-white rounded-t-2xl shadow-2xl p-4" onClick={(e) => e.stopPropagation()}>
                 <WhatsAppChat setChatOpen={setChatOpen} isVisible={chatOpen} isMobile={true} />
@@ -141,11 +167,22 @@ export default function Root() {
         </div>
       </div>
 
+      {/* Botão flutuante da Agenda */}
+      <div className="fixed bottom-24 left-6 z-50">
+        <button
+          onClick={handleToggleAgenda}
+          className={`w-14 h-14 text-white rounded-full shadow-lg flex items-center justify-center transition-all transform hover:scale-110 ${agendaOpen ? 'bg-indigo-700 hover:bg-indigo-800' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+          title={agendaOpen ? "Fechar Agenda" : "Abrir Agenda"}
+        >
+          <Calendar size={24} />
+        </button>
+      </div>
+
       {/* Botão flutuante para MAXIMIZAR o chat de IA */}
       {!aiChatOpen && (
         <div className="fixed bottom-6 left-6 z-50">
           <button
-            onClick={() => setAiChatOpen(true)}
+            onClick={handleOpenAiChat}
             className="w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 transition-all transform hover:scale-110"
             title="Abrir Agente IA"
           >
@@ -157,7 +194,7 @@ export default function Root() {
       {/* Botão flutuante para MAXIMIZAR o chat do WhatsApp */}
       {!chatOpen && (
         <div className="fixed bottom-6 right-6 z-50">
-          <button onClick={() => setChatOpen(true)} className="w-14 h-14 bg-green-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-600 transition-all transform hover:scale-110" title="Abrir WhatsApp">
+          <button onClick={handleOpenWhatsApp} className="w-14 h-14 bg-green-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-600 transition-all transform hover:scale-110" title="Abrir WhatsApp">
             <MessageSquare size={24} />
           </button>
         </div>
