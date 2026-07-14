@@ -264,6 +264,20 @@ function mapOrcamento(row) {
   };
 }
 
+function mapLancamentoFinanceiro(row) {
+  return {
+    id: Number(row.id),
+    tipo: row.tipo,
+    descricao: row.descricao,
+    valor: Number(row.valor || 0),
+    data: row.data_lancamento ? new Date(row.data_lancamento).toISOString().slice(0, 10) : '',
+    oculto: Boolean(row.oculto),
+    orcamentoId: row.orcamento_id ? Number(row.orcamento_id) : null,
+    orcamentoNumero: row.orcamento_numero || '',
+    cliente: row.cliente || '',
+  };
+}
+
 function normalizePayload(body) {
   return {
     name: String(body.name || '').trim(),
@@ -399,6 +413,21 @@ function normalizeOrcamentoPayload(body) {
     restaurante: Array.isArray(body?.restaurante) ? body.restaurante : [],
     experiencias: Array.isArray(body?.experiencias) ? body.experiencias : [],
     seguro: Array.isArray(body?.seguro) ? body.seguro : [],
+  };
+}
+
+function normalizeLancamentoFinanceiroPayload(body) {
+  const tipo = body?.tipo;
+  const parsedOrcamentoId = Number(body?.orcamentoId);
+  const orcamentoId = Number.isInteger(parsedOrcamentoId) && parsedOrcamentoId > 0 ? parsedOrcamentoId : null;
+
+  return {
+    tipo: tipo === 'despesa' ? 'despesa' : 'receita',
+    descricao: String(body?.descricao || '').trim(),
+    valor: Math.abs(Number(body?.valor || 0)),
+    data: String(body?.data || '').trim(),
+    oculto: body?.oculto === true,
+    orcamentoId,
   };
 }
 
@@ -1517,6 +1546,155 @@ app.delete('/api/orcamentos/:id', ensureDb, async (req, res) => {
     res.status(204).send();
   } catch (error) {
     console.error('Erro ao excluir orçamento:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.get('/api/financeiro', ensureDb, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT f.id, f.tipo, f.descricao, f.valor, f.data_lancamento, f.oculto, f.orcamento_id, o.numero AS orcamento_numero, o.cliente
+       FROM public.financeiro f
+       LEFT JOIN public.orcamentos o ON o.id = f.orcamento_id
+       ORDER BY f.data_lancamento DESC, f.id DESC`
+    );
+
+    res.json(result.rows.map(mapLancamentoFinanceiro));
+  } catch (error) {
+    console.error('Erro ao listar lançamentos financeiros:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.post('/api/financeiro', ensureDb, async (req, res) => {
+  const payload = normalizeLancamentoFinanceiroPayload(req.body);
+
+  if (!payload.descricao) {
+    return res.status(400).json({ error: 'Descrição é obrigatória.' });
+  }
+
+  if (!payload.valor || !Number.isFinite(payload.valor) || payload.valor <= 0) {
+    return res.status(400).json({ error: 'Valor deve ser maior que zero.' });
+  }
+
+  if (!payload.data) {
+    return res.status(400).json({ error: 'Data é obrigatória.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.financeiro (tipo, descricao, valor, data_lancamento, oculto, orcamento_id)
+       VALUES ($1, $2, $3, NULLIF($4, '')::date, $5, $6)
+       RETURNING id`,
+      [payload.tipo, payload.descricao, payload.valor, payload.data, payload.oculto, payload.orcamentoId]
+    );
+
+    const enriched = await pool.query(
+      `SELECT f.id, f.tipo, f.descricao, f.valor, f.data_lancamento, f.oculto, f.orcamento_id, o.numero AS orcamento_numero, o.cliente
+       FROM public.financeiro f
+       LEFT JOIN public.orcamentos o ON o.id = f.orcamento_id
+       WHERE f.id = $1`,
+      [result.rows[0].id]
+    );
+
+    res.status(201).json(mapLancamentoFinanceiro(enriched.rows[0]));
+  } catch (error) {
+    if (error.code === '23503') {
+      return res.status(400).json({ error: 'Orçamento selecionado não existe.' });
+    }
+
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'A receita deste orçamento já foi lançada.' });
+    }
+
+    console.error('Erro ao criar lançamento financeiro:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.put('/api/financeiro/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+  const payload = normalizeLancamentoFinanceiroPayload(req.body);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  if (!payload.descricao) {
+    return res.status(400).json({ error: 'Descrição é obrigatória.' });
+  }
+
+  if (!payload.valor || !Number.isFinite(payload.valor) || payload.valor <= 0) {
+    return res.status(400).json({ error: 'Valor deve ser maior que zero.' });
+  }
+
+  if (!payload.data) {
+    return res.status(400).json({ error: 'Data é obrigatória.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE public.financeiro
+          SET tipo = $1,
+              descricao = $2,
+              valor = $3,
+              data_lancamento = NULLIF($4, '')::date,
+              oculto = $5,
+              orcamento_id = $6,
+              atualizado_em = NOW()
+        WHERE id = $7
+      RETURNING id`,
+      [payload.tipo, payload.descricao, payload.valor, payload.data, payload.oculto, payload.orcamentoId, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Lançamento não encontrado.' });
+    }
+
+    const updated = await pool.query(
+      `SELECT f.id, f.tipo, f.descricao, f.valor, f.data_lancamento, f.oculto, f.orcamento_id, o.numero AS orcamento_numero, o.cliente
+       FROM public.financeiro f
+       LEFT JOIN public.orcamentos o ON o.id = f.orcamento_id
+       WHERE f.id = $1`,
+      [id]
+    );
+
+    res.json(mapLancamentoFinanceiro(updated.rows[0]));
+  } catch (error) {
+    if (error.code === '23503') {
+      return res.status(400).json({ error: 'Orçamento selecionado não existe.' });
+    }
+
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'A receita deste orçamento já foi lançada.' });
+    }
+
+    console.error('Erro ao atualizar lançamento financeiro:', error);
+    const dbError = resolveDatabaseError(error);
+    res.status(dbError.status).json({ error: dbError.message });
+  }
+});
+
+app.delete('/api/financeiro/:id', ensureDb, async (req, res) => {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'ID inválido.' });
+  }
+
+  try {
+    const result = await pool.query('DELETE FROM public.financeiro WHERE id = $1', [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Lançamento não encontrado.' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro ao excluir lançamento financeiro:', error);
     const dbError = resolveDatabaseError(error);
     res.status(dbError.status).json({ error: dbError.message });
   }

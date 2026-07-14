@@ -17,6 +17,8 @@
     { "src": "/api/eventos", "dest": "/api/eventos/index.js" },
     { "src": "/api/orcamentos/([^/]+)", "dest": "/api/orcamentos/[id].js?id=$1" },
     { "src": "/api/orcamentos", "dest": "/api/orcamentos/index.js" },
+    { "src": "/api/financeiro/([^/]+)", "dest": "/api/financeiro/[id].js?id=$1" },
+    { "src": "/api/financeiro", "dest": "/api/financeiro/index.js" },
     { "handle": "filesystem" },
     { "src": "/.*", "dest": "/index.html" }
   ]
