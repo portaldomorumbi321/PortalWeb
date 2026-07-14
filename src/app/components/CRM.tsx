@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { Phone, Edit2, GripVertical, X } from "lucide-react";
 
-import { DndContext, useDraggable, useDroppable, closestCenter } from "@dnd-kit/core";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
+import { toast } from "sonner";
 
 // Tipos e dados agora são importados ou simulados da lista de Leads
 // Em um app real, isso viria de uma API ou estado global (Context/Redux)
@@ -31,6 +31,8 @@ interface Columns {
     items: LeadCardData[];
   };
 }
+
+const CRM_STORAGE_KEY = "crm-columns-v2";
 
 const initialColumns: Columns = {
   'novo-lead': {
@@ -70,6 +72,28 @@ const initialColumns: Columns = {
   },
 };
 
+function buildColumnsFromLeads(leads: LeadCardData[]): Columns {
+  const columnsWithLeads: Columns = JSON.parse(JSON.stringify(initialColumns));
+  leads.forEach((lead) => {
+    const columnKey = Object.keys(columnsWithLeads).find((key) => columnsWithLeads[key].status === lead.statusCrm);
+    if (columnKey) {
+      columnsWithLeads[columnKey].items.push(lead);
+    }
+  });
+  return columnsWithLeads;
+}
+
+function getColumnIdByStatus(status: StatusCrm, columns: Columns): string | undefined {
+  return Object.keys(columns).find((key) => columns[key].status === status);
+}
+
+function getColumnIdFromDropTarget(targetId: string, columns: Columns): string | undefined {
+  if (columns[targetId]) {
+    return targetId;
+  }
+  return Object.keys(columns).find((key) => columns[key].items.some((item) => item.id === targetId));
+}
+
 const statusColors: Record<LeadCardData['statusVisual'], string> = {
   'Novo': 'bg-blue-100 text-blue-800',
   'Qualificado': 'bg-purple-100 text-purple-800',
@@ -79,14 +103,33 @@ const statusColors: Record<LeadCardData['statusVisual'], string> = {
   'Atendido': 'bg-gray-100 text-gray-800',
 };
 
-function LeadCard({ card, onEdit }: { card: LeadCardData, onEdit: (card: LeadCardData) => void }) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: card.id });
-  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
+function LeadCard({
+  card,
+  onEdit,
+  onDragStart,
+  onDragEnd,
+}: {
+  card: LeadCardData;
+  onEdit: (card: LeadCardData) => void;
+  onDragStart: (cardId: string) => void;
+  onDragEnd: () => void;
+}) {
 
   return (
-    <Card ref={setNodeRef} style={style} className="p-2 mb-2 bg-white touch-none cursor-pointer" onDoubleClick={() => onEdit(card)} title="Clique duplo para editar">
+    <Card
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.setData("text/plain", card.id);
+        event.dataTransfer.effectAllowed = "move";
+        onDragStart(card.id);
+      }}
+      onDragEnd={onDragEnd}
+      className="p-2 mb-2 bg-white cursor-move"
+      onDoubleClick={() => onEdit(card)}
+      title="Clique duplo para editar"
+    >
       <div className="flex items-start">
-        <div {...listeners} {...attributes} className="cursor-grab p-0.5 mr-1.5 text-gray-400 hover:text-gray-600">
+        <div className="cursor-grab p-0.5 mr-1.5 text-gray-400 hover:text-gray-600">
           <GripVertical size={14} />
         </div>
         <div className="flex-1">
@@ -108,13 +151,51 @@ function LeadCard({ card, onEdit }: { card: LeadCardData, onEdit: (card: LeadCar
   );
 }
 
-function Column({ id, title, items, onEdit }: { id: string; title: string; items: LeadCardData[], onEdit: (card: LeadCardData) => void }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
+function Column({
+  id,
+  title,
+  items,
+  onEdit,
+  onCardDragStart,
+  onCardDragEnd,
+  onColumnDragOver,
+  onColumnDrop,
+  isOver,
+}: {
+  id: string;
+  title: string;
+  items: LeadCardData[];
+  onEdit: (card: LeadCardData) => void;
+  onCardDragStart: (cardId: string) => void;
+  onCardDragEnd: () => void;
+  onColumnDragOver: (columnId: string) => void;
+  onColumnDrop: (columnId: string) => void;
+  isOver: boolean;
+}) {
   return (
-    <div ref={setNodeRef} className={`rounded-lg p-1.5 flex-1 min-w-0 border-2 transition-colors ${isOver ? 'bg-blue-100 border-blue-300' : 'bg-gray-100 border-transparent'}`}>
+    <div
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        onColumnDragOver(id);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        onColumnDrop(id);
+      }}
+      className={`rounded-lg p-1.5 flex-1 min-w-0 border-2 transition-colors ${isOver ? 'bg-blue-100 border-blue-300' : 'bg-gray-100 border-transparent'}`}
+    >
       <h3 className="font-bold text-gray-700 text-sm px-2 mb-2">{title} <span className="text-xs text-gray-400 font-normal">{items.length}</span></h3>
       <div className="min-h-[100px] space-y-2">
-        {items.map(card => <LeadCard key={card.id} card={card} onEdit={onEdit} />)}
+        {items.map((card) => (
+          <LeadCard
+            key={card.id}
+            card={card}
+            onEdit={onEdit}
+            onDragStart={onCardDragStart}
+            onDragEnd={onCardDragEnd}
+          />
+        ))}
       </div>
     </div>
   );
@@ -139,17 +220,25 @@ const allAtendentes = ["Ana Paula", "Carlos Mendes", "Fernanda Lima"];
 export default function CRM() {
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<LeadCardData | null>(null);
+  const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
+  const [overColumnId, setOverColumnId] = useState<string | null>(null);
   const [columns, setColumns] = useState<Columns>(() => {
-    // Cria uma cópia profunda para evitar mutação do objeto original em re-renderizações
-    const columnsWithLeads = JSON.parse(JSON.stringify(initialColumns));
-    mockLeads.forEach(lead => {
-      const columnKey = Object.keys(columnsWithLeads).find(key => columnsWithLeads[key].status === lead.statusCrm);
-      if (columnKey) {
-        columnsWithLeads[columnKey].items.push(lead);
+    if (typeof window !== "undefined") {
+      const savedColumns = localStorage.getItem(CRM_STORAGE_KEY);
+      if (savedColumns) {
+        try {
+          return JSON.parse(savedColumns) as Columns;
+        } catch {
+          localStorage.removeItem(CRM_STORAGE_KEY);
+        }
       }
-    });
-    return columnsWithLeads;
+    }
+    return buildColumnsFromLeads(mockLeads);
   });
+
+  useEffect(() => {
+    localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify(columns));
+  }, [columns]);
 
   function abrirEdicao(card: LeadCardData) {
     setEditando(card);
@@ -164,36 +253,34 @@ export default function CRM() {
   function salvarEdicao(form: LeadCardData) {
     if (!editando) return;
 
-    // Atualiza o card na sua coluna
-    const newColumns = { ...columns };
-    for (const colId in newColumns) {
-      const itemIndex = newColumns[colId].items.findIndex(item => item.id === editando.id);
-      if (itemIndex > -1) {
-        newColumns[colId].items[itemIndex] = form;
-        break;
+    setColumns((prev) => {
+      const newColumns: Columns = JSON.parse(JSON.stringify(prev));
+
+      // Remove o card da coluna atual para poder reposicionar pelo status CRM editado.
+      for (const colId in newColumns) {
+        newColumns[colId].items = newColumns[colId].items.filter((item) => item.id !== editando.id);
       }
-    }
-    setColumns(newColumns);
+
+      const destinationColumnId = getColumnIdByStatus(form.statusCrm, newColumns);
+      if (!destinationColumnId) {
+        return prev;
+      }
+
+      newColumns[destinationColumnId].items.push(form);
+      toast.success(`Lead movido para ${newColumns[destinationColumnId].title}`);
+      return newColumns;
+    });
     fecharModal();
   }
 
-  function handleDragEnd(event: any) {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = active.id;
-    const overId = over.id;
-
-    if (activeId === overId) return;
-
+  function moveCardToColumn(cardId: string, targetColumnId: string) {
     setColumns((prev) => {
-      const newColumns = JSON.parse(JSON.stringify(prev)); // Cópia profunda para evitar mutação
+      const newColumns: Columns = JSON.parse(JSON.stringify(prev));
       let sourceColumnId: string | undefined;
       let activeCard: LeadCardData | undefined;
 
-      // Encontra o card e a coluna de origem
       for (const colId in newColumns) {
-        const foundCard = newColumns[colId].items.find(item => item.id === activeId);
+        const foundCard = newColumns[colId].items.find((item) => item.id === cardId);
         if (foundCard) {
           sourceColumnId = colId;
           activeCard = foundCard;
@@ -201,25 +288,44 @@ export default function CRM() {
         }
       }
 
-      // Encontra a coluna de destino
-      const destColumnId = Object.keys(newColumns).find(key => key === overId || newColumns[key].items.some(item => item.id === overId));
-
+      const destColumnId = getColumnIdFromDropTarget(targetColumnId, newColumns);
       if (!activeCard || !sourceColumnId || !destColumnId || sourceColumnId === destColumnId) {
-        return prev; // Não faz nada se as colunas forem as mesmas ou se algo der errado
+        return prev;
       }
 
-      // Atualiza o statusCrm do card movido
-      activeCard.statusCrm = newColumns[destColumnId].status;
+      const movedCard: LeadCardData = {
+        ...activeCard,
+        statusCrm: newColumns[destColumnId].status,
+      };
 
-      // Atualiza o estado de forma imutável
-      // 1. Remove o card da coluna de origem
-      newColumns[sourceColumnId].items = newColumns[sourceColumnId].items.filter((item: LeadCardData) => item.id !== activeId);
-      
-      // 2. Adiciona o card na coluna de destino
-      newColumns[destColumnId].items.push(activeCard);
+      newColumns[sourceColumnId].items = newColumns[sourceColumnId].items.filter((item: LeadCardData) => item.id !== cardId);
+      newColumns[destColumnId].items.push(movedCard);
 
+      toast.success(`${movedCard.name} movido para ${newColumns[destColumnId].title}`);
       return newColumns;
     });
+  }
+
+  function handleCardDragStart(cardId: string) {
+    setDraggedCardId(cardId);
+  }
+
+  function handleCardDragEnd() {
+    setDraggedCardId(null);
+    setOverColumnId(null);
+  }
+
+  function handleColumnDragOver(columnId: string) {
+    setOverColumnId(columnId);
+  }
+
+  function handleColumnDrop(columnId: string) {
+    if (!draggedCardId) {
+      return;
+    }
+    moveCardToColumn(draggedCardId, columnId);
+    setDraggedCardId(null);
+    setOverColumnId(null);
   }
 
   return (
@@ -230,13 +336,22 @@ export default function CRM() {
           <p className="text-sm text-gray-500 mt-1">Funil de Vendas e Oportunidades</p>
         </div>
       </div>
-      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <div className="flex flex-col md:flex-row gap-4">
-          {Object.entries(columns).map(([id, column]) => (
-            <Column key={id} id={id} title={column.title} items={column.items} onEdit={abrirEdicao} />
-          ))}
-        </div>
-      </DndContext>
+      <div className="flex flex-col md:flex-row gap-4">
+        {Object.entries(columns).map(([id, column]) => (
+          <Column
+            key={id}
+            id={id}
+            title={column.title}
+            items={column.items}
+            onEdit={abrirEdicao}
+            onCardDragStart={handleCardDragStart}
+            onCardDragEnd={handleCardDragEnd}
+            onColumnDragOver={handleColumnDragOver}
+            onColumnDrop={handleColumnDrop}
+            isOver={overColumnId === id}
+          />
+        ))}
+      </div>
 
       {/* Modal de Edição */}
       {modalAberto && editando && (
