@@ -14,6 +14,7 @@ interface Voo {
   destino: string;
   partida: string;
   chegada: string;
+  valor?: number;
   duracao: string;
   documento: string | null;
   documentoTipo: "pdf" | "imagem" | null;
@@ -57,6 +58,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
     destino: "",
     partida: "",
     chegada: "",
+    valor: 0,
     duracao: "",
     documento: null,
     documentoTipo: null,
@@ -147,6 +149,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
         destino: "Rio de Janeiro (RIOx)",
         partida: "14:30",
         chegada: "16:00",
+        valor: 0,
         duracao: "1h 30min",
         documento: null,
         documentoTipo: null,
@@ -189,7 +192,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
       id: Date.now(),
     };
     onVoosChange([...voos, novoVoo]);
-    setFormManual({ companhia: "", numero: "", data: "", origem: "", destino: "", partida: "", chegada: "", duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
+    setFormManual({ companhia: "", numero: "", data: "", origem: "", destino: "", partida: "", chegada: "", valor: 0, duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
     if (manualFileInputRef.current) {
       manualFileInputRef.current.value = "";
     }
@@ -301,6 +304,12 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
               <p className="text-xs text-gray-500 font-medium">Chegada</p>
               <p className="font-semibold text-gray-900">{resultados.chegada}</p>
             </div>
+            <div>
+              <p className="text-xs text-gray-500 font-medium">Valor</p>
+              <p className="font-semibold text-gray-900">
+                {(resultados.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </p>
+            </div>
           </div>
           <div className="space-y-3 mb-4">
             <div>
@@ -402,6 +411,18 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
               <Label className="text-xs">Chegada</Label>
               <Input type="time" value={formManual.chegada} onChange={(e) => setFormManual({ ...formManual, chegada: e.target.value })} className="mt-1" />
             </div>
+            <div>
+              <Label className="text-xs">Valor</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formManual.valor ?? 0}
+                onChange={(e) => setFormManual({ ...formManual, valor: parseFloat(e.target.value) || 0 })}
+                className="mt-1"
+                placeholder="0,00"
+              />
+            </div>
             <div className="sm:col-span-2 lg:col-span-3">
               <Label className="text-xs">Link do Voo</Label>
               <div className="relative mt-1">
@@ -485,7 +506,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
                     <span className="font-mono text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{voo.numero}</span>
                     {idx > 0 && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Conexão {idx}</span>}
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-2 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-x-4 gap-y-1 mt-2 text-xs">
                     <div>
                       <p className="text-gray-400">Origem</p>
                       <p className="text-gray-700 font-medium">{voo.origem}</p>
@@ -501,6 +522,12 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
                     <div>
                       <p className="text-gray-400">Horários</p>
                       <p className="text-gray-700 font-medium">{voo.partida} → {voo.chegada} {voo.duracao && `(${voo.duracao})`}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Valor</p>
+                      <p className="text-gray-700 font-medium">
+                        {(voo.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </p>
                     </div>
                   </div>
                   {(voo.linkVoo || voo.documentoNome) && (

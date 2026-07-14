@@ -19,129 +19,21 @@ import ExperienciasForm from "./ExperienciasForm";
 import SeguroForm from "./SeguroForm";
 import { listarClientes, type Cliente } from "../data/clientesApi";
 import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
-
-type StatusOrc = "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
-
-interface ItemOrc {
-  id: number;
-  descricao: string;
-  quantidade: number;
-  unidade: string;
-  valorUnitario: number;
-  desconto: number;
-  link?: string;
-  documentos?: DocumentoVenda[];
-}
-
-interface DocumentoVenda {
-  id: number;
-  nome: string;
-  tipo: string;
-  arquivo: string;
-}
-
-interface Orcamento {
-  id: number;
-  numero: string;
-  cliente: string;
-  email: string;
-  agenteViagem?: string;
-  status: StatusOrc;
-  dataCriacao: string;
-  dataValidade: string;
-  observacoes: string;
-  itens: ItemOrc[];
-  voos?: any[];
-  hospedagem?: any[];
-  roteiro?: string;
-  dayByDay?: any[];
-  transporte?: any[];
-  restaurante?: any[];
-  experiencias?: any[];
-  seguro?: any[];
-}
+import { listarProdutos, type Produto } from "../data/produtosApi";
+import {
+  atualizarOrcamento,
+  criarOrcamento,
+  listarOrcamentos,
+  removerOrcamento,
+  type ItemOrc,
+  type DocumentoVenda,
+  type Orcamento,
+  type OrcamentoPayload,
+  type StatusOrc,
+} from "../data/orcamentosApi";
 
 const itemVazio = (): ItemOrc => ({ id: Date.now(), descricao: "", quantidade: 1, unidade: "un", valorUnitario: 0, desconto: 0, link: "", documentos: [] });
 
-const dados: Orcamento[] = [
-  {
-    id: 1, numero: "25060101", cliente: "Ana Paula Souza", email: "ana@email.com",
-    status: "Aprovado", dataCriacao: "2025-06-01", dataValidade: "2025-07-01", observacoes: "",
-    itens: [
-      { id: 1, descricao: "Chip Vivo Roaming Internacional", quantidade: 1, unidade: "un", valorUnitario: 350.00, desconto: 0 },
-    ],
-    // Dados mocados adicionados
-    voos: [
-      { id: 1, companhia: "Air France", numero: "AF457", data: "2025-09-10", origem: "São Paulo (GRU)", destino: "Paris (CDG)", partida: "18:05", chegada: "10:35", duracao: "11h 30min" },
-      { id: 2, companhia: "Air France", numero: "AF454", data: "2025-09-20", origem: "Paris (CDG)", destino: "São Paulo (GRU)", partida: "23:25", chegada: "06:10", duracao: "11h 45min" }
-    ],
-    hospedagem: [
-      { id: 1, nome: "Hôtel Le Marais", local: "Paris, França", endereco: "Rue de Rivoli, 75004 Paris", checkin: "2025-09-11", checkout: "2025-09-20", tipoQuarto: "Quarto Duplo Superior com Vista", preco: 12500, noites: 9, classificacao: 4.5, amenidades: ["WiFi Grátis", "Café da Manhã", "Ar Condicionado"], voucher: null, voucherTipo: null, voucherNome: "" }
-    ],
-    roteiro: `**Uma Viagem Inesquecível a Paris!**
-
-Prepare-se para explorar a Cidade Luz em uma jornada de 10 dias repleta de cultura, gastronomia e momentos mágicos.
-
-**Destaques:**
-- Visita aos icônicos Museu do Louvre e Torre Eiffel.
-- Passeios charmosos pelos bairros de Le Marais e Montmartre.
-- Cruzeiro pelo Rio Sena ao entardecer.
-- Experiências gastronômicas em bistrôs tradicionais.
-
-Este roteiro foi cuidadosamente planejado para oferecer uma imersão completa na beleza e na história de Paris.`,
-    dayByDay: [
-      { id: 1, data: "2025-09-11", titulo: "Chegada e Exploração de Le Marais", atividades: [
-        { id: 1, hora: "12:00", descricao: "Check-in no Hôtel Le Marais.", tipo: "Hospedagem" },
-        { id: 2, hora: "14:00", descricao: "Almoço no L'As du Fallafel.", tipo: "Almoço" },
-        { id: 3, hora: "16:00", descricao: "Passeio pela Place des Vosges.", tipo: "Passeio" }
-      ]},
-      { id: 2, data: "2025-09-12", titulo: "Arte e Cultura", atividades: [
-        { id: 1, hora: "09:00", descricao: "Visita guiada ao Museu do Louvre.", tipo: "Cultural" },
-        { id: 2, hora: "13:00", descricao: "Almoço próximo ao museu.", tipo: "Almoço" }
-      ]}
-    ],
-    transporte: [
-      { id: 1, tipo: "Transfer", empresa: "Paris Shuttle", diaRoteiro: "1", origem: "Aeroporto CDG", destino: "Hôtel Le Marais", dataHoraSaida: "2025-09-11T11:00", valor: 350, descricao: "Transfer privado para o hotel." }
-    ],
-    restaurante: [
-      { id: 1, nome: "Le Bouillon Chartier", local: "Paris, França", endereco: "7 Rue du Faubourg Montmartre, 75009 Paris", tipoCozinha: "Francesa", data: "2025-09-12", horario: "20:00", qtdPessoas: 2, preco: 250, telefone: "+33 1 47 70 86 29", website: "https://www.bouillon-chartier.com", observacoes: "Reserva para o jantar.", voucher: null, voucherTipo: null, voucherNome: "" },
-      { id: 2, nome: "L'Ambroisie", local: "Paris, França", endereco: "9 Place des Vosges, 75004 Paris", tipoCozinha: "Francesa", data: "2025-09-15", horario: "21:00", qtdPessoas: 2, preco: 1800, telefone: "+33 1 42 78 51 45", website: "", observacoes: "Reserva especial de comemoração.", voucher: null, voucherTipo: null, voucherNome: "" }
-    ],
-    experiencias: [
-      { id: 1, nome: "Tour Guiado no Museu do Louvre", local: "Paris, França", tipo: "Cultural", data: "2025-09-12", horario: "09:00", duracao: "3h", qtdPessoas: 2, preco: 450, descricao: "Tour com guia especializado nas principais obras.", inclui: "Ingresso e guia", observacoes: "", voucher: null, voucherTipo: null, voucherNome: "" },
-      { id: 2, nome: "Passeio de Barco no Rio Sena", local: "Paris, França", tipo: "Passeio Turístico", data: "2025-09-13", horario: "19:00", duracao: "1h", qtdPessoas: 2, preco: 150, descricao: "Passeio ao entardecer com vista para a Torre Eiffel.", inclui: "Ticket do barco", observacoes: "", voucher: null, voucherTipo: null, voucherNome: "" }
-    ],
-  },
-  {
-    id: 2, numero: "25061501", cliente: "Carlos Mendes", email: "carlos@empresa.com",
-    status: "Enviado", dataCriacao: "2025-06-15", dataValidade: "2025-07-15", observacoes: "",
-    itens: [
-      { id: 1, descricao: "Cadeira Ergonômica", quantidade: 5, unidade: "un", valorUnitario: 1299.00, desconto: 10 },
-    ],
-    dayByDay: [
-      { id: 1, data: "2025-08-01", titulo: "Instalação Mobiliário", atividades: [
-        { id: 1, hora: "09:00", descricao: "Entrega das cadeiras no escritório.", tipo: "Entrega" },
-        { id: 2, hora: "10:00", descricao: "Montagem e distribuição das cadeiras.", tipo: "Serviço" },
-        { id: 3, hora: "12:00", descricao: "Finalização e aceite do cliente.", tipo: "Finalização" }
-      ]}
-    ],
-  },
-  {
-    id: 3, numero: "25070101", cliente: "Fernanda Lima", email: "fernanda@loja.com",
-    status: "Rascunho", dataCriacao: "2025-07-01", dataValidade: "2025-08-01", observacoes: "Aguardando confirmação de modelo.",
-    itens: [
-      { id: 1, descricao: "Serviço de Consultoria", quantidade: 10, unidade: "h", valorUnitario: 250.00, desconto: 0 },
-      { id: 2, descricao: "Relatório Técnico", quantidade: 1, unidade: "un", valorUnitario: 800.00, desconto: 0 },
-    ],
-  },
-  {
-    id: 4, numero: "25052001", cliente: "João Victor Reis", email: "joao@mail.com",
-    status: "Rejeitado", dataCriacao: "2025-05-20", dataValidade: "2025-06-20", observacoes: "",
-    itens: [
-      { id: 1, descricao: "Licença Software Anual", quantidade: 1, unidade: "un", valorUnitario: 3500.00, desconto: 0 },
-    ],
-  },
-];
 
 const statusConfig: Record<StatusOrc, { bg: string; cor: string }> = {
   Rascunho:  { bg: "bg-gray-100",   cor: "text-gray-600" },
@@ -199,7 +91,7 @@ function gerarNumero(lista: Orcamento[]) {
 
 type Tela = "lista" | "form" | "preview";
 
-const orcVazio = (): Omit<Orcamento, "id"> => ({
+const orcVazio = (): OrcamentoPayload => ({
   numero: "", cliente: "", email: "", agenteViagem: "", status: "Rascunho",
   dataCriacao: new Date().toISOString().split("T")[0],
   dataValidade: "", observacoes: "", itens: [itemVazio()],
@@ -208,10 +100,10 @@ const orcVazio = (): Omit<Orcamento, "id"> => ({
 export default function Orcamentos() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [lista, setLista] = useState<Orcamento[]>(dados);
+  const [lista, setLista] = useState<Orcamento[]>([]);
   const [tela, setTela] = useState<Tela>("lista");
   const [editando, setEditando] = useState<Orcamento | null>(null);
-  const [form, setForm] = useState<Omit<Orcamento, "id">>(orcVazio());
+  const [form, setForm] = useState<OrcamentoPayload>(orcVazio());
   const [preview, setPreview] = useState<Orcamento | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusOrc | "Todos">("Todos");
@@ -229,27 +121,46 @@ export default function Orcamentos() {
   const [seguro, setSeguro] = useState<any[]>([]);
   const [funcionariosAtivos, setFuncionariosAtivos] = useState<Funcionario[]>([]);
   const [clientesAtivos, setClientesAtivos] = useState<Cliente[]>([]);
+  const [produtosAtivos, setProdutosAtivos] = useState<Produto[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function carregarOrcamentos() {
+    setErro(null);
+    try {
+      const listaApi = await listarOrcamentos();
+      setLista(listaApi);
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao carregar orçamentos.");
+    } finally {
+      setCarregando(false);
+    }
+  }
 
   useEffect(() => {
     let mounted = true;
 
     async function carregarDadosCadastros() {
       try {
-        const [clientes, funcionarios] = await Promise.all([listarClientes(), listarFuncionarios()]);
+        const [clientes, funcionarios, produtos] = await Promise.all([listarClientes(), listarFuncionarios(), listarProdutos()]);
 
         if (mounted) {
           setClientesAtivos(clientes.filter((cliente) => cliente.status === "Ativo"));
           setFuncionariosAtivos(funcionarios.filter((funcionario) => funcionario.status === "Ativo"));
+          setProdutosAtivos(produtos.filter((produto) => produto.status === "Ativo"));
         }
       } catch {
         if (mounted) {
           setClientesAtivos([]);
           setFuncionariosAtivos([]);
+          setProdutosAtivos([]);
         }
       }
     }
 
     carregarDadosCadastros();
+    carregarOrcamentos();
 
     return () => {
       mounted = false;
@@ -276,7 +187,7 @@ export default function Orcamentos() {
         navigate(location.pathname, { replace: true });
       }
     }
-  }, [location.state]);
+  }, [location.state, lista, location.pathname, navigate]);
 
   // --- lista helpers ---
   const filtrados = lista.filter((o) => {
@@ -311,6 +222,7 @@ export default function Orcamentos() {
 
   function abrirNovo() {
     setEditando(null);
+    setErro(null);
     // Limpa o formulário principal e as seções
     setForm({ ...orcVazio(), numero: gerarNumero(lista) });
     setVoos([]);
@@ -326,6 +238,7 @@ export default function Orcamentos() {
 
   function abrirEdicao(o: Orcamento) {
     setEditando(o);
+    setErro(null);
     setForm({ numero: o.numero, cliente: o.cliente, email: o.email, agenteViagem: o.agenteViagem || "", status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
     // Carrega os dados das seções para os estados correspondentes
     setVoos(o.voos || []);
@@ -343,8 +256,10 @@ export default function Orcamentos() {
 
   function voltar() { setTela("lista"); setEditando(null); setPreview(null); }
 
-  function salvar() {
+  async function salvar() {
     if (!form.cliente.trim()) return null;
+    setSalvando(true);
+    setErro(null);
     
     // Montar dados do orçamento com seções
     const orcComSecoes = {
@@ -359,23 +274,35 @@ export default function Orcamentos() {
       seguro: seguro.length > 0 ? seguro : undefined,
     };
     
-    if (editando) {
-      setLista((prev) => prev.map((o) => (o.id === editando.id ? { ...editando, ...orcComSecoes } : o)));
+    try {
+      if (editando) {
+        await atualizarOrcamento(editando.id, orcComSecoes);
+        await carregarOrcamentos();
+        voltar();
+        return editando.id;
+      }
+
+      const criado = await criarOrcamento(orcComSecoes);
+      await carregarOrcamentos();
       voltar();
-      return editando.id;
-    } else {
-      const id = lista.length > 0 ? Math.max(...lista.map((o) => o.id)) + 1 : 1;
-      const novo = { id, ...orcComSecoes };
-      setLista((prev) => [...prev, novo]);
-      voltar();
-      return id;
+      return criado.id;
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao salvar orçamento.");
+      return null;
+    } finally {
+      setSalvando(false);
     }
   }
 
-  function duplicar(o: Orcamento) {
-    const id = lista.length > 0 ? Math.max(...lista.map((x) => x.id)) + 1 : 1;
-    const novo: Orcamento = { ...o, id, numero: gerarNumero([...lista, o]), status: "Rascunho", dataCriacao: new Date().toISOString().split("T")[0] };
-    setLista((prev) => [...prev, novo]);
+  async function duplicar(o: Orcamento) {
+    const novo: OrcamentoPayload = { ...o, numero: gerarNumero([...lista, o]), status: "Rascunho", dataCriacao: new Date().toISOString().split("T")[0] };
+    delete (novo as any).id;
+    try {
+      await criarOrcamento(novo);
+      await carregarOrcamentos();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao duplicar orçamento.");
+    }
   }
 
   function gerarRoteiro(orc: Orcamento | null = null) {
@@ -430,13 +357,42 @@ export default function Orcamentos() {
     setTimeout(() => window.print(), 500); // Aguarda a renderização antes de imprimir
   }
 
-  function excluir(id: number) { setLista((prev) => prev.filter((o) => o.id !== id)); setConfirmarExclusao(null); }
+  async function excluir(id: number) {
+    setErro(null);
+    try {
+      await removerOrcamento(id);
+      await carregarOrcamentos();
+    } catch (error) {
+      setErro(error instanceof Error ? error.message : "Erro ao excluir orçamento.");
+    } finally {
+      setConfirmarExclusao(null);
+    }
+  }
 
   // --- itens do form ---
   function addItem() { setForm((f) => ({ ...f, itens: [...f.itens, itemVazio()] })); }
   function removeItem(id: number) { setForm((f) => ({ ...f, itens: f.itens.filter((i) => i.id !== id) })); }
   function updateItem(id: number, field: keyof ItemOrc, value: string | number) {
     setForm((f) => ({ ...f, itens: f.itens.map((i) => i.id === id ? { ...i, [field]: value } : i) }));
+  }
+
+  function selecionarProdutoItem(id: number, nomeProduto: string) {
+    const nomeNormalizado = nomeProduto.trim().toLowerCase();
+    const produto = produtosAtivos.find((item) => item.nome.trim().toLowerCase() === nomeNormalizado);
+
+    setForm((f) => ({
+      ...f,
+      itens: f.itens.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              descricao: nomeProduto,
+              unidade: produto?.unidade || item.unidade,
+              valorUnitario: produto?.preco ?? item.valorUnitario,
+            }
+          : item
+      ),
+    }));
   }
 
   async function uploadDocumentosVenda(idItem: number, e: React.ChangeEvent<HTMLInputElement>) {
@@ -780,7 +736,7 @@ export default function Orcamentos() {
 
                 {section === 'Vendas' && (
                   <div>
-                    <p className="text-sm text-gray-600 mb-2">Itens relacionados à venda (produtos/serviços).</p>
+                    <p className="text-sm text-gray-600 mb-2">Itens relacionados à venda (produtos/serviços). Se quiser, digite um item manualmente.</p>
                     <div className="space-y-3">
                       {form.itens.map((item, idx) => (
                         <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
@@ -792,7 +748,17 @@ export default function Orcamentos() {
                           </div>
                           <div className="grid grid-cols-6 gap-2">
                             <div className="col-span-6">
-                              <Input value={item.descricao} onChange={(e) => updateItem(item.id, "descricao", e.target.value)} placeholder="Descrição do item / serviço" />
+                              <Input
+                                value={item.descricao}
+                                onChange={(e) => selecionarProdutoItem(item.id, e.target.value)}
+                                placeholder="Selecione da lista ou digite outro produto/serviço"
+                                list={`produtos-vendas-${item.id}`}
+                              />
+                              <datalist id={`produtos-vendas-${item.id}`}>
+                                {produtosAtivos.map((produto) => (
+                                  <option key={produto.id} value={produto.nome} />
+                                ))}
+                              </datalist>
                             </div>
                             <div className="col-span-2">
                               <Input type="number" min="1" value={item.quantidade} onChange={(e) => updateItem(item.id, "quantidade", parseFloat(e.target.value) || 1)} placeholder="Qtd" />
@@ -949,8 +915,8 @@ export default function Orcamentos() {
             </Card>
 
             <div className="flex flex-col gap-2">
-              <Button onClick={salvar} disabled={!form.cliente.trim()} className="w-full gap-2">
-                <Check className="w-4 h-4 mr-1" />{editando ? "Salvar alterações" : "Criar orçamento"}
+              <Button onClick={salvar} disabled={salvando || !form.cliente.trim()} className="w-full gap-2">
+                <Check className="w-4 h-4 mr-1" />{salvando ? "Salvando..." : editando ? "Salvar alterações" : "Criar orçamento"}
               </Button>
               <Button variant="outline" onClick={voltar} className="w-full gap-2">Cancelar</Button>
               <Button variant="ghost" onClick={() => abrirResumo()} className="w-full text-sm text-gray-600 gap-2">
@@ -1018,9 +984,17 @@ export default function Orcamentos() {
         </div>
       </Card>
 
+      {erro && (
+        <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>
+      )}
+
+      {carregando && (
+        <p className="mb-4 text-sm text-gray-500">Carregando orçamentos...</p>
+      )}
+
       {/* Lista de orçamentos */}
       <div className="space-y-3">
-        {filtrados.length === 0 && (
+        {!carregando && filtrados.length === 0 && (
           <Card className="py-12 text-center text-gray-400">
             <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
             <p>Nenhum orçamento encontrado</p>
