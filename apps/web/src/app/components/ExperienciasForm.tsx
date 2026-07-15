@@ -19,6 +19,7 @@ import {
   Calendar,
   DollarSign,
 } from "lucide-react";
+import { buscarExperienciasDestino } from "../data/destinationsApi";
 
 interface Experiencia {
   id: number;
@@ -43,9 +44,6 @@ interface ExperienciasFormProps {
   experiencias: Experiencia[];
   onExperienciasChange: (experiencias: Experiencia[]) => void;
 }
-
-// Configuração da API Google Places (mesmo padrão da HospedagemForm)
-const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
 const tiposExperiencia = [
   "Passeio Turístico",
@@ -102,7 +100,6 @@ export default function ExperienciasForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formManualRef = useRef<HTMLDivElement>(null);
 
-  // Buscar experiências via Google Places API
   const buscarExperiencia = async () => {
     if (!busca.trim()) {
       setErro("Digite um local para buscar");
@@ -116,13 +113,11 @@ export default function ExperienciasForm({
     setMostrarManual(false);
 
     try {
-      if (GOOGLE_API_KEY) {
-        await buscarGooglePlaces(busca);
-      } else {
-        setErro(
-          "API do Google Maps não configurada. Configure VITE_GOOGLE_MAPS_API_KEY no .env ou adicione manualmente."
-        );
-        setBuscou(true);
+      const itens = await buscarExperienciasDestino(busca);
+      setResultados(itens);
+
+      if (itens.length === 0) {
+        setErro("Nenhuma experiência encontrada. Adicione manualmente ou tente outra busca.");
         setMostrarManual(true);
       }
     } catch (err) {
@@ -135,85 +130,6 @@ export default function ExperienciasForm({
       setCarregando(false);
       setBuscou(true);
     }
-  };
-
-  const buscarGooglePlaces = async (query: string) => {
-    // Tenta Places API (novo endpoint)
-    try {
-      const placesResponse = await fetch(
-        `https://places.googleapis.com/v1/places:searchText`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": GOOGLE_API_KEY,
-            "X-Goog-FieldMask":
-              "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.id,places.photos,places.editorialSummary",
-          },
-          body: JSON.stringify({
-            textQuery: `${query} atrações turísticas`,
-            languageCode: "pt-BR",
-            maxResultCount: 10,
-          }),
-        }
-      );
-      const placesData = await placesResponse.json();
-
-      if (placesData.places && placesData.places.length > 0) {
-        setResultados(formatarResultadosNovo(placesData.places));
-        return;
-      }
-    } catch (e) {
-      console.warn("Places API (New) failed, trying legacy API", e);
-    }
-
-    // Fallback: API Places legada
-    try {
-      const placesResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
-          query + " atrações turísticas"
-        )}&key=${GOOGLE_API_KEY}&language=pt-BR`
-      );
-      const placesData = await placesResponse.json();
-
-      if (placesData.status === "OK" && placesData.results.length > 0) {
-        setResultados(formatarResultados(placesData.results));
-        return;
-      }
-    } catch (e) {
-      console.warn("Places legacy API also failed", e);
-    }
-
-    setErro(
-      "Nenhuma experiência encontrada. Adicione manualmente ou tente outra busca."
-    );
-    setMostrarManual(true);
-  };
-
-  const formatarResultadosNovo = (places: any[]) => {
-    return places.slice(0, 10).map((place: any) => ({
-      placeId: place.id,
-      nome: place.displayName?.text || "",
-      local: busca,
-      endereco: place.formattedAddress || "",
-      classificacao: place.rating || 0,
-      totalAvaliacoes: place.userRatingCount || 0,
-      descricao: place.editorialSummary?.text || "",
-      priceLevel: place.priceLevel || "PRICE_LEVEL_MODERATE",
-    }));
-  };
-
-  const formatarResultados = (results: any[]) => {
-    return results.slice(0, 10).map((place: any) => ({
-      placeId: place.place_id,
-      nome: place.name,
-      local: place.formatted_address?.split(",")[0] || busca,
-      endereco: place.formatted_address || "",
-      classificacao: place.rating || 0,
-      totalAvaliacoes: place.user_ratings_total || 0,
-      descricao: "",
-      priceLevel: place.price_level || 1,
-    }));
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -399,12 +315,6 @@ export default function ExperienciasForm({
               </Button>
             </div>
           </div>
-          {!GOOGLE_API_KEY && (
-            <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-              ⚠️ API do Google Maps não configurada. Configure VITE_GOOGLE_MAPS_API_KEY
-              no .env ou adicione manualmente.
-            </p>
-          )}
           {erro && (
             <p className="text-xs text-red-500">{erro}</p>
           )}

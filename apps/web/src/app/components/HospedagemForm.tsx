@@ -18,6 +18,7 @@ import {
   ChevronUp,
   Globe,
 } from "lucide-react";
+import { buscarHospedagensDestino } from "../data/destinationsApi";
 
 interface Hospedagem {
   id: number;
@@ -79,12 +80,6 @@ const destinosPopulares = [
   "Sydney, Austrália",
 ];
 
-// Configure suas chaves da API do Google Cloud
-// Places API: https://console.cloud.google.com/apis/credentials
-const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
-// Linha de depuração para verificar se a chave foi carregada
-console.log("Verificando chave de API do Google Maps:", GOOGLE_API_KEY ? "CHAVE ENCONTRADA" : "CHAVE NÃO ENCONTRADA OU VAZIA");
-
 export default function HospedagemForm({
   hospedagens,
   onHospedagensChange,
@@ -119,7 +114,6 @@ export default function HospedagemForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formManualRef = useRef<HTMLDivElement>(null);
-  // Buscar no Google Places API
   const buscarHospedagem = async () => {
     if (!busca.trim()) {
       setErro("Digite um local para buscar");
@@ -133,15 +127,11 @@ export default function HospedagemForm({
     setMostrarManual(false);
 
     try {
-      // Tenta buscar via Google Places API
-      if (GOOGLE_API_KEY) {
-        await buscarGooglePlaces(busca);
-      } else {
-        // Sem API key configurada - mostrar mensagem e opção manual
-        setErro(
-          "API do Google Maps não configurada. Configure VITE_GOOGLE_MAPS_API_KEY no .env ou adicione manualmente."
-        );
-        setBuscou(true);
+      const itens = await buscarHospedagensDestino(busca);
+      setResultados(itens);
+
+      if (itens.length === 0) {
+        setErro("Nenhuma hospedagem encontrada. Você pode adicionar manualmente.");
         setMostrarManual(true);
       }
     } catch (err) {
@@ -152,132 +142,6 @@ export default function HospedagemForm({
       setCarregando(false);
       setBuscou(true);
     }
-  };
-
-  const buscarGooglePlaces = async (query: string) => {
-    // Tenta buscar via Places API (novo endpoint)
-    try {
-      const placesResponse = await fetch(
-        `https://places.googleapis.com/v1/places:searchText`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": GOOGLE_API_KEY,
-            "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.id,places.photos"
-          },
-          body: JSON.stringify({
-            textQuery: `${query} hotel`,
-            languageCode: "pt-BR",
-            maxResultCount: 10
-          })
-        }
-      );
-      const placesData = await placesResponse.json();
-
-      if (placesData.places && placesData.places.length > 0) {
-        setResultados(formatarResultadosNovo(placesData.places));
-        return;
-      }
-    } catch (e) {
-      console.warn("Places API (New) failed, trying legacy API", e);
-    }
-
-    // Fallback: tenta API Places legada
-    try {
-      const placesResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
-          query + " hotel"
-        )}&key=${GOOGLE_API_KEY}&language=pt-BR`
-      );
-      const placesData = await placesResponse.json();
-
-      if (placesData.status === "OK" && placesData.results.length > 0) {
-        setResultados(formatarResultados(placesData.results));
-        return;
-      }
-    } catch (e) {
-      console.warn("Places legacy API also failed", e);
-    }
-
-    // Se tudo falhar, abrir formulário manual com mensagem clara
-    setErro(
-      "APIs do Google Maps não habilitadas. Para usar a busca automática:\n" +
-      "1. Acesse https://console.cloud.google.com/apis/dashboard e ative: Places API e Geocoding API.\n" +
-      "2. Verifique se a chave VITE_GOOGLE_MAPS_API_KEY está no arquivo .env e reinicie o servidor.\n" +
-      "3. Ou clique em 'Adicionar Manualmente' abaixo."
-    );
-    setMostrarManual(true);
-  };
-
-  const formatarResultadosNovo = (places: any[]) => {
-    return places.slice(0, 10).map((place: any) => {
-      const tiposQuarto = ["Standard", "Superior", "Suíte"];
-      if (place.priceLevel && ["PRICE_LEVEL_EXPENSIVE", "PRICE_LEVEL_VERY_EXPENSIVE"].includes(place.priceLevel)) {
-        tiposQuarto.push("Suíte Presidencial");
-      }
-
-      const amenidades: string[] = ["WiFi Grátis", "Café da Manhã"];
-      if (place.rating && place.rating > 4) amenidades.push("Bem Avaliado");
-
-      const priceMap: Record<string, number> = {
-        "PRICE_LEVEL_FREE": 0,
-        "PRICE_LEVEL_INEXPENSIVE": 100,
-        "PRICE_LEVEL_MODERATE": 200,
-        "PRICE_LEVEL_EXPENSIVE": 350,
-        "PRICE_LEVEL_VERY_EXPENSIVE": 500,
-      };
-      const precoBase = priceMap[place.priceLevel] || 150;
-
-      return {
-        placeId: place.id,
-        nome: place.displayName?.text || "",
-        local: busca,
-        endereco: place.formattedAddress || "",
-        classificacao: place.rating || 0,
-        totalAvaliacoes: place.userRatingCount || 0,
-        tiposQuarto,
-        amenidades,
-        precoBase: precoBase + Math.floor(Math.random() * 80),
-        photos: null,
-      };
-    });
-  };
-
-  const formatarResultados = (results: any[]) => {
-    return results.slice(0, 10).map((place: any) => {
-      // Generate mock room types based on rating/price level
-      const tiposQuarto = ["Standard", "Superior", "Suíte"];
-      if (place.price_level && place.price_level >= 3) {
-        tiposQuarto.push("Suíte Presidencial");
-      }
-
-      // Generate mock amenities based on place types
-      const amenidades: string[] = [];
-      if (place.types?.includes("lodging")) amenidades.push("Hospedagem");
-      if (place.rating && place.rating > 4) amenidades.push("WiFi Grátis");
-      amenidades.push("Café da Manhã");
-      if (place.price_level && place.price_level >= 2)
-        amenidades.push("Restaurante");
-
-      // Estimate price per night based on price_level
-      const priceLevel = place.price_level || 1;
-      const precoBase = priceLevel * 150 + Math.floor(Math.random() * 100);
-
-      return {
-        placeId: place.place_id,
-        nome: place.name,
-        local: place.formatted_address?.split(",")[0] || busca,
-        endereco: place.formatted_address || "",
-        classificacao: place.rating || 0,
-        totalAvaliacoes: place.user_ratings_total || 0,
-        tiposQuarto,
-        amenidades: amenidades.length > 0 ? amenidades : ["WiFi Grátis"],
-        precoBase,
-        photos: place.photos
-          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${place.photos[0].photo_reference}&key=${GOOGLE_API_KEY}`
-          : null,
-      };
-    });
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -473,11 +337,6 @@ export default function HospedagemForm({
               </Button>
             </div>
           </div>
-          {!GOOGLE_API_KEY && (
-            <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-              ⚠️ API do Google Maps não configurada. Configure VITE_GOOGLE_MAPS_API_KEY no .env com uma chave válida.
-            </p>
-          )}
           {erro && (
             <p className="text-xs text-red-500">{erro}</p>
           )}

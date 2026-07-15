@@ -20,6 +20,7 @@ import {
   Building2,
   Lightbulb,
 } from "lucide-react";
+import { buscarRestaurantesDestino } from "../data/destinationsApi";
 
 interface Restaurante {
   id: number;
@@ -43,9 +44,6 @@ interface RestauranteFormProps {
   restaurantes: Restaurante[];
   onRestaurantesChange: (restaurantes: Restaurante[]) => void;
 }
-
-// Configuração da API Google Places (mesmo padrão da HospedagemForm)
-const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
 const tiposCozinha = [
   "Brasileira",
@@ -106,7 +104,6 @@ export default function RestauranteForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formManualRef = useRef<HTMLDivElement>(null);
 
-  // Buscar restaurantes via Google Places API
   const buscarRestaurante = async () => {
     if (!busca.trim()) {
       setErro("Digite um local para buscar");
@@ -120,13 +117,11 @@ export default function RestauranteForm({
     setMostrarManual(false);
 
     try {
-      if (GOOGLE_API_KEY) {
-        await buscarGooglePlaces(busca);
-      } else {
-        setErro(
-          "API do Google Maps não configurada. Configure VITE_GOOGLE_MAPS_API_KEY no .env ou adicione manualmente."
-        );
-        setBuscou(true);
+      const itens = await buscarRestaurantesDestino(busca);
+      setResultados(itens);
+
+      if (itens.length === 0) {
+        setErro("Nenhum restaurante encontrado. Adicione manualmente ou tente outra busca.");
         setMostrarManual(true);
       }
     } catch (err) {
@@ -139,87 +134,6 @@ export default function RestauranteForm({
       setCarregando(false);
       setBuscou(true);
     }
-  };
-
-  const buscarGooglePlaces = async (query: string) => {
-    // Tenta Places API (novo endpoint)
-    try {
-      const placesResponse = await fetch(
-        `https://places.googleapis.com/v1/places:searchText`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": GOOGLE_API_KEY,
-            "X-Goog-FieldMask":
-              "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.id,places.photos,places.internationalPhoneNumber,places.websiteUri",
-          },
-          body: JSON.stringify({
-            textQuery: `${query} restaurante`,
-            languageCode: "pt-BR",
-            maxResultCount: 10,
-          }),
-        }
-      );
-      const placesData = await placesResponse.json();
-
-      if (placesData.places && placesData.places.length > 0) {
-        setResultados(formatarResultadosNovo(placesData.places));
-        return;
-      }
-    } catch (e) {
-      console.warn("Places API (New) failed, trying legacy API", e);
-    }
-
-    // Fallback: API Places legada
-    try {
-      const placesResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
-          query + " restaurante"
-        )}&key=${GOOGLE_API_KEY}&language=pt-BR`
-      );
-      const placesData = await placesResponse.json();
-
-      if (placesData.status === "OK" && placesData.results.length > 0) {
-        setResultados(formatarResultados(placesData.results));
-        return;
-      }
-    } catch (e) {
-      console.warn("Places legacy API also failed", e);
-    }
-
-    setErro(
-      "Nenhum restaurante encontrado. Adicione manualmente ou tente outra busca."
-    );
-    setMostrarManual(true);
-  };
-
-  const formatarResultadosNovo = (places: any[]) => {
-    return places.slice(0, 10).map((place: any) => ({
-      placeId: place.id,
-      nome: place.displayName?.text || "",
-      local: busca,
-      endereco: place.formattedAddress || "",
-      classificacao: place.rating || 0,
-      totalAvaliacoes: place.userRatingCount || 0,
-      telefone: place.internationalPhoneNumber || "",
-      website: place.websiteUri || "",
-      priceLevel: place.priceLevel || "PRICE_LEVEL_MODERATE",
-    }));
-  };
-
-  const formatarResultados = (results: any[]) => {
-    return results.slice(0, 10).map((place: any) => ({
-      placeId: place.place_id,
-      nome: place.name,
-      local: place.formatted_address?.split(",")[0] || busca,
-      endereco: place.formatted_address || "",
-      classificacao: place.rating || 0,
-      totalAvaliacoes: place.user_ratings_total || 0,
-      telefone: "",
-      website: "",
-      priceLevel: place.price_level || 1,
-    }));
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -389,12 +303,6 @@ export default function RestauranteForm({
               </Button>
             </div>
           </div>
-          {!GOOGLE_API_KEY && (
-            <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-              ⚠️ API do Google Maps não configurada. Configure VITE_GOOGLE_MAPS_API_KEY
-              no .env ou adicione manualmente.
-            </p>
-          )}
           {erro && (
             <p className="text-xs text-red-500">{erro}</p>
           )}
