@@ -1,26 +1,7 @@
 {
-  "routes": [
-    { "src": "/api/ai/chat", "dest": "/api/ai/chat.js" },
-    { "src": "/api/auth/funcionarios/login", "dest": "/api/auth/funcionarios/login.js" },
-    { "src": "/api/funcionarios/([^/]+)", "dest": "/api/funcionarios/[id].js?id=$1" },
-    { "src": "/api/funcionarios", "dest": "/api/funcionarios/index.js" },
-    { "src": "/api/clientes/([^/]+)", "dest": "/api/clientes/[id].js?id=$1" },
-    { "src": "/api/clientes", "dest": "/api/clientes/index.js" },
-    { "src": "/api/produtos/([^/]+)", "dest": "/api/produtos/[id].js?id=$1" },
-    { "src": "/api/produtos", "dest": "/api/produtos/index.js" },
-    { "src": "/api/fornecedores/([^/]+)", "dest": "/api/fornecedores/[id].js?id=$1" },
-    { "src": "/api/fornecedores", "dest": "/api/fornecedores/index.js" },
-    { "src": "/api/tarefas/([^/]+)", "dest": "/api/tarefas/[id].js?id=$1" },
-    { "src": "/api/tarefas", "dest": "/api/tarefas/index.js" },
-    { "src": "/api/leads/([^/]+)", "dest": "/api/leads/[id].js?id=$1" },
-    { "src": "/api/leads", "dest": "/api/leads/index.js" },
-    { "src": "/api/eventos/([^/]+)", "dest": "/api/eventos/[id].js?id=$1" },
-    { "src": "/api/eventos", "dest": "/api/eventos/index.js" },
-    { "src": "/api/orcamentos/([^/]+)", "dest": "/api/orcamentos/[id].js?id=$1" },
-    { "src": "/api/orcamentos", "dest": "/api/orcamentos/index.js" },
-    { "src": "/api/financeiro/([^/]+)", "dest": "/api/financeiro/[id].js?id=$1" },
-    { "src": "/api/financeiro", "dest": "/api/financeiro/index.js" },
-    { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/index.html" }
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
