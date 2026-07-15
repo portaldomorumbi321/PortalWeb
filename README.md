@@ -1,8 +1,10 @@
 # Portal com Menu Superior
 
-Projeto fullstack com frontend (Vite/React) e backend (Express + Socket.IO) no mesmo repositório.
+Projeto com frontend em Vite/React localizado em `apps/web`.
 
-## Rodar localmente (frontend + backend)
+O frontend consome um backend HTTP/Socket.IO externo configurado por variáveis de ambiente.
+
+## Rodar localmente (frontend)
 
 1. Instale dependências:
 
@@ -10,33 +12,31 @@ Projeto fullstack com frontend (Vite/React) e backend (Express + Socket.IO) no m
 npm install
 ```
 
-2. Crie o arquivo `.env` com base em `.env.example` (opcional no dev local).
+2. Crie os arquivos de ambiente necessários para o frontend.
 
-3. Suba frontend e backend juntos:
+3. Suba o frontend:
 
 ```bash
-npm run dev
+npm run dev:frontend
 ```
 
 - Frontend: http://localhost:5173
-- Backend: http://localhost:3001
 
 ## Variáveis de ambiente
 
-Use o arquivo `.env.example` como referência.
+Use os arquivos de ambiente do frontend em `apps/web` como referência.
 
 ### Frontend (Vite)
 
-- `VITE_API_URL`: URL base do backend HTTP.
-- `VITE_SOCKET_URL`: URL base do Socket.IO (se omitido, usa `VITE_API_URL`; no dev cai para `http://localhost:3001`).
+- `VITE_API_URL`: URL base do backend HTTP. Em produção, deve incluir o prefixo `/api` do backend.
+- `VITE_SOCKET_URL`: URL base do Socket.IO.
 
-### Backend (Express)
+Exemplo de produção em `apps/web/.env.production`:
 
-- `PORT`: porta do backend (Railway injeta automaticamente).
-- `DATABASE_URL`: conexão com Postgres.
-- `FRONTEND_ORIGIN`: origem principal permitida (ex: domínio do Vercel).
-- `FRONTEND_ORIGINS`: lista separada por vírgula com origens permitidas.
-- `WHATSAPP_AUTH_PATH`: caminho para persistência de sessão do WhatsApp.
+```env
+VITE_API_URL=https://seu-backend.up.railway.app/api
+VITE_SOCKET_URL=https://seu-backend.up.railway.app
+```
 
 ## Deploy: Vercel + Railway
 
@@ -44,20 +44,14 @@ Use o arquivo `.env.example` como referência.
 
 Configure no projeto Vercel:
 
-- `VITE_API_URL=https://SEU_BACKEND.up.railway.app`
+- `VITE_API_URL=https://SEU_BACKEND.up.railway.app/api`
 - `VITE_SOCKET_URL=https://SEU_BACKEND.up.railway.app`
 
-### Railway (backend)
+### Railway (backend externo)
 
 Configure no serviço Railway:
 
 - `FRONTEND_ORIGIN=https://SEU_FRONTEND.vercel.app`
 - `FRONTEND_ORIGINS=https://SEU_FRONTEND.vercel.app,http://localhost:5173`
 - `DATABASE_URL=...`
-
-Start command:
-
-```bash
-node Backend/index.cjs
-```
   
