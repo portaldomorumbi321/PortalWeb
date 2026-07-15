@@ -1,53 +1,58 @@
-# Copilot Instructions
+# Projeto 321Go
 
-## Contexto do repositório
+## Arquitetura obrigatória
 
-Este workspace usa estrutura de monorepo.
+### Frontend
 
-Pastas principais:
-- `apps/web`: frontend web em Vite + React
-- `apps/mobile`: app mobile em Expo + React Native
-- `packages/ui`: componentes compartilháveis
-- `packages/types`: tipos compartilhados
-- `packages/utils`: utilitários compartilhados
-- `api/` e `Backend/`: código legado existente; não assumir que são a fonte principal sem confirmação
+- Next.js App Router
 
-## Diretrizes gerais
+### Backend
 
-- Preserve funcionalidades existentes.
-- Faça mudanças pequenas e focadas.
-- Não refatore áreas não relacionadas ao pedido.
-- Não recrie `apps/api` ou outra API nova sem solicitação explícita.
-- Antes de alterar arquivos, prefira localizar o ponto exato de uso e mudar apenas a fatia necessária.
-- Ao atualizar integrações HTTP no frontend, concentre mudanças na camada `data/` sempre que possível.
+- NestJS
 
-## Frontend web
+### Banco
 
-- O app web fica em `apps/web`.
-- Use os padrões já existentes em `apps/web/src/app`.
-- Para serviços HTTP, siga o estilo dos arquivos em `apps/web/src/app/data`.
-- Considere `VITE_API_URL` como fonte da base HTTP.
-- Considere `VITE_SOCKET_URL` como fonte da base de tempo real.
-- Evite alterar layout quando o pedido for apenas de integração, dados ou infraestrutura.
+- PostgreSQL Neon
 
-## Mobile
+### ORM
 
-- O app mobile fica em `apps/mobile`.
-- Preserve o template Expo enquanto o app estiver em fase inicial, a menos que o pedido exija estrutura mais avançada.
-- Ao integrar com backend, centralize configuração de ambiente e clientes HTTP em arquivos dedicados.
+- Prisma
 
-## Código compartilhado
+### Deploy
 
-- Se lógica, tipos ou utilitários forem compartilháveis entre web e mobile, prefira `packages/types`, `packages/utils` e `packages/ui` quando isso fizer sentido.
-- Não mova código para `packages/*` sem necessidade clara.
+- Frontend: Vercel
+- Backend: Railway
 
-## Validação
+## Regras obrigatórias
 
-- Para web, valide com build quando houver mudança relevante.
-- Para mobile, valide ao menos estrutura e tipagem dos arquivos tocados.
-- Se houver risco de configuração quebrada, documente o impacto de forma objetiva.
+- Nunca criar APIs dentro do Next.js.
+- Toda regra de negócio pertence ao NestJS.
+- Todo acesso ao banco pertence ao NestJS.
+- Frontend apenas consome REST API.
+- Sempre utilizar DTO.
+- Sempre utilizar Services.
+- Sempre utilizar Repository Pattern.
+- Nunca criar SQL manual.
+- Sempre utilizar Prisma.
+- Sempre utilizar TypeScript.
+- Sempre seguir Clean Architecture.
+- Sempre manter código modular.
+- Nunca alterar funcionalidades existentes sem solicitação.
 
-## Documentação
+## Diretrizes de implementação
 
-- Atualize documentação quando scripts, estrutura, variáveis de ambiente ou fluxo de execução mudarem.
-- Mantenha README e instruções alinhados com a estrutura real do monorepo.
+- Toda nova funcionalidade de backend deve ser organizada em módulos do NestJS.
+- Controllers devem ser finos e delegar para Services.
+- Services devem concentrar casos de uso e regras de negócio.
+- Repositories devem encapsular acesso a dados via Prisma.
+- DTOs devem ser usados para entrada, saída e contratos entre camadas.
+- O frontend não deve conter regra de negócio nem acesso direto ao banco.
+- O frontend deve consumir apenas endpoints REST expostos pelo backend.
+- Mudanças devem ser pequenas, modulares e restritas ao escopo solicitado.
+
+## Qualidade e manutenção
+
+- Preservar comportamentos existentes salvo solicitação explícita.
+- Evitar refatorações paralelas sem relação com a tarefa.
+- Atualizar documentação quando arquitetura, deploy, variáveis de ambiente ou fluxos mudarem.
+- Preferir código claro, tipado e consistente com a arquitetura definida.
