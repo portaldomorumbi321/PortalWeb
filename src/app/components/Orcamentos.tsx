@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
-  Search, Plus, Edit2, Trash2, X, Check, FileText, ChevronDown, ChevronUp,
+  Search, Plus, Edit2, X, Check, FileText, ChevronDown, ChevronUp,
   User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Printer, Sparkles, Link2, Star
 } from "lucide-react"; // Adicionado Sparkles
 import { Card } from "./ui/card";
@@ -24,7 +24,6 @@ import {
   atualizarOrcamento,
   criarOrcamento,
   listarOrcamentos,
-  removerOrcamento,
   type ItemOrc,
   type DocumentoVenda,
   type Orcamento,
@@ -72,6 +71,103 @@ function fmtData(d: string) {
   return `${day}/${m}/${y}`;
 }
 
+function resumirItemSecao(item: any) {
+  if (!item || typeof item !== "object") return "Detalhes disponíveis";
+
+  if (item.nome) return String(item.nome);
+  if (item.descricao) return String(item.descricao);
+  if (item.companhia || item.numero) {
+    const companhia = item.companhia ? String(item.companhia) : "Voo";
+    const numero = item.numero ? ` ${String(item.numero)}` : "";
+    return `${companhia}${numero}`.trim();
+  }
+  if (item.origem || item.destino) {
+    const origem = item.origem ? String(item.origem) : "Origem";
+    const destino = item.destino ? String(item.destino) : "Destino";
+    return `${origem} -> ${destino}`;
+  }
+  if (item.tipo) return String(item.tipo);
+
+  return "Detalhes disponíveis";
+}
+
+function extrairNumeroPositivo(valor: unknown, padrao = 0) {
+  const n = Number(valor);
+  return Number.isFinite(n) && n > 0 ? n : padrao;
+}
+
+function montarLinhasDescricao(orc: Orcamento): ItemOrc[] {
+  let proximoId = 1;
+  const criarLinha = (
+    descricao: string,
+    quantidade = 1,
+    unidade = "item",
+    valorUnitario = 0,
+    desconto = 0
+  ): ItemOrc => ({
+    id: proximoId++,
+    descricao,
+    quantidade,
+    unidade,
+    valorUnitario,
+    desconto,
+  });
+
+  const linhasVendas = (orc.itens || []).map((item) =>
+    criarLinha(
+      `[Vendas] ${item.descricao}`,
+      item.quantidade,
+      item.unidade || "un",
+      item.valorUnitario,
+      item.desconto
+    )
+  );
+
+  const secoes = [
+    { titulo: "Voos", dados: orc.voos },
+    { titulo: "Hospedagem", dados: orc.hospedagem },
+    { titulo: "Day by Day", dados: orc.dayByDay },
+    { titulo: "Transporte", dados: orc.transporte },
+    { titulo: "Restaurante", dados: orc.restaurante },
+    { titulo: "Experiências", dados: orc.experiencias },
+    { titulo: "Seguro", dados: orc.seguro },
+  ];
+
+  const linhasSecoes = secoes.flatMap((secao) => {
+    if (!Array.isArray(secao.dados) || secao.dados.length === 0) return [];
+
+    return secao.dados.map((item) => {
+      const quantidade = extrairNumeroPositivo(item?.qtdPessoas, 0)
+        || extrairNumeroPositivo(item?.quantidade, 0)
+        || extrairNumeroPositivo(item?.noites, 0)
+        || 1;
+
+      const valorUnitario = extrairNumeroPositivo(item?.valor, 0)
+        || extrairNumeroPositivo(item?.preco, 0)
+        || extrairNumeroPositivo(item?.valorUnitario, 0)
+        || 0;
+
+      const unidade = typeof item?.unidade === "string" && item.unidade.trim()
+        ? item.unidade
+        : "item";
+
+      return criarLinha(
+        `[${secao.titulo}] ${resumirItemSecao(item)}`,
+        quantidade,
+        unidade,
+        valorUnitario,
+        0
+      );
+    });
+  });
+
+  const linhaRoteiro = orc.roteiro && orc.roteiro.trim()
+    ? [criarLinha(`[Roteiro] ${orc.roteiro.trim().replace(/\s+/g, " ").slice(0, 160)}${orc.roteiro.trim().length > 160 ? "..." : ""}`, 1, "txt", 0, 0)]
+    : [];
+
+  return [...linhasVendas, ...linhasSecoes, ...linhaRoteiro];
+}
+
 function gerarNumero(lista: Orcamento[]) {
   // New format: <aammdd><NN> where NN is incremental starting at 01 per day
   const now = new Date();
@@ -112,7 +208,6 @@ export default function Orcamentos() {
   const [preview, setPreview] = useState<Orcamento | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusOrc | "Todos">("Todos");
-  const [confirmarExclusao, setConfirmarExclusao] = useState<number | null>(null);
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
   const [section, setSection] = useState<SecaoOrcamento>("Voos");
   const [voos, setVoos] = useState<any[]>([]);
@@ -480,18 +575,6 @@ export default function Orcamentos() {
     setPreview(orcParaAbrir);
     setTela("preview");
     setTimeout(() => window.print(), 500); // Aguarda a renderização antes de imprimir
-  }
-
-  async function excluir(id: number) {
-    setErro(null);
-    try {
-      await removerOrcamento(id);
-      await carregarOrcamentos();
-    } catch (error) {
-      setErro(error instanceof Error ? error.message : "Erro ao excluir orçamento.");
-    } finally {
-      setConfirmarExclusao(null);
-    }
   }
 
   // --- itens do form ---
@@ -1267,6 +1350,8 @@ export default function Orcamentos() {
         )}
         {filtrados.map((orc) => {
           const total = calcTotal(orc.itens);
+          const linhasDescricao = montarLinhasDescricao(orc);
+          const totalDescricao = calcTotal(linhasDescricao);
           const cfg = statusConfig[orc.status];
           const expandido = expandidos.has(orc.id);
           const vencido = orc.dataValidade && new Date(orc.dataValidade) < new Date() && orc.status !== "Aprovado" && orc.status !== "Cancelado" && orc.status !== "Rejeitado";
@@ -1305,15 +1390,6 @@ export default function Orcamentos() {
                     className="p-1.5 rounded text-green-600 hover:bg-green-50 transition-colors disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                   ><MapPin className="w-4 h-4" /></button>
                   <button onClick={() => duplicar(orc)} title="Duplicar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Copy className="w-4 h-4" /></button>
-                  {confirmarExclusao === orc.id ? (
-                    <>
-                      <span className="text-xs text-gray-500">Excluir?</span>
-                      <button onClick={() => excluir(orc.id)} className="p-1.5 rounded text-green-600 hover:bg-green-50"><Check className="w-4 h-4" /></button>
-                      <button onClick={() => setConfirmarExclusao(null)} className="p-1.5 rounded text-gray-400 hover:bg-gray-100"><X className="w-4 h-4" /></button>
-                    </>
-                  ) : (
-                    <button onClick={() => setConfirmarExclusao(orc.id)} title="Excluir" className="p-1.5 rounded text-red-500 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                  )}
                   <button onClick={() => toggleFavorito(orc.id)} title={favoritos.includes(orc.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"} className={`p-1.5 rounded transition-colors ${favoritos.includes(orc.id) ? 'text-yellow-400 hover:text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}>
                     <Star className={`w-4 h-4 ${favoritos.includes(orc.id) ? 'fill-yellow-400' : ''}`} />
                   </button>
@@ -1326,6 +1402,7 @@ export default function Orcamentos() {
               {/* Itens expandidos */}
               {expandido && (
                 <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Descrição</h4>
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-gray-400 font-semibold">
@@ -1338,7 +1415,7 @@ export default function Orcamentos() {
                       </tr>
                     </thead>
                     <tbody>
-                      {orc.itens.map((item) => (
+                      {linhasDescricao.map((item) => (
                         <tr key={item.id} className="border-t border-gray-200">
                           <td className="py-1.5 text-gray-700">{item.descricao}</td>
                           <td className="py-1.5 text-center text-gray-500">{item.quantidade}</td>
@@ -1350,7 +1427,7 @@ export default function Orcamentos() {
                       ))}
                       <tr className="border-t-2 border-indigo-200">
                         <td colSpan={5} className="py-2 font-bold text-gray-700">Total</td>
-                        <td className="py-2 text-right font-bold text-indigo-700">{moeda(total)}</td>
+                        <td className="py-2 text-right font-bold text-indigo-700">{moeda(totalDescricao)}</td>
                       </tr>
                     </tbody>
                   </table>
