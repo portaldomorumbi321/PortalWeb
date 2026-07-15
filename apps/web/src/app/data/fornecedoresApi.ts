@@ -16,7 +16,7 @@ export interface Fornecedor {
 
 export type FornecedorPayload = Omit<Fornecedor, 'id'>;
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let response: Response;
