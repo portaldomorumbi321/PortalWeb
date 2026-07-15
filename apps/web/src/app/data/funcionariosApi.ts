@@ -70,25 +70,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function listarFuncionarios() {
-  return request<Funcionario[]>('/api/funcionarios');
+  return request<Funcionario[]>('/funcionarios');
 }
 
 export function criarFuncionario(payload: FuncionarioPayload) {
-  return request<Funcionario>('/api/funcionarios', {
+  return request<Funcionario>('/funcionarios', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function atualizarFuncionario(id: number, payload: FuncionarioPayload) {
-  return request<Funcionario>(`/api/funcionarios/${id}`, {
+  return request<Funcionario>(`/funcionarios/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
 export function removerFuncionario(id: number) {
-  return request<void>(`/api/funcionarios/${id}`, {
+  return request<void>(`/funcionarios/${id}`, {
     method: 'DELETE',
   });
 }
@@ -98,7 +98,7 @@ export function loginFuncionario(email: string, password: string) {
     let response: Response;
 
     try {
-      response = await fetch(`${API_BASE_URL}/api/auth/funcionarios/login`, {
+      response = await fetch(`${API_BASE_URL}/auth/funcionarios/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

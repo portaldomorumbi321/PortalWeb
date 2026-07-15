@@ -63,18 +63,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function listarProdutos() {
-  return request<Produto[]>('/api/produtos');
+  return request<Produto[]>('/produtos');
 }
 
 export function criarProduto(payload: ProdutoPayload) {
-  return request<Produto>('/api/produtos', {
+  return request<Produto>('/produtos', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function atualizarProduto(id: number, payload: ProdutoPayload) {
-  return request<Produto>(`/api/produtos/${id}`, {
+  return request<Produto>(`/produtos/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });

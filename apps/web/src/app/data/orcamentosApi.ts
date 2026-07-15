@@ -91,25 +91,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function listarOrcamentos() {
-  return request<Orcamento[]>('/api/orcamentos');
+  return request<Orcamento[]>('/orcamentos');
 }
 
 export function criarOrcamento(payload: OrcamentoPayload) {
-  return request<Orcamento>('/api/orcamentos', {
+  return request<Orcamento>('/orcamentos', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function atualizarOrcamento(id: number, payload: OrcamentoPayload) {
-  return request<Orcamento>(`/api/orcamentos/${id}`, {
+  return request<Orcamento>(`/orcamentos/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
 export function removerOrcamento(id: number) {
-  return request<void>(`/api/orcamentos/${id}`, {
+  return request<void>(`/orcamentos/${id}`, {
     method: 'DELETE',
   });
 }

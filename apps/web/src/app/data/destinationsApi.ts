@@ -151,7 +151,7 @@ function buildSearchableText(data: Record<string, unknown>): string {
 }
 
 async function fetchDestinations(query: string, limit = 200): Promise<DestinationApiResponseItem[]> {
-  const items = await request<DestinationApiResponseItem[]>(`/api/destinations?limit=${limit}&offset=0`);
+  const items = await request<DestinationApiResponseItem[]>(`/destinations?limit=${limit}&offset=0`);
   const normalizedQuery = normalizeText(query);
 
   if (!normalizedQuery) {

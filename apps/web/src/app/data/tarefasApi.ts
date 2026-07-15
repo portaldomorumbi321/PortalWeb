@@ -64,25 +64,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function listarTarefas() {
-  return request<Tarefa[]>('/api/tarefas');
+  return request<Tarefa[]>('/tarefas');
 }
 
 export function criarTarefa(payload: TarefaPayload) {
-  return request<Tarefa>('/api/tarefas', {
+  return request<Tarefa>('/tarefas', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function atualizarTarefa(id: number, payload: TarefaPayload) {
-  return request<Tarefa>(`/api/tarefas/${id}`, {
+  return request<Tarefa>(`/tarefas/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
 export function removerTarefa(id: number) {
-  return request<void>(`/api/tarefas/${id}`, {
+  return request<void>(`/tarefas/${id}`, {
     method: 'DELETE',
   });
 }

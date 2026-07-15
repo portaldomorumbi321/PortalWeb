@@ -63,25 +63,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function listarEventos() {
-  return request<Evento[]>('/api/eventos');
+  return request<Evento[]>('/eventos');
 }
 
 export function criarEvento(payload: EventoPayload) {
-  return request<Evento>('/api/eventos', {
+  return request<Evento>('/eventos', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function atualizarEvento(id: number, payload: EventoPayload) {
-  return request<Evento>(`/api/eventos/${id}`, {
+  return request<Evento>(`/eventos/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
 export function removerEvento(id: number) {
-  return request<void>(`/api/eventos/${id}`, {
+  return request<void>(`/eventos/${id}`, {
     method: 'DELETE',
   });
 }

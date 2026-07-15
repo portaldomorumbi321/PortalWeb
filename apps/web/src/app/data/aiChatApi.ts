@@ -56,7 +56,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function enviarMensagemIA(messages: AIChatApiMessage[]) {
-  return request<AIChatResponse>("/api/ai/chat", {
+  return request<AIChatResponse>("/ai/chat", {
     method: "POST",
     body: JSON.stringify({ messages }),
   });

@@ -77,25 +77,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function listarLancamentosFinanceiros() {
-  return request<LancamentoFinanceiro[]>('/api/financeiro');
+  return request<LancamentoFinanceiro[]>('/financeiro');
 }
 
 export function criarLancamentoFinanceiro(payload: LancamentoFinanceiroPayload) {
-  return request<LancamentoFinanceiro>('/api/financeiro', {
+  return request<LancamentoFinanceiro>('/financeiro', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function atualizarLancamentoFinanceiro(id: number, payload: LancamentoFinanceiroPayload) {
-  return request<LancamentoFinanceiro>(`/api/financeiro/${id}`, {
+  return request<LancamentoFinanceiro>(`/financeiro/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
 export function removerLancamentoFinanceiro(id: number) {
-  return request<void>(`/api/financeiro/${id}`, {
+  return request<void>(`/financeiro/${id}`, {
     method: 'DELETE',
   });
 }

@@ -65,25 +65,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function listarLeads() {
-  return request<Lead[]>('/api/leads');
+  return request<Lead[]>('/leads');
 }
 
 export function criarLead(payload: LeadPayload) {
-  return request<Lead>('/api/leads', {
+  return request<Lead>('/leads', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function atualizarLead(id: number, payload: LeadPayload) {
-  return request<Lead>(`/api/leads/${id}`, {
+  return request<Lead>(`/leads/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
 export function removerLead(id: number) {
-  return request<void>(`/api/leads/${id}`, {
+  return request<void>(`/leads/${id}`, {
     method: 'DELETE',
   });
 }

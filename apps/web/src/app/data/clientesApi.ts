@@ -68,18 +68,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function listarClientes() {
-  return request<Cliente[]>('/api/clientes');
+  return request<Cliente[]>('/clientes');
 }
 
 export function criarCliente(payload: ClientePayload) {
-  return request<Cliente>('/api/clientes', {
+  return request<Cliente>('/clientes', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function atualizarCliente(id: number, payload: ClientePayload) {
-  return request<Cliente>(`/api/clientes/${id}`, {
+  return request<Cliente>(`/clientes/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });

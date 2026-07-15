@@ -66,18 +66,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function listarFornecedores() {
-  return request<Fornecedor[]>('/api/fornecedores');
+  return request<Fornecedor[]>('/fornecedores');
 }
 
 export function criarFornecedor(payload: FornecedorPayload) {
-  return request<Fornecedor>('/api/fornecedores', {
+  return request<Fornecedor>('/fornecedores', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export function atualizarFornecedor(id: number, payload: FornecedorPayload) {
-  return request<Fornecedor>(`/api/fornecedores/${id}`, {
+  return request<Fornecedor>(`/fornecedores/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
