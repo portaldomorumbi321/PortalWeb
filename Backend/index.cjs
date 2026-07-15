@@ -54,6 +54,9 @@ const LOCALHOST_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 const WHATSAPP_AUTH_PATH =
   process.env.WHATSAPP_AUTH_PATH ||
   path.resolve(process.env.LOCALAPPDATA || process.env.TEMP || process.cwd(), 'PortalWeb', 'wwebjs_auth');
+const WHATSAPP_CACHE_PATH =
+  process.env.WHATSAPP_CACHE_PATH ||
+  path.resolve(process.env.LOCALAPPDATA || process.env.TEMP || process.cwd(), 'PortalWeb', 'wwebjs_cache');
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -1751,44 +1754,430 @@ const io = new Server(server, {
   },
 });
 
-io.on('connection', (socket) => {
-  console.log('Frontend conectado via Socket.IO');
-  socket.emit('message', 'Conectado ao servidor. Aguardando inicialização do WhatsApp...');
-  socket.emit('message', 'Iniciando cliente do WhatsApp no servidor...');
+let whatsappClient = null;
+let whatsappClientInitializing = null;
+let whatsappReady = false;
+let latestQr = null;
+let whatsappBooting = false;
+let whatsappChatsApiUnavailable = false;
 
-  const client = new Client({
-    authStrategy: new LocalAuth({ dataPath: WHATSAPP_AUTH_PATH }),
-    puppeteer: {
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    },
-  });
+function formatMessageTimestamp(unixSeconds) {
+  const value = Number(unixSeconds);
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+  return value;
+}
 
+function getMessageBody(message) {
+  if (typeof message.body === 'string' && message.body.trim()) {
+    return message.body;
+  }
+
+  if (typeof message.caption === 'string' && message.caption.trim()) {
+    return message.caption;
+  }
+
+  if (message.type) {
+    return `[${message.type}]`;
+  }
+
+  return '';
+}
+
+function serializeChat(chat) {
+  const id = chat?.id?._serialized || '';
+  const name =
+    chat?.name ||
+    chat?.formattedTitle ||
+    chat?.id?.user ||
+    (chat?.isGroup ? 'Grupo sem nome' : 'Contato sem nome');
+  const lastBody = chat?.lastMessage ? getMessageBody(chat.lastMessage) : '';
+  const timestamp = formatMessageTimestamp(chat?.timestamp || chat?.lastMessage?.timestamp);
+
+  return {
+    id,
+    name,
+    isGroup: Boolean(chat?.isGroup),
+    unreadCount: Number(chat?.unreadCount || 0),
+    lastMessage: lastBody,
+    timestamp,
+    historyAvailable: true,
+  };
+}
+
+function getErrorMessage(error) {
+  if (!error) {
+    return 'Erro desconhecido.';
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    return error.message || 'Erro sem mensagem.';
+  }
+
+  if (typeof error.message === 'string') {
+    return error.message;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch (_) {
+    return 'Falha ao serializar erro.';
+  }
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function serializeMessage(message) {
+  return {
+    id: message?.id?._serialized || `${Date.now()}-${Math.random()}`,
+    chatId: message?.fromMe ? message?.to : message?.from,
+    from: message?.from || '',
+    fromMe: Boolean(message?.fromMe),
+    body: getMessageBody(message),
+    timestamp: formatMessageTimestamp(message?.timestamp) || Math.floor(Date.now() / 1000),
+  };
+}
+
+function serializeContactAsChat(contact) {
+  const id = contact?.id?._serialized || '';
+  if (!id) {
+    return null;
+  }
+
+  const name =
+    contact?.pushname ||
+    contact?.name ||
+    contact?.shortName ||
+    contact?.number ||
+    id.replace(/@.*/, '');
+
+  return {
+    id,
+    name,
+    isGroup: false,
+    unreadCount: 0,
+    lastMessage: '',
+    timestamp: null,
+    historyAvailable: false,
+  };
+}
+
+async function listContactsFallback() {
+  let contacts = null;
+  let contactsError = null;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      contacts = await whatsappClient.getContacts();
+      break;
+    } catch (error) {
+      contactsError = error;
+      const message = getErrorMessage(error);
+      console.warn(`Tentativa ${attempt + 1} de listar contatos falhou:`, message);
+      await delay(300 * (attempt + 1));
+    }
+  }
+
+  if (!Array.isArray(contacts)) {
+    throw new Error(`Falha ao listar contatos: ${getErrorMessage(contactsError)}`);
+  }
+
+  return contacts
+    .map((contact) => serializeContactAsChat(contact))
+    .filter(Boolean)
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
+}
+
+function bindWhatsAppEvents(client) {
   client.on('loading_screen', (percent, message) => {
     console.log('CARREGANDO WHATSAPP:', percent, message);
-    socket.emit('message', `Carregando: ${message}`);
+    io.emit('message', `Carregando: ${message}`);
   });
 
   client.on('qr', (qr) => {
     console.log('QR Code recebido, enviando para o frontend...');
     qrcode.generate(qr, { small: true });
-    socket.emit('qr', qr);
+    latestQr = qr;
+    whatsappReady = false;
+    io.emit('qr', qr);
+    io.emit('status', { connected: false, waitingQr: true });
   });
 
   client.on('ready', () => {
     console.log('Cliente WhatsApp está pronto!');
-    socket.emit('ready', 'Cliente conectado com sucesso!');
+    whatsappReady = true;
+    whatsappBooting = false;
+    latestQr = null;
+    io.emit('ready', 'Cliente conectado com sucesso!');
+    io.emit('status', { connected: true, waitingQr: false });
   });
 
   client.on('auth_failure', (msg) => {
     console.error('FALHA NA AUTENTICAÇÃO', msg);
-    socket.emit('message', `Falha na autenticação: ${msg}`);
+    whatsappReady = false;
+    whatsappBooting = false;
+    io.emit('message', `Falha na autenticação: ${msg}`);
+    io.emit('status', { connected: false, waitingQr: false });
   });
 
+  client.on('disconnected', (reason) => {
+    console.warn('Cliente WhatsApp desconectado:', reason);
+    whatsappReady = false;
+    whatsappBooting = false;
+    latestQr = null;
+    io.emit('message', `WhatsApp desconectado: ${reason}`);
+    io.emit('status', { connected: false, waitingQr: false });
+  });
+
+  client.on('message', (msg) => {
+    io.emit('incoming_message', serializeMessage(msg));
+
+    msg
+      .getChat()
+      .then((chat) => {
+        io.emit('wa:chat_upsert', serializeChat(chat));
+      })
+      .catch(() => {
+        // Ignora falhas pontuais na atualização da lista de chats.
+      });
+  });
+
+  client.on('message_create', (msg) => {
+    if (!msg.fromMe) {
+      return;
+    }
+
+    io.emit('incoming_message', serializeMessage(msg));
+
+    msg
+      .getChat()
+      .then((chat) => {
+        io.emit('wa:chat_upsert', serializeChat(chat));
+      })
+      .catch(() => {
+        // Ignora falhas pontuais na atualização da lista de chats.
+      });
+  });
+}
+
+async function sendChatsToSocket(socket) {
+  if (!whatsappReady || !whatsappClient) {
+    socket.emit('wa:error', { code: 'NOT_READY', message: 'WhatsApp ainda não está pronto.' });
+    return;
+  }
+
+  if (whatsappChatsApiUnavailable) {
+    try {
+      const fallbackChats = await listContactsFallback();
+      socket.emit('wa:chats', fallbackChats);
+      socket.emit('message', 'Modo compatibilidade ativo: exibindo contatos.');
+      return;
+    } catch (error) {
+      socket.emit('wa:chats', []);
+      socket.emit('message', `Falha ao listar contatos: ${getErrorMessage(error)}`);
+      return;
+    }
+  }
+
+  let chats = null;
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      chats = await whatsappClient.getChats();
+      break;
+    } catch (error) {
+      lastError = error;
+      const message = getErrorMessage(error);
+      console.warn(`Tentativa ${attempt + 1} de listar chats falhou:`, message);
+      await delay(350 * (attempt + 1));
+    }
+  }
+
+  if (!Array.isArray(chats)) {
+    // Fallback para ambientes em que getChats pode falhar mesmo após ready.
+    try {
+      const chatsErrorMessage = getErrorMessage(lastError);
+      if (chatsErrorMessage === 'r') {
+        whatsappChatsApiUnavailable = true;
+      }
+
+      const serializedFromContacts = await listContactsFallback();
+
+      socket.emit('wa:chats', serializedFromContacts);
+      socket.emit('message', 'Chats indisponíveis temporariamente; exibindo contatos como fallback.');
+      return;
+    } catch (error) {
+      const chatsErrorMessage = getErrorMessage(lastError);
+      const fallbackError = getErrorMessage(error);
+      console.warn(`Falha no fallback de chats (${chatsErrorMessage}) (${fallbackError}).`);
+      socket.emit('wa:chats', []);
+      socket.emit('message', 'WhatsApp sincronizando. Tente atualizar chats novamente em alguns segundos.');
+      return;
+    }
+  }
+
+  const serialized = [];
+
+  for (const chat of chats) {
+    try {
+      const mapped = serializeChat(chat);
+      if (mapped.id) {
+        serialized.push(mapped);
+      }
+    } catch (error) {
+      console.warn('Chat ignorado por erro de serialização:', getErrorMessage(error));
+    }
+  }
+
+  serialized.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+
+  socket.emit('wa:chats', serialized);
+}
+
+async function sendMessagesToSocket(socket, chatId, limit = 120) {
+  if (!whatsappReady || !whatsappClient) {
+    socket.emit('wa:error', { code: 'NOT_READY', message: 'WhatsApp ainda não está pronto.' });
+    return;
+  }
+
+  if (!chatId) {
+    socket.emit('wa:error', { code: 'INVALID_CHAT', message: 'Chat inválido.' });
+    return;
+  }
+
+  const parsedLimit = Math.min(Math.max(Number(limit) || 120, 20), 300);
+  let serialized = [];
+
+  try {
+    const chat = await whatsappClient.getChatById(chatId);
+    const messages = await chat.fetchMessages({ limit: parsedLimit });
+    serialized = messages.map((message) => serializeMessage(message));
+  } catch (error) {
+    const detail = getErrorMessage(error);
+    if (detail === 'r') {
+      socket.emit('message', 'Histórico indisponível no modo atual.');
+      socket.emit('wa:messages', { chatId, messages: [] });
+      return;
+    }
+
+    throw error;
+  }
+
+  socket.emit('wa:messages', {
+    chatId,
+    messages: serialized,
+  });
+}
+
+function registerWhatsAppSocketEvents(socket) {
+  socket.on('wa:getChats', async () => {
+    try {
+      await sendChatsToSocket(socket);
+    } catch (error) {
+      const detail = getErrorMessage(error);
+      console.error('Erro ao listar chats do WhatsApp:', detail);
+      socket.emit('wa:error', {
+        code: 'LIST_CHATS_FAILED',
+        message: 'Não foi possível listar os chats.',
+        detail,
+      });
+    }
+  });
+
+  socket.on('wa:getMessages', async (payload = {}) => {
+    try {
+      await sendMessagesToSocket(socket, payload.chatId, payload.limit);
+    } catch (error) {
+      const detail = getErrorMessage(error);
+      console.error('Erro ao carregar mensagens do WhatsApp:', detail);
+      socket.emit('wa:error', {
+        code: 'LIST_MESSAGES_FAILED',
+        message: 'Não foi possível carregar as mensagens.',
+        detail,
+      });
+    }
+  });
+}
+
+function ensureWhatsAppClient() {
+  if (!whatsappClient) {
+    whatsappClient = new Client({
+      authStrategy: new LocalAuth({ dataPath: WHATSAPP_AUTH_PATH }),
+      webVersionCache: {
+        type: 'local',
+        path: WHATSAPP_CACHE_PATH,
+      },
+      puppeteer: {
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      },
+    });
+    bindWhatsAppEvents(whatsappClient);
+  }
+
+  if (whatsappReady) {
+    return Promise.resolve();
+  }
+
+  if (whatsappBooting) {
+    return Promise.resolve();
+  }
+
+  if (whatsappClientInitializing) {
+    return whatsappClientInitializing;
+  }
+
   console.log('Inicializando cliente do WhatsApp...');
-  client.initialize().catch((error) => {
-    console.error('Erro ao inicializar cliente do WhatsApp:', error.message);
-    socket.emit('message', `Não foi possível inicializar o WhatsApp: ${error.message}`);
+  whatsappBooting = true;
+  whatsappClientInitializing = whatsappClient
+    .initialize()
+    .catch((error) => {
+      const message = getErrorMessage(error);
+      if (message.includes('browser is already running for')) {
+        console.warn('Sessão do WhatsApp já está em uso por inicialização ativa. Aguardando ficar pronta.');
+        io.emit('message', 'Sessão do WhatsApp já está inicializando. Aguarde alguns segundos.');
+        return;
+      }
+
+      whatsappBooting = false;
+      console.error('Erro ao inicializar cliente do WhatsApp:', message);
+      io.emit('message', `Não foi possível inicializar o WhatsApp: ${message}`);
+      io.emit('status', { connected: false, waitingQr: false });
+    })
+    .finally(() => {
+      whatsappClientInitializing = null;
+    });
+
+  return whatsappClientInitializing;
+}
+
+io.on('connection', (socket) => {
+  console.log('Frontend conectado via Socket.IO');
+  socket.emit('message', 'Conectado ao servidor. Aguardando inicialização do WhatsApp...');
+  socket.emit('message', 'Iniciando cliente do WhatsApp no servidor...');
+  socket.emit('status', { connected: whatsappReady, waitingQr: !whatsappReady });
+
+  if (latestQr) {
+    socket.emit('qr', latestQr);
+  }
+
+  if (whatsappReady) {
+    socket.emit('ready', 'Cliente conectado com sucesso!');
+  }
+
+  registerWhatsAppSocketEvents(socket);
+
+  ensureWhatsAppClient().catch((error) => {
+    console.error('Falha inesperada ao garantir cliente do WhatsApp:', error);
+    socket.emit('message', 'Falha inesperada ao iniciar cliente do WhatsApp.');
   });
 });
 
