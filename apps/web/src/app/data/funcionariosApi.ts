@@ -13,6 +13,7 @@ export interface Funcionario {
 
 export interface LoginFuncionarioResponse {
   message: string;
+  accessToken: string;
   funcionario: Funcionario;
 }
 
@@ -93,8 +94,50 @@ export function removerFuncionario(id: number) {
 }
 
 export function loginFuncionario(email: string, password: string) {
-  return request<LoginFuncionarioResponse>('/api/auth/funcionarios/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
+  return (async () => {
+    let response: Response;
+
+    try {
+      response = await fetch(`${API_BASE_URL}/api/auth/funcionarios/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+    } catch {
+      throw new Error('Não foi possível conectar ao backend. Verifique se o servidor está rodando e se a URL da API está correta.');
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    const responseText = await response.text();
+    const isLikelyHtml = responseText.trimStart().startsWith('<!DOCTYPE') || responseText.trimStart().startsWith('<html');
+
+    let parsedBody: any = null;
+    if (responseText) {
+      try {
+        parsedBody = JSON.parse(responseText);
+      } catch {
+        parsedBody = null;
+      }
+    }
+
+    if (!response.ok) {
+      if (isLikelyHtml) {
+        throw new Error('A rota da API retornou HTML. Verifique a configuração do backend de autenticação.');
+      }
+
+      const apiMessage = Array.isArray(parsedBody?.message)
+        ? parsedBody.message.join(', ')
+        : parsedBody?.message;
+
+      throw new Error(apiMessage || parsedBody?.error || `Erro ao comunicar com o servidor (${response.status}).`);
+    }
+
+    if (isLikelyHtml || !contentType.includes('application/json')) {
+      throw new Error('Resposta inválida da API: esperado JSON. Verifique a configuração de deploy do backend.');
+    }
+
+    return parsedBody as LoginFuncionarioResponse;
+  })();
 }

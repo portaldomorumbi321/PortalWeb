@@ -34,6 +34,7 @@ export default function Login() {
     try {
       const response = await loginFuncionario(email, password);
       sessionStorage.setItem("isAuthenticated", "true");
+      sessionStorage.setItem("authToken", response.accessToken);
       sessionStorage.setItem("authFuncionario", JSON.stringify(response.funcionario));
       navigate("/");
     } catch (error) {
