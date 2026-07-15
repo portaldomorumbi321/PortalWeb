@@ -3,15 +3,25 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router";
 
+interface ReportItem {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  color: string;
+  bgColor: string;
+  path: string;
+}
+
 export default function Relatorios() {
   const navigate = useNavigate();
-  const reports = [
+  const reports: ReportItem[] = [
     {
       icon: BarChart3,
       title: "Relatório de Vendas",
       description: "Análise completa de vendas por período",
       color: "text-blue-600",
       bgColor: "bg-blue-100",
+      path: "/relatorios/vendas",
     },
     {
       icon: PieChart,
@@ -19,6 +29,7 @@ export default function Relatorios() {
       description: "Demonstrativo de receitas e despesas",
       color: "text-green-600",
       bgColor: "bg-green-100",
+      path: "/relatorios/financeiro",
     },
     {
       icon: FileText,
@@ -26,13 +37,15 @@ export default function Relatorios() {
       description: "Listagem e análise de clientes",
       color: "text-purple-600",
       bgColor: "bg-purple-100",
+      path: "/relatorios/clientes",
     },
     {
       icon: FileSpreadsheet,
-      title: "Relatório de Produtos",
-      description: "Estoque e movimentação de produtos",
+      title: "Relatório de Orçamentos",
+      description: "Análise de volume, aprovação e valor dos orçamentos",
       color: "text-orange-600",
       bgColor: "bg-orange-100",
+      path: "/relatorios/orcamentos",
     },
   ];
 
@@ -58,17 +71,7 @@ export default function Relatorios() {
                       size="sm"
                       variant="outline"
                       className="text-xs sm:text-sm py-2 sm:py-2 h-8 sm:h-9"
-                      onClick={() => {
-                        if (report.title === "Relatório de Vendas") {
-                          navigate("/relatorios/vendas");
-                        } else if (report.title === "Relatório Financeiro") {
-                          navigate("/relatorios/financeiro");
-                        } else if (report.title === "Relatório de Clientes") {
-                          navigate("/relatorios/clientes");
-                        } else if (report.title === "Relatório de Produtos") {
-                          navigate("/relatorios/produtos");
-                        }
-                      }}
+                      onClick={() => navigate(report.path)}
                     >
                       Visualizar
                     </Button>

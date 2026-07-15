@@ -1,78 +1,171 @@
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Download, Filter, Users, TrendingUp, UserCheck, AlertCircle } from "lucide-react";
+import { ArrowLeft, Download, TrendingUp, UserCheck, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Badge } from "./ui/badge";
-import { useState } from "react";
 import { exportPDF } from "../utils/pdfExport";
-import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import { listarClientes, type Cliente } from "../data/clientesApi";
+import { listarOrcamentos, type Orcamento } from "../data/orcamentosApi";
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-const clientesPorSegmento = [
-  { segmento: "Premium", quantidade: 45, vendas: 125000 },
-  { segmento: "Gold", quantidade: 120, vendas: 95000 },
-  { segmento: "Silver", quantidade: 280, vendas: 62000 },
-  { segmento: "Bronze", quantidade: 450, vendas: 35000 },
-];
+const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-const segmentacaoClientes = [
-  { name: "Premium", value: 45, percentual: 5 },
-  { name: "Gold", value: 120, percentual: 13 },
-  { name: "Silver", value: 280, percentual: 31 },
-  { name: "Bronze", value: 450, percentual: 51 },
-];
+type PeriodoFiltro = "ultimos-30" | "ultimos-90" | "ultimo-ano";
 
-const clientesPorRegiao = [
-  { regiao: "Sudeste", quantidade: 350, valor: 185000 },
-  { regiao: "Sul", quantidade: 220, valor: 98000 },
-  { regiao: "Nordeste", quantidade: 180, valor: 72000 },
-  { regiao: "Norte", quantidade: 95, valor: 38000 },
-  { regiao: "Centro-Oeste", quantidade: 50, valor: 24000 },
-];
+function parseData(data: string) {
+  if (!data) return null;
+  const parsed = new Date(`${data}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
-const topClientesValor = [
-  { id: 1, nome: "Empresa ABC", valor: 45000, pedidos: 24, status: "Ativo" },
-  { id: 2, nome: "Empresa XYZ", valor: 38000, pedidos: 19, status: "Ativo" },
-  { id: 3, nome: "Empresa DEF", valor: 32000, pedidos: 16, status: "Ativo" },
-  { id: 4, nome: "Empresa GHI", valor: 28000, pedidos: 14, status: "Inativo" },
-  { id: 5, nome: "Empresa JKL", valor: 25000, pedidos: 12, status: "Ativo" },
-];
+function formatarMoeda(valor: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
+}
 
-const clientesNovos = [
-  { mes: "Jan", novos: 12, ativos: 895, inativos: 105 },
-  { mes: "Fev", novos: 18, ativos: 913, inativos: 98 },
-  { mes: "Mar", novos: 24, ativos: 937, inativos: 85 },
-  { mes: "Abr", novos: 19, ativos: 956, inativos: 78 },
-  { mes: "Mai", novos: 31, ativos: 987, inativos: 72 },
-  { mes: "Jun", novos: 28, ativos: 1015, inativos: 68 },
-  { mes: "Jul", novos: 35, ativos: 1050, inativos: 65 },
-];
+function inicioPeriodo(periodo: PeriodoFiltro) {
+  const hoje = new Date();
+  const inicio = new Date(hoje);
 
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
+  if (periodo === "ultimos-30") {
+    inicio.setDate(hoje.getDate() - 30);
+  } else if (periodo === "ultimos-90") {
+    inicio.setDate(hoje.getDate() - 90);
+  } else {
+    inicio.setFullYear(hoje.getFullYear() - 1);
+  }
+
+  inicio.setHours(0, 0, 0, 0);
+  return inicio;
+}
+
+function calcularValorOrcamento(orcamento: Orcamento) {
+  const totalItens = (orcamento.itens || []).reduce((acc, item) => {
+    const subtotal = Number(item.quantidade || 0) * Number(item.valorUnitario || 0);
+    const desconto = subtotal * (Number(item.desconto || 0) / 100);
+    return acc + (subtotal - desconto);
+  }, 0);
+
+  const totalHospedagem = (orcamento.hospedagem || []).reduce((acc, item: any) => acc + (Number(item?.preco) || 0), 0);
+  const totalTransporte = (orcamento.transporte || []).reduce((acc, item: any) => acc + (Number(item?.valor) || 0), 0);
+  const totalRestaurante = (orcamento.restaurante || []).reduce((acc, item: any) => acc + (Number(item?.preco) || 0), 0);
+  const totalExperiencias = (orcamento.experiencias || []).reduce((acc, item: any) => acc + (Number(item?.preco) || 0), 0);
+  const totalSeguro = (orcamento.seguro || []).reduce((acc, item: any) => acc + (Number(item?.valor) || 0), 0);
+
+  return totalItens + totalHospedagem + totalTransporte + totalRestaurante + totalExperiencias + totalSeguro;
+}
 
 export default function RelatorioClientes() {
   const navigate = useNavigate();
-  const [periodo, setPeriodo] = useState("ultimos-30");
-  const [regiao, setRegiao] = useState("todas");
+  const [periodo, setPeriodo] = useState<PeriodoFiltro>("ultimos-90");
+  const [estado, setEstado] = useState("todos");
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
-  const totalClientes = "895";
-  const clientesAtivos = "1.050";
-  const novosMes = "35";
-  const taxaRetencao = "92%";
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarDados() {
+      setErro(null);
+      try {
+        const [listaClientes, listaOrcamentos] = await Promise.all([listarClientes(), listarOrcamentos()]);
+        if (ativo) {
+          setClientes(listaClientes);
+          setOrcamentos(listaOrcamentos);
+        }
+      } catch (error) {
+        if (ativo) {
+          setErro(error instanceof Error ? error.message : "Erro ao carregar relatório de clientes.");
+        }
+      } finally {
+        if (ativo) {
+          setCarregando(false);
+        }
+      }
+    }
+
+    carregarDados();
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  const estados = useMemo(() => {
+    const lista = new Set(clientes.map((cliente) => cliente.estado).filter(Boolean));
+    return Array.from(lista).sort((a, b) => a.localeCompare(b));
+  }, [clientes]);
+
+  const dados = useMemo(() => {
+    const inicio = inicioPeriodo(periodo);
+
+    const clientesFiltrados = estado === "todos" ? clientes : clientes.filter((cliente) => cliente.estado === estado);
+
+    const clientesAtivos = clientesFiltrados.filter((cliente) => cliente.status === "Ativo").length;
+    const taxaAtivos = clientesFiltrados.length ? (clientesAtivos / clientesFiltrados.length) * 100 : 0;
+
+    const orcamentosPeriodo = orcamentos.filter((orcamento) => {
+      if (estado !== "todos") {
+        const clienteRelacionado = clientes.find((cliente) => cliente.nome === orcamento.cliente);
+        if (clienteRelacionado?.estado !== estado) {
+          return false;
+        }
+      }
+      const data = parseData(orcamento.dataCriacao);
+      return data ? data >= inicio : false;
+    });
+
+    const porEstadoMap = new Map<string, number>();
+    clientesFiltrados.forEach((cliente) => {
+      const uf = cliente.estado || "Sem UF";
+      porEstadoMap.set(uf, (porEstadoMap.get(uf) || 0) + 1);
+    });
+
+    const clientesPorEstado = Array.from(porEstadoMap.entries())
+      .map(([regiao, quantidade]) => ({ regiao, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade)
+      .slice(0, 6);
+
+    const statusChart = [
+      { name: "Ativo", value: clientesFiltrados.filter((cliente) => cliente.status === "Ativo").length },
+      { name: "Inativo", value: clientesFiltrados.filter((cliente) => cliente.status === "Inativo").length },
+    ].filter((item) => item.value > 0);
+
+    const valorPorClienteMap = new Map<string, { nome: string; valor: number; pedidos: number; status: string }>();
+    orcamentosPeriodo.forEach((orcamento) => {
+      const valor = calcularValorOrcamento(orcamento);
+      const clienteSistema = clientes.find((cliente) => cliente.nome === orcamento.cliente);
+      const atual = valorPorClienteMap.get(orcamento.cliente) || {
+        nome: orcamento.cliente,
+        valor: 0,
+        pedidos: 0,
+        status: clienteSistema?.status || "Inativo",
+      };
+
+      atual.valor += valor;
+      atual.pedidos += 1;
+      valorPorClienteMap.set(orcamento.cliente, atual);
+    });
+
+    const topClientes = Array.from(valorPorClienteMap.values())
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 8);
+
+    const novosClientes = new Set(orcamentosPeriodo.map((orcamento) => orcamento.cliente)).size;
+
+    return {
+      totalClientes: clientesFiltrados.length,
+      clientesAtivos,
+      novosClientes,
+      taxaAtivos,
+      clientesPorEstado,
+      statusChart,
+      topClientes,
+    };
+  }, [clientes, estado, orcamentos, periodo]);
 
   return (
     <div className="px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
@@ -88,7 +181,7 @@ export default function RelatorioClientes() {
           </Button>
           <div className="min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold">Relatório de Clientes</h1>
-            <p className="text-xs sm:text-sm text-gray-600">Análise da carteira e comportamento de clientes</p>
+            <p className="text-xs sm:text-sm text-gray-600">Dados reais do cadastro de clientes e orçamentos</p>
           </div>
         </div>
         <Button
@@ -103,167 +196,132 @@ export default function RelatorioClientes() {
 
       <div id="relatorio-clientes-container">
         <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-2 sm:gap-4">
-        <div className="flex-1">
-          <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-2">Período</label>
-          <Select value={periodo} onValueChange={setPeriodo}>
-            <SelectTrigger className="h-9 sm:h-10 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ultimos-7">Últimos 7 dias</SelectItem>
-              <SelectItem value="ultimos-30">Últimos 30 dias</SelectItem>
-              <SelectItem value="ultimos-90">Últimos 90 dias</SelectItem>
-              <SelectItem value="ultimo-ano">Último ano</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1">
-          <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-2">Região</label>
-          <Select value={regiao} onValueChange={setRegiao}>
-            <SelectTrigger className="h-9 sm:h-10 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas</SelectItem>
-              <SelectItem value="norte">Norte</SelectItem>
-              <SelectItem value="nordeste">Nordeste</SelectItem>
-              <SelectItem value="centro-oeste">Centro-Oeste</SelectItem>
-              <SelectItem value="sudeste">Sudeste</SelectItem>
-              <SelectItem value="sul">Sul</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-end">
-          <Button variant="outline" className="gap-2 text-xs sm:text-sm py-2 h-9 sm:h-10 w-full sm:w-auto">
-            <Filter className="h-4 w-4" />
-            <span className="hidden sm:inline">Mais Filtros</span>
-            <span className="sm:hidden">Filtros</span>
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <Card className="p-3 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm text-gray-600 mb-2">Total de Clientes</p>
-              <h3 className="text-lg sm:text-2xl font-bold">{clientesAtivos}</h3>
-            </div>
-            <Users className="h-8 w-8 text-blue-600 opacity-20" />
+          <div className="flex-1 sm:max-w-xs">
+            <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-2">Período</label>
+            <Select value={periodo} onValueChange={(value) => setPeriodo(value as PeriodoFiltro)}>
+              <SelectTrigger className="h-9 sm:h-10 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ultimos-30">Últimos 30 dias</SelectItem>
+                <SelectItem value="ultimos-90">Últimos 90 dias</SelectItem>
+                <SelectItem value="ultimo-ano">Último ano</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <p className="text-xs sm:text-sm text-gray-600 mt-2">ativos e cadastrados</p>
-        </Card>
 
-        <Card className="p-3 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm text-gray-600 mb-2">Novos Clientes</p>
-              <h3 className="text-lg sm:text-2xl font-bold">{novosMes}</h3>
-            </div>
-            <UserCheck className="h-8 w-8 text-green-600 opacity-20" />
-          </div>
-          <p className="text-xs sm:text-sm text-green-600 mt-2">este mês</p>
-        </Card>
-
-        <Card className="p-3 sm:p-6">
-          <p className="text-xs sm:text-sm text-gray-600 mb-2">Taxa de Retenção</p>
-          <h3 className="text-lg sm:text-2xl font-bold">{taxaRetencao}</h3>
-          <div className="flex items-center gap-2 text-green-600 mt-2">
-            <TrendingUp className="h-4 w-4" />
-            <span className="text-xs sm:text-sm font-medium">+2.3%</span>
-          </div>
-        </Card>
-
-        <Card className="p-3 sm:p-6">
-          <p className="text-xs sm:text-sm text-gray-600 mb-2">Ticket Médio</p>
-          <h3 className="text-lg sm:text-2xl font-bold">R$ 8.500</h3>
-          <p className="text-xs sm:text-sm text-gray-600 mt-2">por cliente/ano</p>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <Card className="p-6">
-          <h3 className="font-semibold text-lg mb-4">Segmentação de Clientes</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={segmentacaoClientes}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {segmentacaoClientes.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          <div className="flex-1 sm:max-w-xs">
+            <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-2">UF</label>
+            <Select value={estado} onValueChange={setEstado}>
+              <SelectTrigger className="h-9 sm:h-10 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {estados.map((uf) => (
+                  <SelectItem key={uf} value={uf}>
+                    {uf}
+                  </SelectItem>
                 ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-        <Card className="p-6">
-          <h3 className="font-semibold text-lg mb-4">Clientes por Região</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={clientesPorRegiao}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="regiao" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="quantidade" fill="#3b82f6" name="Quantidade" />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
+        {erro && (
+          <Card className="p-4 mb-4 sm:mb-6 border-red-200 bg-red-50 text-red-700 text-sm">
+            {erro}
+          </Card>
+        )}
 
-      <div className="grid grid-cols-1 gap-6 mb-6">
-        <Card className="p-6">
-          <h3 className="font-semibold text-lg mb-4">Evolução de Clientes</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={clientesNovos}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="mes" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="novos" fill="#10b981" name="Novos Clientes" />
-              <Bar dataKey="ativos" fill="#3b82f6" name="Clientes Ativos" />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <Card className="p-3 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm text-gray-600 mb-2">Total de Clientes</p>
+                <h3 className="text-lg sm:text-2xl font-bold">{dados.totalClientes}</h3>
+              </div>
+              <Users className="h-8 w-8 text-blue-600 opacity-20" />
+            </div>
+          </Card>
 
-      <div className="grid grid-cols-1 gap-6 mb-6">
-        <Card className="p-6">
-          <h3 className="font-semibold text-lg mb-4">Top 5 Clientes por Valor</h3>
+          <Card className="p-3 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm text-gray-600 mb-2">Clientes Ativos</p>
+                <h3 className="text-lg sm:text-2xl font-bold">{dados.clientesAtivos}</h3>
+              </div>
+              <UserCheck className="h-8 w-8 text-green-600 opacity-20" />
+            </div>
+          </Card>
+
+          <Card className="p-3 sm:p-6">
+            <p className="text-xs sm:text-sm text-gray-600 mb-2">Clientes com orçamento</p>
+            <h3 className="text-lg sm:text-2xl font-bold">{dados.novosClientes}</h3>
+            <p className="text-xs sm:text-sm text-gray-600">no período filtrado</p>
+          </Card>
+
+          <Card className="p-3 sm:p-6">
+            <p className="text-xs sm:text-sm text-gray-600 mb-2">Taxa de Ativos</p>
+            <h3 className="text-lg sm:text-2xl font-bold">{dados.taxaAtivos.toFixed(1)}%</h3>
+            <div className="flex items-center gap-2 text-green-600 mt-2">
+              <TrendingUp className="h-4 w-4" />
+              <span className="text-xs sm:text-sm">status ativo no cadastro</span>
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+          <Card className="p-3 sm:p-6">
+            <h3 className="font-semibold text-sm sm:text-lg mb-4">Clientes por UF</h3>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={dados.clientesPorEstado}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="regiao" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar dataKey="quantidade" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+
+          <Card className="p-3 sm:p-6">
+            <h3 className="font-semibold text-sm sm:text-lg mb-4">Status de Clientes</h3>
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={dados.statusChart} dataKey="value" nameKey="name" outerRadius={90} label>
+                  {dados.statusChart.map((entry, index) => (
+                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+
+        <Card className="p-3 sm:p-6">
+          <h3 className="font-semibold text-sm sm:text-lg mb-4">Top Clientes por Valor de Orçamento</h3>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-xs sm:text-sm">
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Cliente</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Valor Total</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Pedidos</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Status</th>
+                  <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-700">Cliente</th>
+                  <th className="text-right py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-700">Valor Total</th>
+                  <th className="text-right py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-700">Pedidos</th>
+                  <th className="text-right py-2 sm:py-3 px-2 sm:px-4 font-semibold text-gray-700">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {topClientesValor.map((cliente, idx) => (
-                  <tr key={idx} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium">{cliente.nome}</td>
-                    <td className="text-right py-3 px-4 font-semibold">
-                      R$ {cliente.valor.toLocaleString("pt-BR")}
-                    </td>
-                    <td className="text-right py-3 px-4">{cliente.pedidos}</td>
-                    <td className="text-right py-3 px-4">
+                {dados.topClientes.map((cliente) => (
+                  <tr key={cliente.nome} className="border-b hover:bg-gray-50">
+                    <td className="py-2 sm:py-3 px-2 sm:px-4">{cliente.nome}</td>
+                    <td className="text-right py-2 sm:py-3 px-2 sm:px-4 font-semibold">{formatarMoeda(cliente.valor)}</td>
+                    <td className="text-right py-2 sm:py-3 px-2 sm:px-4">{cliente.pedidos}</td>
+                    <td className="text-right py-2 sm:py-3 px-2 sm:px-4">
                       <Badge
                         variant={cliente.status === "Ativo" ? "default" : "secondary"}
-                        className={
-                          cliente.status === "Ativo" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                        }
+                        className={cliente.status === "Ativo" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
                       >
                         {cliente.status}
                       </Badge>
@@ -276,52 +334,7 @@ export default function RelatorioClientes() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
-        <Card className="p-6">
-          <h3 className="font-semibold text-lg mb-4">Análise por Segmento</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Segmento</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Quantidade</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Valor Total</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">% do Total</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Ticket Médio</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clientesPorSegmento.map((seg, idx) => {
-                  const ticketMedio = Math.round(seg.vendas / seg.quantidade);
-                  const totalVendas = clientesPorSegmento.reduce((acc, s) => acc + s.vendas, 0);
-                  const percentual = Math.round((seg.vendas / totalVendas) * 100);
-
-                  return (
-                    <tr key={idx} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium">{seg.segmento}</td>
-                      <td className="text-right py-3 px-4">
-                        <Badge variant="outline">{seg.quantidade}</Badge>
-                      </td>
-                      <td className="text-right py-3 px-4 font-semibold">
-                        R$ {seg.vendas.toLocaleString("pt-BR")}
-                      </td>
-                      <td className="text-right py-3 px-4">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
-                          {percentual}%
-                        </span>
-                      </td>
-                      <td className="text-right py-3 px-4">
-                        R$ {ticketMedio.toLocaleString("pt-BR")}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
-      </div>
+      {carregando && <p className="text-sm text-gray-500 mt-4">Carregando dados...</p>}
     </div>
   );
 }

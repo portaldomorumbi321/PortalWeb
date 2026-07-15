@@ -11,7 +11,7 @@ import Relatorios from "./components/Relatorios";
 import RelatorioVendas from "./components/RelatorioVendas";
 import RelatorioFinanceiro from "./components/RelatorioFinanceiro";
 import RelatorioClientes from "./components/RelatorioClientes";
-import RelatorioProdutos from "./components/RelatorioProdutos";
+import RelatorioOrcamentos from "./components/RelatorioOrcamentos";
 import RoteiroOrcamento from "./components/RoteiroOrcamento";
 import CRM from "./components/CRM";
 import Marketing from "./components/Marketing";
@@ -48,7 +48,7 @@ export const router = createBrowserRouter([
           { path: "relatorios/vendas", Component: RelatorioVendas },
           { path: "relatorios/financeiro", Component: RelatorioFinanceiro },
           { path: "relatorios/clientes", Component: RelatorioClientes },
-          { path: "relatorios/produtos", Component: RelatorioProdutos },
+          { path: "relatorios/orcamentos", Component: RelatorioOrcamentos },
           { path: "marketing", Component: Marketing },
           { path: "funcionario", Component: Funcionario },
         ],
