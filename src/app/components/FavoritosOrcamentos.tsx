@@ -4,64 +4,12 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { useNavigate } from "react-router";
-
-interface ItemOrc {
-  id: number;
-  descricao: string;
-  quantidade: number;
-  unidade: string;
-  valorUnitario: number;
-  desconto: number;
-}
-
-interface Orcamento {
-  id: number;
-  numero: string;
-  cliente: string;
-  status: "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
-  dataCriacao: string;
-  itens: ItemOrc[];
-}
+import { listarOrcamentos, type ItemOrc, type Orcamento } from "../data/orcamentosApi";
 
 interface FavoritosOrcamentosProps {
   setFavoritosOpen: (open: boolean) => void;
   isMobile?: boolean;
 }
-
-const todosOrcamentos: Orcamento[] = [
-  {
-    id: 1,
-    numero: "25060101",
-    cliente: "Ana Paula Souza",
-    status: "Aprovado",
-    dataCriacao: "2025-06-01",
-    itens: [
-      { id: 1, descricao: "Notebook Pro 15\"", quantidade: 2, unidade: "un", valorUnitario: 4599.90, desconto: 5 },
-      { id: 2, descricao: "Mouse Sem Fio", quantidade: 2, unidade: "un", valorUnitario: 89.90, desconto: 0 },
-    ],
-  },
-  {
-    id: 4,
-    numero: "25070501",
-    cliente: "Roberto Silva",
-    status: "Aprovado",
-    dataCriacao: "2025-07-05",
-    itens: [
-      { id: 1, descricao: "Impressora Laser Color", quantidade: 1, unidade: "un", valorUnitario: 2899.90, desconto: 15 },
-      { id: 2, descricao: "Papel A4 (resma)", quantidade: 10, unidade: "un", valorUnitario: 35.00, desconto: 5 },
-    ],
-  },
-  {
-    id: 2,
-    numero: "25061501",
-    cliente: "Carlos Mendes",
-    status: "Enviado",
-    dataCriacao: "2025-06-15",
-    itens: [
-      { id: 1, descricao: "Cadeira Ergonômica", quantidade: 5, unidade: "un", valorUnitario: 1299.00, desconto: 10 },
-    ],
-  },
-];
 
 const calcularTotal = (itens: ItemOrc[]) =>
   itens.reduce((acc, item) => {
@@ -79,22 +27,47 @@ const statusColor: Record<string, string> = {
 
 export default function FavoritosOrcamentos({ setFavoritosOpen, isMobile = false }: FavoritosOrcamentosProps) {
   const navigate = useNavigate();
+  const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   const [favIds, setFavIds] = useState<number[]>(() => {
-    try { return JSON.parse(localStorage.getItem("favoritos_orcamentos") || "[]"); }
+    try {
+      const stored = JSON.parse(localStorage.getItem("favoritos_orcamentos") || "[]");
+      return Array.isArray(stored) ? stored.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0) : [];
+    }
     catch { return []; }
   });
 
   useEffect(() => {
+    async function carregarOrcamentos() {
+      setErro(null);
+      try {
+        const lista = await listarOrcamentos();
+        setOrcamentos(lista);
+      } catch (error) {
+        setErro(error instanceof Error ? error.message : "Erro ao carregar orçamentos favoritos.");
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    void carregarOrcamentos();
+  }, []);
+
+  useEffect(() => {
     const sync = () => {
-      try { setFavIds(JSON.parse(localStorage.getItem("favoritos_orcamentos") || "[]")); }
+      try {
+        const stored = JSON.parse(localStorage.getItem("favoritos_orcamentos") || "[]");
+        setFavIds(Array.isArray(stored) ? stored.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0) : []);
+      }
       catch { setFavIds([]); }
     };
     window.addEventListener("favoritos_orcamentos_updated", sync);
     return () => window.removeEventListener("favoritos_orcamentos_updated", sync);
   }, []);
 
-  const favoritos = todosOrcamentos.filter((o) => favIds.includes(o.id));
+  const favoritos = orcamentos.filter((o) => favIds.includes(o.id));
 
   const removerFavorito = (id: number) => {
     setFavIds((prev) => {
@@ -127,7 +100,13 @@ export default function FavoritosOrcamentos({ setFavoritosOpen, isMobile = false
 
       {/* Lista */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {favoritos.length === 0 ? (
+        {erro ? (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {erro}
+          </div>
+        ) : carregando ? (
+          <p className="text-sm text-gray-500">Carregando favoritos...</p>
+        ) : favoritos.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 py-12">
             <Star className="w-12 h-12 text-gray-200" />
             <p className="text-sm text-center">Nenhum orçamento favoritado ainda.</p>
