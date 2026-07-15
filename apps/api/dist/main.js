@@ -27,7 +27,7 @@ async function bootstrap() {
     swagger_1.SwaggerModule.setup('docs', app, swaggerDocument);
     const configService = app.get(config_1.ConfigService);
     const port = configService.get('PORT', 3000);
-    await app.listen(port);
+    await app.listen(port, '0.0.0.0');
 }
 void bootstrap();
 //# sourceMappingURL=main.js.map
