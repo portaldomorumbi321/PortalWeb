@@ -34,8 +34,9 @@ Use os arquivos de ambiente do frontend em `apps/web` como referência.
 Exemplo de produção em `apps/web/.env.production`:
 
 ```env
-VITE_API_URL=https://seu-backend.up.railway.app/api
-VITE_SOCKET_URL=https://seu-backend.up.railway.app
+# Defina os valores reais na Vercel.
+VITE_API_URL=https://SEU_BACKEND_REAL.up.railway.app/api
+VITE_SOCKET_URL=https://SEU_BACKEND_REAL.up.railway.app
 ```
 
 ## Deploy: Vercel + Railway
@@ -44,8 +45,8 @@ VITE_SOCKET_URL=https://seu-backend.up.railway.app
 
 Configure no projeto Vercel:
 
-- `VITE_API_URL=https://SEU_BACKEND.up.railway.app/api`
-- `VITE_SOCKET_URL=https://SEU_BACKEND.up.railway.app`
+- `VITE_API_URL=https://SEU_BACKEND_REAL.up.railway.app/api`
+- `VITE_SOCKET_URL=https://SEU_BACKEND_REAL.up.railway.app`
 
 ### Railway (backend externo)
 
