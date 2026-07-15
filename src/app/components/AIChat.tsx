@@ -3,29 +3,62 @@ import { Card } from "./ui/card";
 import { Bot, Send, PanelLeftClose } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { enviarMensagemIA } from "../data/aiChatApi";
 
 interface AIChatProps {
   setAiChatOpen: (open: boolean) => void;
   isMobile?: boolean;
 }
 
+type ChatMessage = {
+  sender: "ai" | "user";
+  text: string;
+  includeInContext?: boolean;
+};
+
 const initialMessages = [
-  { sender: 'ai', text: 'Olá! Sou seu assistente de IA. Como posso ajudar a planejar sua próxima viagem?' },
+  {
+    sender: "ai" as const,
+    text: "Olá! Sou seu assistente de IA. Como posso ajudar hoje?",
+    includeInContext: false,
+  },
 ];
 
 export default function AIChat({ setAiChatOpen, isMobile = false }: AIChatProps) {
-  const [messages, setMessages] = useState(initialMessages);
-  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    const newMessages = [...messages, { sender: 'user', text: input }];
-    // Simulação de resposta da IA
-    setTimeout(() => {
-      setMessages([...newMessages, { sender: 'ai', text: 'Entendido. Buscando as melhores opções para você...' }]);
-    }, 1000);
-    setMessages(newMessages);
-    setInput('');
+  const handleSend = async () => {
+    const trimmedInput = input.trim();
+    if (!trimmedInput || isSending) return;
+
+    const userMessage: ChatMessage = { sender: "user", text: trimmedInput };
+    const updatedMessages = [...messages, userMessage];
+
+    setMessages(updatedMessages);
+    setInput("");
+    setIsSending(true);
+
+    try {
+      const contextMessages = updatedMessages
+        .filter((msg) => msg.includeInContext !== false)
+        .map((msg) => ({
+          role: msg.sender === "ai" ? "assistant" : "user",
+          content: msg.text,
+        }));
+
+      const { reply } = await enviarMensagemIA(contextMessages);
+      setMessages((prev) => [...prev, { sender: "ai", text: reply }]);
+    } catch (error) {
+      const fallbackMessage =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível obter resposta da IA no momento.";
+      setMessages((prev) => [...prev, { sender: "ai", text: fallbackMessage }]);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -42,22 +75,30 @@ export default function AIChat({ setAiChatOpen, isMobile = false }: AIChatProps)
 
       <div className="flex-1 space-y-4 overflow-y-auto p-2 bg-gray-50 rounded-lg">
         {messages.map((msg, index) => (
-          <div key={index} className={`flex ${msg.sender === 'ai' ? 'justify-start' : 'justify-end'}`}>
-            <div className={`max-w-xs px-3 py-2 rounded-lg ${msg.sender === 'ai' ? 'bg-blue-100 text-blue-900' : 'bg-white shadow-sm'}`}>
+          <div key={index} className={`flex ${msg.sender === "ai" ? "justify-start" : "justify-end"}`}>
+            <div className={`max-w-xs px-3 py-2 rounded-lg ${msg.sender === "ai" ? "bg-blue-100 text-blue-900" : "bg-white shadow-sm"}`}>
               <p className="text-sm">{msg.text}</p>
             </div>
           </div>
         ))}
+        {isSending && (
+          <div className="flex justify-start">
+            <div className="max-w-xs px-3 py-2 rounded-lg bg-blue-100 text-blue-900">
+              <p className="text-sm">Digitando...</p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 flex items-center gap-2">
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="Pergunte algo..."
+          disabled={isSending}
         />
-        <Button onClick={handleSend} size="icon" className="bg-blue-600 hover:bg-blue-700 flex-shrink-0">
+        <Button onClick={handleSend} size="icon" className="bg-blue-600 hover:bg-blue-700 flex-shrink-0" disabled={isSending}>
           <Send size={20} />
         </Button>
       </div>

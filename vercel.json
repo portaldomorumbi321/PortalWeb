@@ -1,5 +1,6 @@
 {
   "routes": [
+    { "src": "/api/ai/chat", "dest": "/api/ai/chat.js" },
     { "src": "/api/auth/funcionarios/login", "dest": "/api/auth/funcionarios/login.js" },
     { "src": "/api/funcionarios/([^/]+)", "dest": "/api/funcionarios/[id].js?id=$1" },
     { "src": "/api/funcionarios", "dest": "/api/funcionarios/index.js" },
