@@ -3,9 +3,13 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "build": "vite build",
-    "dev:frontend": "vite",
+    "build": "vite build apps/web --config apps/web/vite.config.ts",
+    "dev:frontend": "vite apps/web --config apps/web/vite.config.ts",
     "dev:backend": "node Backend/index.cjs",
     "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\"",
     "db:create-funcionarios": "node Backend/scripts/create-funcionarios-table.mjs",
