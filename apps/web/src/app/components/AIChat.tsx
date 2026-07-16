@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card } from "./ui/card";
-import { Bot, Send, PanelLeftClose } from "lucide-react";
+import { Bot, PanelLeftClose, Send } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { enviarMensagemIA } from "../data/aiChatApi";
@@ -16,10 +16,10 @@ type ChatMessage = {
   includeInContext?: boolean;
 };
 
-const initialMessages = [
+const initialMessages: ChatMessage[] = [
   {
-    sender: "ai" as const,
-    text: "Olá! Sou seu assistente de IA. Como posso ajudar hoje?",
+    sender: "ai",
+    text: "Olá. Sou seu Agente IA. Como posso ajudar hoje?",
     includeInContext: false,
   },
 ];
@@ -31,21 +31,23 @@ export default function AIChat({ setAiChatOpen, isMobile = false }: AIChatProps)
 
   const handleSend = async () => {
     const trimmedInput = input.trim();
-    if (!trimmedInput || isSending) return;
+    if (!trimmedInput || isSending) {
+      return;
+    }
 
     const userMessage: ChatMessage = { sender: "user", text: trimmedInput };
-    const updatedMessages = [...messages, userMessage];
+    const nextMessages = [...messages, userMessage];
 
-    setMessages(updatedMessages);
+    setMessages(nextMessages);
     setInput("");
     setIsSending(true);
 
     try {
-      const contextMessages = updatedMessages
-        .filter((msg) => msg.includeInContext !== false)
-        .map((msg) => ({
-          role: msg.sender === "ai" ? "assistant" : "user",
-          content: msg.text,
+      const contextMessages = nextMessages
+        .filter((message) => message.includeInContext !== false)
+        .map((message) => ({
+          role: message.sender === "ai" ? "assistant" : "user",
+          content: message.text,
         }));
 
       const { reply } = await enviarMensagemIA(contextMessages);
@@ -54,7 +56,7 @@ export default function AIChat({ setAiChatOpen, isMobile = false }: AIChatProps)
       const fallbackMessage =
         error instanceof Error
           ? error.message
-          : "Não foi possível obter resposta da IA no momento.";
+          : "Nao foi possivel obter resposta da IA no momento.";
       setMessages((prev) => [...prev, { sender: "ai", text: fallbackMessage }]);
     } finally {
       setIsSending(false);
@@ -73,14 +75,15 @@ export default function AIChat({ setAiChatOpen, isMobile = false }: AIChatProps)
         </Button>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-2 bg-gray-50 rounded-lg">
-        {messages.map((msg, index) => (
-          <div key={index} className={`flex ${msg.sender === "ai" ? "justify-start" : "justify-end"}`}>
-            <div className={`max-w-xs px-3 py-2 rounded-lg ${msg.sender === "ai" ? "bg-blue-100 text-blue-900" : "bg-white shadow-sm"}`}>
-              <p className="text-sm">{msg.text}</p>
+      <div className="flex-1 min-h-0 space-y-4 overflow-y-auto p-2 bg-gray-50 rounded-lg">
+        {messages.map((message, index) => (
+          <div key={`${message.sender}-${index}`} className={`flex ${message.sender === "ai" ? "justify-start" : "justify-end"}`}>
+            <div className={`max-w-xs px-3 py-2 rounded-lg ${message.sender === "ai" ? "bg-blue-100 text-blue-900" : "bg-white shadow-sm"}`}>
+              <p className="text-sm whitespace-pre-wrap">{message.text}</p>
             </div>
           </div>
         ))}
+
         {isSending && (
           <div className="flex justify-start">
             <div className="max-w-xs px-3 py-2 rounded-lg bg-blue-100 text-blue-900">
@@ -93,8 +96,12 @@ export default function AIChat({ setAiChatOpen, isMobile = false }: AIChatProps)
       <div className="mt-4 flex items-center gap-2">
         <Input
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              handleSend();
+            }
+          }}
           placeholder="Pergunte algo..."
           disabled={isSending}
         />

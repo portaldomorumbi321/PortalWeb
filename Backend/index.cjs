@@ -503,6 +503,56 @@ const DEFAULT_OPENAI_SYSTEM_PROMPT =
   process.env.OPENAI_SYSTEM_PROMPT ||
   'Você é o Agente IA do PortalWeb. Responda em português do Brasil, com objetividade e foco em produtividade comercial.';
 
+function mapOpenAiError(status, parsedBody) {
+  const providerCode = String(parsedBody?.error?.code || '').toLowerCase();
+
+  if (status === 401 || providerCode === 'invalid_api_key') {
+    return {
+      status: 502,
+      code: 'OPENAI_INVALID_KEY',
+      message: 'A chave da OpenAI está inválida ou expirada. Atualize OPENAI_API_KEY no backend.',
+    };
+  }
+
+  if (status === 402 || providerCode === 'insufficient_quota') {
+    return {
+      status: 429,
+      code: 'OPENAI_QUOTA_EXCEEDED',
+      message: 'Seu limite de cota da OpenAI foi atingido. Verifique faturamento e créditos da conta.',
+    };
+  }
+
+  if (status === 429 || providerCode === 'rate_limit_exceeded') {
+    return {
+      status: 429,
+      code: 'OPENAI_RATE_LIMIT',
+      message: 'Muitas solicitações em sequência. Aguarde alguns segundos e tente novamente.',
+    };
+  }
+
+  if (providerCode === 'model_not_found') {
+    return {
+      status: 502,
+      code: 'OPENAI_MODEL_NOT_FOUND',
+      message: 'O modelo configurado em OPENAI_MODEL não foi encontrado para esta conta.',
+    };
+  }
+
+  if (status >= 500) {
+    return {
+      status: 502,
+      code: 'OPENAI_UNAVAILABLE',
+      message: 'A OpenAI está indisponível no momento. Tente novamente em instantes.',
+    };
+  }
+
+  return {
+    status: 502,
+    code: 'OPENAI_API_ERROR',
+    message: parsedBody?.error?.message || 'Falha ao comunicar com a OpenAI.',
+  };
+}
+
 function normalizeAiMessages(rawMessages) {
   if (!Array.isArray(rawMessages)) {
     return [];
@@ -530,6 +580,7 @@ app.get('/api/health', (req, res) => {
 app.post('/api/ai/chat', async (req, res) => {
   if (!OPENAI_API_KEY) {
     return res.status(500).json({
+      code: 'OPENAI_KEY_MISSING',
       error: 'OPENAI_API_KEY não configurada no backend.',
     });
   }
@@ -537,7 +588,7 @@ app.post('/api/ai/chat', async (req, res) => {
   const normalizedMessages = normalizeAiMessages(req.body?.messages);
 
   if (!normalizedMessages.length) {
-    return res.status(400).json({ error: 'Envie pelo menos uma mensagem válida.' });
+    return res.status(400).json({ code: 'AI_MESSAGES_REQUIRED', error: 'Envie pelo menos uma mensagem válida.' });
   }
 
   const controller = new AbortController();
@@ -570,24 +621,33 @@ app.post('/api/ai/chat', async (req, res) => {
     }
 
     if (!openAiResponse.ok) {
-      const apiError = parsedBody?.error?.message || 'Falha ao comunicar com a OpenAI.';
-      return res.status(502).json({ error: apiError });
+      const mappedError = mapOpenAiError(openAiResponse.status, parsedBody);
+      return res.status(mappedError.status).json({
+        code: mappedError.code,
+        error: mappedError.message,
+      });
     }
 
     const reply = parsedBody?.choices?.[0]?.message?.content;
 
     if (typeof reply !== 'string' || !reply.trim()) {
-      return res.status(502).json({ error: 'Resposta da OpenAI veio vazia.' });
+      return res.status(502).json({ code: 'OPENAI_EMPTY_RESPONSE', error: 'Resposta da OpenAI veio vazia.' });
     }
 
     res.json({ reply: reply.trim(), model: OPENAI_MODEL });
   } catch (error) {
     if (error?.name === 'AbortError') {
-      return res.status(504).json({ error: 'Tempo limite atingido ao consultar a OpenAI.' });
+      return res.status(504).json({
+        code: 'OPENAI_TIMEOUT',
+        error: 'Tempo limite atingido ao consultar a OpenAI. Tente novamente.',
+      });
     }
 
     console.error('Erro ao consultar OpenAI:', error);
-    return res.status(500).json({ error: 'Erro interno ao processar a mensagem da IA.' });
+    return res.status(500).json({
+      code: 'OPENAI_INTERNAL_ERROR',
+      error: 'Erro interno ao processar a mensagem da IA.',
+    });
   } finally {
     clearTimeout(timeoutId);
   }
