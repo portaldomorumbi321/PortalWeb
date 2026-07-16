@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
+import DestinationPhoto from "./DestinationPhoto";
 
 interface Voo {
   id: number;
@@ -33,6 +34,7 @@ interface Orcamento {
   numero: string;
   cliente: string;
   email: string;
+  destino?: string;
   agenteViagem?: string;
   status: "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
   dataCriacao: string;
@@ -47,6 +49,39 @@ interface Orcamento {
   restaurante?: any[];
   experiencias?: any[];
   seguro?: any[];
+}
+
+function obterDestinoPrincipal(orc: Orcamento): string {
+  const destinoVoo =
+    orc.voos?.find((item) => typeof item?.destino === "string" && item.destino.trim())?.destino || "";
+
+  if (destinoVoo) {
+    return destinoVoo;
+  }
+
+  const destinoHospedagem =
+    orc.hospedagem?.find((item) => typeof item?.destino === "string" && item.destino.trim())?.destino ||
+    orc.hospedagem?.find((item) => typeof item?.local === "string" && item.local.trim())?.local ||
+    orc.hospedagem?.find((item) => typeof item?.cidade === "string" && item.cidade.trim())?.cidade ||
+    "";
+
+  if (destinoHospedagem) {
+    return destinoHospedagem;
+  }
+
+  const destinoTransporte =
+    orc.transporte?.find((item) => typeof item?.destino === "string" && item.destino.trim())?.destino || "";
+
+  if (destinoTransporte) {
+    return destinoTransporte;
+  }
+
+  const destinoTopLevel = typeof orc.destino === "string" ? orc.destino.trim() : "";
+  if (destinoTopLevel) {
+    return destinoTopLevel;
+  }
+
+  return "Destino da viagem";
 }
 
 function formatarPeriodo(checkin: string, checkout: string): string {
@@ -168,9 +203,8 @@ export default function RoteiroOrcamento() {
     window.open(`https://wa.me/?text=${encodedMessage}`, "_blank");
   };
 
-  const destinoPrincipal = orc.hospedagem && orc.hospedagem.length > 0 ? orc.hospedagem[0].local : "Sua Viagem";
+  const destinoPrincipal = obterDestinoPrincipal(orc);
   const dataCheckinPrincipal = orc.hospedagem && orc.hospedagem.length > 0 ? orc.hospedagem[0].checkin : null;
-  const origemPrincipal = orc.voos && orc.voos.length > 0 ? orc.voos[0].origem : null;
   const dataViagemPrincipal = dataCheckinPrincipal || orc.voos?.[0]?.data || null;
   const agente = orc.agenteViagem
     ? funcionarios.find((funcionario) => funcionario.name === orc.agenteViagem)
@@ -205,9 +239,9 @@ export default function RoteiroOrcamento() {
           <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
             Roteiro da Sua Viagem
           </h1>
-          {origemPrincipal && (
+          {destinoPrincipal && (
             <p className="text-lg text-gray-600 mt-2">
-              Preparado para {origemPrincipal}
+              Preparado para {destinoPrincipal}
             </p>
           )}
         </div>
@@ -215,6 +249,8 @@ export default function RoteiroOrcamento() {
           <X className="w-5 h-5" />
         </button>
       </div>
+
+      <DestinationPhoto destination={destinoPrincipal} />
 
       {dataViagemPrincipal && (
         <Card className="p-4 mb-6 text-center">

@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS public.orcamentos (
   numero VARCHAR(20) NOT NULL UNIQUE,
   cliente VARCHAR(150) NOT NULL,
   email VARCHAR(255),
+  destino VARCHAR(255),
   agente_viagem VARCHAR(150),
   status VARCHAR(20) NOT NULL DEFAULT 'Rascunho' CHECK (status IN ('Rascunho', 'Enviado', 'Aprovado', 'Rejeitado', 'Cancelado')),
   data_criacao DATE,
@@ -20,6 +21,9 @@ CREATE TABLE IF NOT EXISTS public.orcamentos (
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE public.orcamentos
+ADD COLUMN IF NOT EXISTS destino VARCHAR(255);
 
 CREATE INDEX IF NOT EXISTS idx_orcamentos_cliente ON public.orcamentos (cliente);
 CREATE INDEX IF NOT EXISTS idx_orcamentos_status ON public.orcamentos (status);

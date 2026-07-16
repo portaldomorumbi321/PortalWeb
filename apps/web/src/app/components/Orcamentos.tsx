@@ -193,7 +193,7 @@ function gerarNumero(lista: Orcamento[]) {
 type Tela = "lista" | "form" | "preview";
 
 const orcVazio = (): OrcamentoPayload => ({
-  numero: "", cliente: "", email: "", agenteViagem: "", status: "Rascunho",
+  numero: "", cliente: "", email: "", destino: "", agenteViagem: "", status: "Rascunho",
   dataCriacao: new Date().toISOString().split("T")[0],
   dataValidade: "", observacoes: "", itens: [itemVazio()],
 });
@@ -234,6 +234,35 @@ export default function Orcamentos() {
   const [parcelasLancamento, setParcelasLancamento] = useState("1");
   const [dataLancamento, setDataLancamento] = useState(new Date().toISOString().slice(0, 10));
   const [popupAprovadoAberto, setPopupAprovadoAberto] = useState(false);
+
+  function obterDestinoPrincipalOrcamento(orcBase?: Partial<Orcamento>, preferirEstadoFormulario = false) {
+    const hospedagemFonte = hospedagem.length > 0 ? hospedagem : Array.isArray(orcBase?.hospedagem) ? orcBase.hospedagem : [];
+    const transporteFonte = transporte.length > 0 ? transporte : Array.isArray(orcBase?.transporte) ? orcBase.transporte : [];
+    const voosFonte = voos.length > 0 ? voos : Array.isArray(orcBase?.voos) ? orcBase.voos : [];
+
+    const hospedagemFinal = preferirEstadoFormulario ? hospedagem : hospedagemFonte;
+    const transporteFinal = preferirEstadoFormulario ? transporte : transporteFonte;
+    const voosFinal = preferirEstadoFormulario ? voos : voosFonte;
+
+    const destinoVoo = voosFinal.find((item) => typeof item?.destino === "string" && item.destino.trim())?.destino || "";
+    if (destinoVoo) return String(destinoVoo).trim();
+
+    const destinoExplcito = String(orcBase?.destino || form.destino || "").trim();
+    if (destinoExplcito) return destinoExplcito;
+
+    const destinoHospedagem =
+      hospedagemFinal.find((item) => typeof item?.destino === "string" && item.destino.trim())?.destino
+      || hospedagemFinal.find((item) => typeof item?.local === "string" && item.local.trim())?.local
+      || hospedagemFinal.find((item) => typeof item?.cidade === "string" && item.cidade.trim())?.cidade
+      || "";
+
+    if (destinoHospedagem) return String(destinoHospedagem).trim();
+
+    const destinoTransporte = transporteFinal.find((item) => typeof item?.destino === "string" && item.destino.trim())?.destino || "";
+    if (destinoTransporte) return String(destinoTransporte).trim();
+
+    return "";
+  }
 
   function calcularTotalOrcamentoAtual() {
     const totalVendas = form.itens.reduce((acc, item) => acc + calcItem(item), 0);
@@ -458,7 +487,7 @@ export default function Orcamentos() {
   async function abrirEdicao(o: Orcamento) {
     setEditando(o);
     setErro(null);
-    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, agenteViagem: o.agenteViagem || "", status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
+    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, destino: o.destino || "", agenteViagem: o.agenteViagem || "", status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
     // Carrega os dados das seções para os estados correspondentes
     setVoos(o.voos || []);
     setHospedagem(o.hospedagem || []);
@@ -484,6 +513,7 @@ export default function Orcamentos() {
     // Montar dados do orçamento com seções
     const orcComSecoes = {
       ...form,
+      destino: obterDestinoPrincipalOrcamento(),
       voos: voos.length > 0 ? voos : undefined,
       hospedagem: hospedagem.length > 0 ? hospedagem : undefined,
       roteiro: roteiro.trim() ? roteiro : undefined,
@@ -528,18 +558,21 @@ export default function Orcamentos() {
   function gerarRoteiro(orc: Orcamento | null = null) {
     const orcParaAbrir = orc || (editando ? editando : null);
     if (!orcParaAbrir) return;
+
+    const usandoEstadoFormulario = !orc && Boolean(editando);
     
     // Montar dados do orçamento com seções atualizadas
     const orcComSecoes = {
       ...orcParaAbrir,
-      voos: voos.length > 0 ? voos : orcParaAbrir.voos,
-      hospedagem: hospedagem.length > 0 ? hospedagem : orcParaAbrir.hospedagem,
-      roteiro: roteiro.trim() ? roteiro : orcParaAbrir.roteiro,
-      dayByDay: dayByDay.length > 0 ? dayByDay : orcParaAbrir.dayByDay,
-      transporte: transporte.length > 0 ? transporte : orcParaAbrir.transporte,
-      restaurante: restaurante.length > 0 ? restaurante : orcParaAbrir.restaurante,
-      experiencias: experiencias.length > 0 ? experiencias : orcParaAbrir.experiencias,
-      seguro: seguro.length > 0 ? seguro : orcParaAbrir.seguro,
+      destino: obterDestinoPrincipalOrcamento(orcParaAbrir, usandoEstadoFormulario),
+      voos: usandoEstadoFormulario ? voos : orcParaAbrir.voos,
+      hospedagem: usandoEstadoFormulario ? hospedagem : orcParaAbrir.hospedagem,
+      roteiro: usandoEstadoFormulario ? roteiro : orcParaAbrir.roteiro,
+      dayByDay: usandoEstadoFormulario ? dayByDay : orcParaAbrir.dayByDay,
+      transporte: usandoEstadoFormulario ? transporte : orcParaAbrir.transporte,
+      restaurante: usandoEstadoFormulario ? restaurante : orcParaAbrir.restaurante,
+      experiencias: usandoEstadoFormulario ? experiencias : orcParaAbrir.experiencias,
+      seguro: usandoEstadoFormulario ? seguro : orcParaAbrir.seguro,
     };
     
     // Store in localStorage to access from new tab
@@ -552,16 +585,19 @@ export default function Orcamentos() {
     const orcParaAbrir = orc || (editando ? { id: editando.id, ...form } : null);
     if (!orcParaAbrir) return;
 
+    const usandoEstadoFormulario = !orc && Boolean(editando);
+
     const orcComSecoes = {
       ...orcParaAbrir,
-      voos: voos.length > 0 ? voos : orcParaAbrir.voos,
-      hospedagem: hospedagem.length > 0 ? hospedagem : orcParaAbrir.hospedagem,
-      roteiro: roteiro.trim() ? roteiro : orcParaAbrir.roteiro,
-      dayByDay: dayByDay.length > 0 ? dayByDay : orcParaAbrir.dayByDay,
-      transporte: transporte.length > 0 ? transporte : orcParaAbrir.transporte,
-      restaurante: restaurante.length > 0 ? restaurante : orcParaAbrir.restaurante,
-      experiencias: experiencias.length > 0 ? experiencias : orcParaAbrir.experiencias,
-      seguro: seguro.length > 0 ? seguro : orcParaAbrir.seguro,
+      destino: obterDestinoPrincipalOrcamento(orcParaAbrir, usandoEstadoFormulario),
+      voos: usandoEstadoFormulario ? voos : orcParaAbrir.voos,
+      hospedagem: usandoEstadoFormulario ? hospedagem : orcParaAbrir.hospedagem,
+      roteiro: usandoEstadoFormulario ? roteiro : orcParaAbrir.roteiro,
+      dayByDay: usandoEstadoFormulario ? dayByDay : orcParaAbrir.dayByDay,
+      transporte: usandoEstadoFormulario ? transporte : orcParaAbrir.transporte,
+      restaurante: usandoEstadoFormulario ? restaurante : orcParaAbrir.restaurante,
+      experiencias: usandoEstadoFormulario ? experiencias : orcParaAbrir.experiencias,
+      seguro: usandoEstadoFormulario ? seguro : orcParaAbrir.seguro,
     };
 
     // Armazena no localStorage para acessar na nova aba
