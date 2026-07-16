@@ -61,6 +61,39 @@ const WHATSAPP_CACHE_PATH =
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 
+function normalizeOrigin(origin) {
+  return String(origin || '').trim().replace(/\/$/, '').toLowerCase();
+}
+
+function isAllowedOrigin(origin) {
+  if (typeof origin !== 'string') {
+    return false;
+  }
+
+  const normalizedOrigin = normalizeOrigin(origin);
+  if (LOCALHOST_ORIGIN_REGEX.test(normalizedOrigin)) {
+    return true;
+  }
+
+  return FRONTEND_ORIGINS.some((allowedOrigin) => {
+    const normalizedAllowed = normalizeOrigin(allowedOrigin);
+
+    if (!normalizedAllowed) {
+      return false;
+    }
+
+    if (normalizedAllowed.includes('*')) {
+      const regexPattern = normalizedAllowed
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '.*');
+      const wildcardRegex = new RegExp(`^${regexPattern}$`, 'i');
+      return wildcardRegex.test(normalizedOrigin);
+    }
+
+    return normalizedAllowed === normalizedOrigin;
+  });
+}
+
 function resolveConnectionString() {
   return (
     process.env.DATABASE_URL ||
@@ -74,11 +107,9 @@ function resolveConnectionString() {
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const isAllowedOrigin =
-    typeof origin === 'string' &&
-    (FRONTEND_ORIGINS.includes(origin) || LOCALHOST_ORIGIN_REGEX.test(origin));
+  const allowed = isAllowedOrigin(origin);
 
-  if (isAllowedOrigin) {
+  if (allowed) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Vary', 'Origin');
   }
@@ -87,7 +118,7 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
 
   if (req.method === 'OPTIONS') {
-    return isAllowedOrigin ? res.sendStatus(204) : res.sendStatus(403);
+    return allowed ? res.sendStatus(204) : res.sendStatus(403);
   }
 
   next();

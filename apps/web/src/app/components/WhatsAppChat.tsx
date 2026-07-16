@@ -7,7 +7,9 @@ import io from "socket.io-client";
 
 const DEFAULT_LOCAL_SOCKET_URL = `${window.location.protocol}//${window.location.hostname}:3001`;
 const SOCKET_BASE_URL =
-  (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || DEFAULT_LOCAL_SOCKET_URL).replace(/\/$/, "");
+  import.meta.env.VITE_SOCKET_URL?.replace(/\/$/, '') ||
+  import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, '').replace(/\/$/, '') ||
+  (import.meta.env.DEV ? DEFAULT_LOCAL_SOCKET_URL : (() => { throw new Error('VITE_SOCKET_URL não configurada no deploy. Defina a URL do backend de sockets.'); })());
 
 // Conecta ao backend (Railway em produção, localhost no dev)
 const socket = io(SOCKET_BASE_URL, {

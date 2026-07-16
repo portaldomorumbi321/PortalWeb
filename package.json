@@ -8,6 +8,8 @@
     "packages/*"
   ],
   "scripts": {
+    "start": "node Backend/index.cjs",
+    "start:backend": "node Backend/index.cjs",
     "build": "vite build apps/web --config apps/web/vite.config.ts",
     "dev:frontend": "vite apps/web --config apps/web/vite.config.ts",
     "dev:backend": "node Backend/index.cjs",
