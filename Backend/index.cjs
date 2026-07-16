@@ -7,6 +7,9 @@ const { Server } = require('socket.io');
 const { Pool } = require('pg');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const gemini = require("./gemini");
+const { GoogleGenAI } = require("@google/genai");
+const AIService = require("./services/ai");
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -588,68 +591,150 @@ app.post('/api/ai/chat', async (req, res) => {
   const normalizedMessages = normalizeAiMessages(req.body?.messages);
 
   if (!normalizedMessages.length) {
-    return res.status(400).json({ code: 'AI_MESSAGES_REQUIRED', error: 'Envie pelo menos uma mensagem válida.' });
+    return res.status(400).json({
+      code: 'AI_MESSAGES_REQUIRED',
+      error: 'Envie pelo menos uma mensagem válida.',
+    });
   }
 
+  // Limita o histórico para evitar consumo excessivo de tokens
+  const limitedMessages = normalizedMessages.slice(-10);
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 45000);
 
   try {
-    const openAiResponse = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages: [{ role: 'system', content: DEFAULT_OPENAI_SYSTEM_PROMPT }, ...normalizedMessages],
-        temperature: 0.4,
-      }),
-      signal: controller.signal,
-    });
+    const openAiResponse = await fetch(
+      `${OPENAI_BASE_URL}/chat/completions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+
+          messages: [
+            {
+              role: 'system',
+              content: DEFAULT_OPENAI_SYSTEM_PROMPT,
+            },
+            ...limitedMessages,
+          ],
+
+          temperature: 0.4,
+
+          // Limita tamanho da resposta
+          max_tokens: 600,
+        }),
+
+        signal: controller.signal,
+      }
+    );
+
 
     const rawText = await openAiResponse.text();
+
     let parsedBody = null;
 
     if (rawText) {
       try {
         parsedBody = JSON.parse(rawText);
-      } catch (_) {
+      } catch (error) {
         parsedBody = null;
       }
     }
 
+
     if (!openAiResponse.ok) {
-      const mappedError = mapOpenAiError(openAiResponse.status, parsedBody);
+
+      console.error(
+        'Erro OpenAI:',
+        openAiResponse.status,
+        JSON.stringify(parsedBody, null, 2)
+      );
+
+
+      // Erro de saldo/crédito
+      if (
+        parsedBody?.error?.code === 'insufficient_quota' ||
+        parsedBody?.error?.type === 'insufficient_quota'
+      ) {
+        return res.status(429).json({
+          code: 'OPENAI_QUOTA_EXCEEDED',
+          error:
+            'A conta OpenAI atingiu o limite de uso ou não possui créditos disponíveis.',
+        });
+      }
+
+
+      const mappedError = mapOpenAiError(
+        openAiResponse.status,
+        parsedBody
+      );
+
+
       return res.status(mappedError.status).json({
         code: mappedError.code,
         error: mappedError.message,
       });
     }
 
-    const reply = parsedBody?.choices?.[0]?.message?.content;
 
-    if (typeof reply !== 'string' || !reply.trim()) {
-      return res.status(502).json({ code: 'OPENAI_EMPTY_RESPONSE', error: 'Resposta da OpenAI veio vazia.' });
-    }
+    const reply =
+      parsedBody?.choices?.[0]?.message?.content;
 
-    res.json({ reply: reply.trim(), model: OPENAI_MODEL });
-  } catch (error) {
-    if (error?.name === 'AbortError') {
-      return res.status(504).json({
-        code: 'OPENAI_TIMEOUT',
-        error: 'Tempo limite atingido ao consultar a OpenAI. Tente novamente.',
+
+    if (
+      typeof reply !== 'string' ||
+      !reply.trim()
+    ) {
+      return res.status(502).json({
+        code: 'OPENAI_EMPTY_RESPONSE',
+        error: 'Resposta da OpenAI veio vazia.',
       });
     }
 
-    console.error('Erro ao consultar OpenAI:', error);
+
+    return res.json({
+      reply: reply.trim(),
+      model: OPENAI_MODEL,
+    });
+
+
+  } catch (error) {
+
+    if (error?.name === 'AbortError') {
+      return res.status(504).json({
+        code: 'OPENAI_TIMEOUT',
+        error:
+          'Tempo limite atingido ao consultar a OpenAI. Tente novamente.',
+      });
+    }
+
+
+    console.error(
+      'Erro interno OpenAI:',
+      error
+    );
+
+
     return res.status(500).json({
       code: 'OPENAI_INTERNAL_ERROR',
-      error: 'Erro interno ao processar a mensagem da IA.',
+      error:
+        'Erro interno ao processar a mensagem da IA.',
     });
+
+
   } finally {
+
     clearTimeout(timeoutId);
+
   }
 });
 
