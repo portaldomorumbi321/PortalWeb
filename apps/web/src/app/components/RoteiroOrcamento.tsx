@@ -51,6 +51,112 @@ interface Orcamento {
   seguro?: any[];
 }
 
+function limparLinhaRoteiro(linha: string): string {
+  return String(linha || '')
+    .replace(/\*\*/g, '')
+    .replace(/__/g, '')
+    .replace(/^#{1,6}\s*/g, '')
+    .trim();
+}
+
+function normalizarTextoRoteiro(texto: string): string {
+  return String(texto || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\*\*/g, '')
+    .replace(/__/g, '')
+    .replace(/(\d+\))\s+/g, '\n$1 ')
+    .replace(/\s+(Dia\s+\d+[:\-])/gi, '\n$1')
+    .replace(/\s+(Dia a dia sugerido|Destaques imperdíveis|Dicas práticas|Evidências dos lugares|Resumo inspirador)/gi, '\n\n$1')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function isTituloNumerado(linha: string): boolean {
+  const texto = limparLinhaRoteiro(linha).toLowerCase();
+  return /^\d+\)\s+/.test(texto) && (
+    texto.includes('título') ||
+    texto.includes('resumo') ||
+    texto.includes('dia') ||
+    texto.includes('destaques') ||
+    texto.includes('dicas') ||
+    texto.includes('evidências')
+  );
+}
+
+function isSubtituloRoteiro(linha: string): boolean {
+  const texto = limparLinhaRoteiro(linha).toLowerCase();
+  return (
+    texto.startsWith('roteiro de ') ||
+    texto.startsWith('dia ') ||
+    texto.includes('dia a dia') ||
+    texto.includes('destaques') ||
+    texto.includes('dicas práticas') ||
+    texto.includes('evidências dos lugares') ||
+    texto.includes('resumo') ||
+    /:$/.test(texto)
+  );
+}
+
+function getSubtituloClass(linha: string): string {
+  const texto = limparLinhaRoteiro(linha).toLowerCase();
+
+  if (texto.includes('resumo')) return 'text-violet-700';
+  if (texto.includes('dia a dia') || texto.startsWith('dia ')) return 'text-blue-700';
+  if (texto.includes('destaques')) return 'text-fuchsia-700';
+  if (texto.includes('dicas práticas')) return 'text-emerald-700';
+  if (texto.includes('evidências dos lugares')) return 'text-amber-700';
+
+  return 'text-sky-700';
+}
+
+function RenderRoteiroTexto({ texto }: { texto: string }) {
+  const linhas = normalizarTextoRoteiro(texto).split('\n');
+  const primeiraLinhaComTexto = linhas.findIndex((linha) => limparLinhaRoteiro(linha).length > 0);
+
+  return (
+    <div className="space-y-2 text-[16px] leading-8 text-slate-700" style={{ fontFamily: "'Cambria', 'Palatino Linotype', 'Book Antiqua', serif" }}>
+      {linhas.map((linha, index) => {
+        const textoLimpo = limparLinhaRoteiro(linha);
+        const linhaOriginal = String(linha || '').trim();
+
+        if (!textoLimpo) {
+          return <div key={`space-${index}`} className="h-2" />;
+        }
+
+        if (index === primeiraLinhaComTexto) {
+          return (
+            <h3 key={`title-${index}`} className="text-2xl font-bold tracking-tight text-indigo-800">
+              {textoLimpo}
+            </h3>
+          );
+        }
+
+        if (isTituloNumerado(linhaOriginal) || isSubtituloRoteiro(linhaOriginal)) {
+          return (
+            <h4 key={`subtitle-${index}`} className={`pt-2 text-lg font-bold ${getSubtituloClass(linhaOriginal)}`}>
+              {textoLimpo}
+            </h4>
+          );
+        }
+
+        if (/^\d+[.)]\s+/.test(linhaOriginal) || /^[-*•]\s+/.test(linhaOriginal)) {
+          return (
+            <p key={`bullet-${index}`} className="pl-5 text-slate-700">
+              • {textoLimpo.replace(/^\d+[.)]\s+/, '').replace(/^[-*•]\s+/, '')}
+            </p>
+          );
+        }
+
+        return (
+          <p key={`line-${index}`} className="text-slate-700">
+            {textoLimpo}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 function obterDestinoPrincipal(orc: Orcamento): string {
   const destinoVoo =
     orc.voos?.find((item) => typeof item?.destino === "string" && item.destino.trim())?.destino || "";
@@ -233,7 +339,7 @@ export default function RoteiroOrcamento() {
   };
 
   return (
-    <div className="px-4 py-6 sm:px-6 sm:py-8 max-w-4xl mx-auto bg-white min-h-screen">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 max-w-4xl mx-auto bg-white min-h-screen" style={{ fontFamily: "'Cambria', 'Palatino Linotype', 'Book Antiqua', serif" }}>
       <div className="flex items-start justify-between mb-8">
         <div className="text-center flex-1 group">
           <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
@@ -346,7 +452,9 @@ export default function RoteiroOrcamento() {
           <div className="bg-sky-100 p-3">
             <h2 className="font-bold text-sky-800 flex items-center gap-2"><Map className="w-5 h-5"/> Roteiro</h2>
           </div>
-          <p className="text-sm text-gray-600 whitespace-pre-wrap p-4">{orc.roteiro}</p>
+          <div className="p-4">
+            <RenderRoteiroTexto texto={orc.roteiro} />
+          </div>
         </Card>
       )}
 

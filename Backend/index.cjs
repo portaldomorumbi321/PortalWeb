@@ -893,11 +893,7 @@ async function hydratePlacesWithDetailsPhotos(places, apiKey) {
 }
 
 function logPlacePhoto(step, data) {
-    try {
-        console.info(`[PlacePhoto] ${step}`, data);
-    } catch (_) {
-        console.info(`[PlacePhoto] ${step}`);
-    }
+    return;
 }
 
 function parseAxiosError(error, fallbackMessage) {
@@ -1025,6 +1021,29 @@ async function searchDestinationPhotoName(place) {
     const candidates = buildPlaceSearchCandidates(place);
     let selected = null;
     let fallbackCenter = null;
+    const optionsMap = new Map();
+
+    const registerOptions = (places) => {
+        if (!Array.isArray(places)) {
+            return;
+        }
+
+        for (const item of places) {
+            const name = String(item?.displayName?.text || '').trim();
+            const address = String(item?.formattedAddress || '').trim();
+            const key = normalizeTextForComparison(name || address);
+            if (!key) {
+                continue;
+            }
+
+            if (!optionsMap.has(key)) {
+                optionsMap.set(key, {
+                    name: name || address,
+                    address: address || null,
+                });
+            }
+        }
+    };
 
     logPlacePhoto('TextSearch candidates', { place, candidates });
 
@@ -1032,6 +1051,7 @@ async function searchDestinationPhotoName(place) {
         logPlacePhoto('TextSearch request', { place, textQuery });
 
         const placesRaw = await searchPlacesByText(textQuery, apiKey);
+        registerOptions(placesRaw);
         const places = await hydratePlacesWithDetailsPhotos(placesRaw, apiKey);
         const centerCandidates = places
             .map((item) => ({
@@ -1097,6 +1117,7 @@ async function searchDestinationPhotoName(place) {
         });
 
         const nearbyPlacesRaw = await searchNearbyPhotoPlace(fallbackCenter, apiKey);
+        registerOptions(nearbyPlacesRaw);
         const nearbyPlaces = await hydratePlacesWithDetailsPhotos(nearbyPlacesRaw, apiKey);
         const nearbyRanked = nearbyPlaces
             .map((item) => ({
@@ -1149,6 +1170,7 @@ async function searchDestinationPhotoName(place) {
         fallbackCenter: fallbackCenter
             ? { latitude: fallbackCenter.latitude, longitude: fallbackCenter.longitude }
             : null,
+        options: Array.from(optionsMap.values()),
     };
 }
 
@@ -1180,6 +1202,8 @@ app.get('/api/place-photo', async (req, res) => {
         const result = await searchDestinationPhotoName(place);
         const photoName = result?.photoName || null;
         const fallbackCenter = result?.fallbackCenter || null;
+        const options = Array.isArray(result?.options) ? result.options : [];
+        const totalPlaces = options.length;
 
         const baseUrl = buildBackendBaseUrl(req);
 
@@ -1188,7 +1212,7 @@ app.get('/api/place-photo', async (req, res) => {
 
             logPlacePhoto('Returning photo URL', { place, photoName, photoUrl, method: 'placePhotoMedia' });
 
-            return res.json({ photo: photoUrl });
+            return res.json({ photo: photoUrl, totalPlaces, options });
         }
 
         if (fallbackCenter) {
@@ -1206,7 +1230,7 @@ app.get('/api/place-photo', async (req, res) => {
                     streetViewStatus: streetViewCheck.status,
                 });
 
-                return res.json({ photo: streetViewUrl });
+                return res.json({ photo: streetViewUrl, totalPlaces, options });
             }
 
             const wikipediaFallback = await fetchWikipediaThumbnail(place);
@@ -1219,7 +1243,7 @@ app.get('/api/place-photo', async (req, res) => {
                     wikipediaTitle: wikipediaFallback.title,
                     fallbackUrl: wikipediaFallback.url,
                 });
-                return res.json({ photo: wikipediaFallback.url });
+                return res.json({ photo: wikipediaFallback.url, totalPlaces, options });
             }
 
             const staticFallback = buildStaticDestinationFallbackUrl(place);
@@ -1230,12 +1254,12 @@ app.get('/api/place-photo', async (req, res) => {
                 fallbackSource: staticFallback.source,
                 fallbackUrl: staticFallback.url,
             });
-            return res.json({ photo: staticFallback.url });
+            return res.json({ photo: staticFallback.url, totalPlaces, options });
         }
 
         if (!photoName) {
             logPlacePhoto('No photo found', { place });
-            return res.json({ photo: null });
+            return res.json({ photo: null, totalPlaces, options });
         }
     } catch (error) {
         const parsed = parseAxiosError(error, 'Erro ao consultar foto do destino na Google Places API.');

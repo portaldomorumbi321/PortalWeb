@@ -35,6 +35,8 @@ import {
   listarLancamentosFinanceiros,
   type LancamentoFinanceiro,
 } from "../data/financeiroApi";
+import { buscarOpcoesDestino } from "../data/placePhotoApi";
+import { enviarMensagemIA } from "../data/aiChatApi";
 
 const itemVazio = (): ItemOrc => ({ id: Date.now(), descricao: "", quantidade: 1, unidade: "un", valorUnitario: 0, desconto: 0, link: "", documentos: [] });
 
@@ -688,48 +690,75 @@ export default function Orcamentos() {
   async function gerarRoteiroComIA() {
     setGerandoRoteiro(true);
 
+    const destinoPrincipal = obterDestinoPrincipalOrcamento(undefined, true);
+    let opcoesDestinoTexto = "";
+    let opcoesDestinoLista: Array<{ name: string; address?: string | null }> = [];
+    let totalOpcoesDestino = 0;
+
+    if (destinoPrincipal) {
+      try {
+        const places = await buscarOpcoesDestino(destinoPrincipal);
+        totalOpcoesDestino = places.totalPlaces;
+        opcoesDestinoLista = places.options
+          .map((item) => ({
+            name: String(item?.name || "").trim(),
+            address: typeof item?.address === "string" ? item.address.trim() : null,
+          }))
+          .filter((item) => Boolean(item.name));
+
+        if (opcoesDestinoLista.length > 0) {
+          opcoesDestinoTexto = [
+            `Evidências dos lugares no destino (${totalOpcoesDestino} opções):`,
+            ...opcoesDestinoLista.map((item, index) =>
+              `${index + 1}. ${item.name}${item.address ? ` — ${item.address}` : ""}`
+            ),
+          ].join("\n");
+        }
+      } catch {
+        opcoesDestinoTexto = "";
+        totalOpcoesDestino = 0;
+      }
+    }
+
     // 1. Coletar dados do formulário para enviar à IA
     const hotelInfo = hospedagem[0] ? `em ${hospedagem[0].nomeHotel} (${hospedagem[0].cidade})` : '';
     const vooInfo = voos[0] ? `com voo de ${voos[0].origem} para ${voos[0].destino} no dia ${fmtData(voos[0].dataIda)}` : '';
-    const prompt = `Crie uma sugestão de roteiro de viagem para ${form.cliente} ${vooInfo} ${hotelInfo}. O roteiro deve ser um texto descritivo e envolvente.`;
+    const prompt = `Crie uma sugestão de roteiro de viagem para ${form.cliente} ${vooInfo} ${hotelInfo}.${destinoPrincipal ? ` O destino principal é ${destinoPrincipal}.` : ""}
 
-    console.log("Enviando para IA (simulado):", prompt);
+  Formato obrigatório da resposta:
+  1) Título elegante do roteiro.
+  2) Resumo inspirador em 1 parágrafo.
+  3) Bloco "Dia a dia sugerido" com subtítulos por dia e atividades em bullets.
+  4) Bloco "Destaques imperdíveis" com 5 a 8 itens.
+  5) Bloco "Dicas práticas" (transporte, horários, segurança e clima).
+  6) Bloco final "Evidências dos lugares" listando os nomes dos locais sugeridos.
 
-    const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
-    if (!GEMINI_API_KEY) {
-      console.error("Chave da API do Gemini não encontrada. Verifique o arquivo .env");
-      setRoteiro("ERRO: A chave da API do Google Gemini não foi configurada em VITE_GEMINI_API_KEY no arquivo .env.");
-      setGerandoRoteiro(false);
-      return;
-    }
+  Escreva em português do Brasil, com tom profissional, bonito e claro para apresentar ao cliente final.
+  Nao utilize Markdown e nao use simbolos de formatacao como **, __, # ou listas com asterisco.${opcoesDestinoTexto ? `\n\nUse como base de evidências os lugares abaixo:\n${opcoesDestinoTexto}` : ""}`;
 
     try {
-      // 2. Chamada direta para a API do Google Gemini
-      // Substitua 'gemini-1.0-pro' pelo modelo que você está usando, se for diferente.
-      // A URL pode variar dependendo da sua região e projeto.
-      const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+      const data = await enviarMensagemIA([
+        {
+          role: "user",
+          content: prompt,
+        },
+      ]);
+      const roteiroGerado = data.reply;
 
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }]
-        })
-      });
+      if (opcoesDestinoLista.length > 0) {
+        const blocoEvidencias = [
+          "",
+          "Evidências dos lugares",
+          ...opcoesDestinoLista.map((item, index) =>
+            `- ${index + 1}. ${item.name}${item.address ? ` (${item.address})` : ""}`
+          ),
+          `Total de opções encontradas: ${totalOpcoesDestino || opcoesDestinoLista.length}`,
+        ].join("\n");
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Erro da API Gemini:", errorData);
-        throw new Error(`Erro na API: ${errorData.error?.message || 'Resposta inválida'}`);
+        setRoteiro(`${roteiroGerado}\n${blocoEvidencias}`);
+      } else {
+        setRoteiro(roteiroGerado);
       }
-
-      const data = await response.json();
-      // Extrai o texto da resposta da API do Gemini
-      const roteiroGerado = data.candidates[0].content.parts[0].text;
-      setRoteiro(roteiroGerado);
 
     } catch (error) {
       console.error("Falha ao gerar roteiro com IA:", error);
@@ -951,7 +980,7 @@ export default function Orcamentos() {
                         disabled={gerandoRoteiro}
                         className="flex items-center gap-2 text-indigo-600 border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
                       >
-                        <Sparkles className={`w-4 h-4 ${gerandoRoteiro ? 'animate-spin' : ''}`} /> {gerandoRoteiro ? 'Gerando...' : 'Gerar com IA'}
+                        <Sparkles className={`w-4 h-4 ${gerandoRoteiro ? 'animate-spin' : ''}`} /> {gerandoRoteiro ? 'Gerando...' : 'Sugestão de Roteiro com IA'}
                       </Button>
                     </div>
                     <RoteiroForm roteiro={roteiro} onRoteiroChange={setRoteiro} />

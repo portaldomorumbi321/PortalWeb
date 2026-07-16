@@ -1,6 +1,16 @@
 interface PlacePhotoResponse {
   photo: string | null;
   error?: string;
+  totalPlaces?: number;
+  options?: Array<{
+    name: string;
+    address?: string | null;
+  }>;
+}
+
+export interface DestinationPlaceOption {
+  name: string;
+  address?: string | null;
 }
 
 const API_BASE_URL =
@@ -13,22 +23,16 @@ const API_BASE_URL =
         );
       })());
 
-export async function buscarFotoDestino(destination: string): Promise<string | null> {
+async function requestPlacePhoto(destination: string): Promise<PlacePhotoResponse> {
   const normalizedDestination = String(destination || "").trim();
-  console.info("[PlacePhotoFE] Buscar foto", { destination, normalizedDestination });
 
   if (!normalizedDestination) {
-    console.info("[PlacePhotoFE] Destino vazio, retornando null");
-    return null;
+    return { photo: null, totalPlaces: 0, options: [] };
   }
 
   let response: Response;
 
   try {
-    console.info("[PlacePhotoFE] Request", {
-      url: `${API_BASE_URL}/place-photo?place=${encodeURIComponent(normalizedDestination)}`,
-      destination: normalizedDestination,
-    });
     response = await fetch(
       `${API_BASE_URL}/place-photo?place=${encodeURIComponent(normalizedDestination)}`,
       {
@@ -43,30 +47,35 @@ export async function buscarFotoDestino(destination: string): Promise<string | n
   }
 
   const text = await response.text();
-  let body: PlacePhotoResponse = { photo: null };
+  let body: PlacePhotoResponse = { photo: null, totalPlaces: 0, options: [] };
 
   if (text) {
     try {
       body = JSON.parse(text) as PlacePhotoResponse;
     } catch {
-      body = { photo: null };
+      body = { photo: null, totalPlaces: 0, options: [] };
     }
   }
 
   if (!response.ok) {
-    console.error("[PlacePhotoFE] Erro response", {
-      status: response.status,
-      body,
-      destination: normalizedDestination,
-    });
     throw new Error(body?.error || "Erro ao buscar foto do destino.");
   }
 
-  console.info("[PlacePhotoFE] Response OK", {
-    status: response.status,
-    destination: normalizedDestination,
-    photo: body.photo ?? null,
-  });
+  return body;
+}
 
+export async function buscarFotoDestino(destination: string): Promise<string | null> {
+  const body = await requestPlacePhoto(destination);
   return body.photo ?? null;
+}
+
+export async function buscarOpcoesDestino(destination: string): Promise<{ totalPlaces: number; options: DestinationPlaceOption[] }> {
+  const body = await requestPlacePhoto(destination);
+  const options = Array.isArray(body.options) ? body.options : [];
+  const totalPlaces = typeof body.totalPlaces === "number" ? body.totalPlaces : options.length;
+
+  return {
+    totalPlaces,
+    options,
+  };
 }
