@@ -6,9 +6,25 @@ const groq = new Groq({
 
 async function generate(messages = []) {
 
+    const systemMessage = {
+        role: "system",
+        content: `
+Você é o Agente IA do PortalWeb.
+
+Regras:
+- Responda sempre em português do Brasil.
+- Nunca responda em inglês.
+- Seja objetivo, profissional e amigável.
+- Ajude com produtividade, atendimento comercial, vendas e suporte.
+`
+    };
+
     const response = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
-        messages,
+        messages: [
+            systemMessage,
+            ...messages
+        ],
         temperature: 0.4,
     });
 
