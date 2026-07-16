@@ -1263,13 +1263,6 @@ app.get('/api/place-photo', async (req, res) => {
         }
     } catch (error) {
         const parsed = parseAxiosError(error, 'Erro ao consultar foto do destino na Google Places API.');
-        console.error('Erro em /api/place-photo:', {
-            place,
-            status: error?.response?.status,
-            code: error?.code,
-            data: error?.response?.data,
-            message: error?.message,
-        });
         return res.status(parsed.status).json({ error: parsed.message, photo: null });
     }
 });
@@ -1309,13 +1302,6 @@ app.get('/api/place-photo-media', async (req, res) => {
         return res.send(Buffer.from(response.data));
     } catch (error) {
         const parsed = parseAxiosError(error, 'Erro ao carregar mídia da foto do destino.');
-        console.error('Erro em /api/place-photo-media:', {
-            photoName,
-            status: error?.response?.status,
-            code: error?.code,
-            data: error?.response?.data,
-            message: error?.message,
-        });
         return res.status(parsed.status).json({ error: parsed.message });
     }
 });
@@ -1355,14 +1341,6 @@ app.get('/api/place-photo-streetview', async (req, res) => {
         return res.send(Buffer.from(response.data));
     } catch (error) {
         const parsed = parseAxiosError(error, 'Erro ao carregar imagem Street View do destino.');
-        console.error('Erro em /api/place-photo-streetview:', {
-            latitude,
-            longitude,
-            status: error?.response?.status,
-            code: error?.code,
-            data: error?.response?.data,
-            message: error?.message,
-        });
         return res.status(parsed.status).json({ error: parsed.message });
     }
 });
