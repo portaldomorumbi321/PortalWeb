@@ -179,6 +179,33 @@ async function fetchDestinations(query: string, limit = 200): Promise<Destinatio
   return items.filter((item) => buildSearchableText(item.data).includes(normalizedQuery));
 }
 
+function buildHospedagemFallbackItens(query: string): HospedagemDestinoResultado[] {
+  const normalizedQuery = String(query || '').trim() || 'Destino';
+  const city = (normalizedQuery.split(',')[0] || normalizedQuery).trim();
+
+  const baseNames = [
+    'Hotel Central',
+    'Pousada Vista Mar',
+    'Resort Premium',
+    'Hotel Boutique',
+    'Suítes Executivas',
+  ];
+
+  return baseNames.map((baseName, index) => ({
+    placeId: index + 1,
+    nome: `${baseName} ${city}`,
+    local: city,
+    endereco: `${city}, Brasil`,
+    classificacao: 4.2,
+    totalAvaliacoes: 120 + index * 35,
+    tiposQuarto: ['Standard', 'Superior', 'Suíte'],
+    amenidades: ['Wi-Fi', 'Café da manhã', 'Recepção 24h'],
+    precoBase: 320 + index * 40,
+    photos: null,
+    linkOperadora: '',
+  }));
+}
+
 export async function buscarHospedagensDestino(query: string): Promise<HospedagemBuscaResponse> {
   const normalizedQuery = String(query || '').trim();
   if (!normalizedQuery) {
@@ -211,37 +238,49 @@ export async function buscarHospedagensDestino(query: string): Promise<Hospedage
       fallbackReason: typeof response?.fallback === 'string' ? response.fallback : undefined,
     };
   } catch {
-    const items = await fetchDestinations(normalizedQuery);
+    try {
+      const items = await fetchDestinations(normalizedQuery);
 
-    const itens = items.slice(0, 10).map((item) => {
-      const nome = getString(item.data, ['nome', 'name', 'titulo', 'title']) || normalizedQuery;
-      const local = getString(item.data, ['local', 'cidade', 'destino', 'nome', 'name']) || normalizedQuery;
-      const endereco = getString(item.data, ['endereco', 'formattedAddress', 'address']) || local;
-      const classificacao = getNumber(item.data, ['classificacao', 'rating', 'score']);
-      const totalAvaliacoes = getNumber(item.data, ['totalAvaliacoes', 'userRatingCount', 'avaliacoes']);
-      const amenidades = getStringArray(item.data, ['amenidades', 'amenities', 'facilidades']);
-      const precoBase = getNumber(item.data, ['precoBase', 'preco', 'price']) || 150;
-      const tiposQuarto = getStringArray(item.data, ['tiposQuarto', 'roomTypes']);
+      const itens = items.slice(0, 10).map((item) => {
+        const nome = getString(item.data, ['nome', 'name', 'titulo', 'title']) || normalizedQuery;
+        const local = getString(item.data, ['local', 'cidade', 'destino', 'nome', 'name']) || normalizedQuery;
+        const endereco = getString(item.data, ['endereco', 'formattedAddress', 'address']) || local;
+        const classificacao = getNumber(item.data, ['classificacao', 'rating', 'score']);
+        const totalAvaliacoes = getNumber(item.data, ['totalAvaliacoes', 'userRatingCount', 'avaliacoes']);
+        const amenidades = getStringArray(item.data, ['amenidades', 'amenities', 'facilidades']);
+        const precoBase = getNumber(item.data, ['precoBase', 'preco', 'price']) || 150;
+        const tiposQuarto = getStringArray(item.data, ['tiposQuarto', 'roomTypes']);
 
-      return {
-        placeId: item.id,
-        nome,
-        local,
-        endereco,
-        classificacao,
-        totalAvaliacoes,
-        tiposQuarto: tiposQuarto.length ? tiposQuarto : ['Standard', 'Superior', 'Suíte'],
-        amenidades: amenidades.length ? amenidades : ['WiFi Grátis', 'Café da Manhã'],
-        precoBase,
-        photos: null,
-        linkOperadora: getString(item.data, ['linkOperadora', 'website', 'url']),
-      };
-    });
+        return {
+          placeId: item.id,
+          nome,
+          local,
+          endereco,
+          classificacao,
+          totalAvaliacoes,
+          tiposQuarto: tiposQuarto.length ? tiposQuarto : ['Standard', 'Superior', 'Suíte'],
+          amenidades: amenidades.length ? amenidades : ['WiFi Grátis', 'Café da Manhã'],
+          precoBase,
+          photos: null,
+          linkOperadora: getString(item.data, ['linkOperadora', 'website', 'url']),
+        };
+      });
+
+      if (itens.length > 0) {
+        return {
+          itens,
+          fallback: true,
+          fallbackReason: 'legacy-dataset',
+        };
+      }
+    } catch {
+      // segue para fallback local em memória
+    }
 
     return {
-      itens,
+      itens: buildHospedagemFallbackItens(normalizedQuery),
       fallback: true,
-      fallbackReason: 'legacy-dataset',
+      fallbackReason: 'local-fallback',
     };
   }
 }

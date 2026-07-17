@@ -150,7 +150,7 @@ export default function HospedagemForm({
       }
     } catch (err) {
       if (!silencioso) {
-        setErro("Erro ao buscar hospedagens. Tente novamente ou adicione manualmente.");
+        setErro("Não foi possível buscar agora. Adicione manualmente.");
         setMostrarManual(true);
       }
     } finally {
