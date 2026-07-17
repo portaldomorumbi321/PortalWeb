@@ -246,6 +246,7 @@ function mapCliente(row) {
         estado: row.estado || '',
         status: row.status,
         cpfCnpj: row.cpf_cnpj || '',
+        rg: row.rg || '',
         dataNascimento: row.data_nascimento ? new Date(row.data_nascimento).toISOString().slice(0, 10) : '',
         documentoNome: row.documento_nome || '',
     };
@@ -390,6 +391,7 @@ function normalizeClientePayload(body) {
         estado: String(body?.estado || '').trim().toUpperCase().slice(0, 2),
         status: body?.status === 'Inativo' ? 'Inativo' : 'Ativo',
         cpfCnpj: String(body?.cpfCnpj || '').trim(),
+        rg: String(body?.rg || '').trim(),
         dataNascimento: String(body?.dataNascimento || '').trim(),
         documentoNome: String(body?.documentoNome || '').trim(),
     };
@@ -1946,7 +1948,7 @@ app.delete('/api/funcionarios/:id', ensureDb, async (req, res) => {
 app.get('/api/clientes', ensureDb, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome
+              `SELECT id, nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, rg, data_nascimento, documento_nome
        FROM public.clientes
        ORDER BY nome ASC`
         );
@@ -1969,9 +1971,9 @@ app.post('/api/clientes', ensureDb, async (req, res) => {
     try {
         const result = await pool.query(
             `INSERT INTO public.clientes
-        (nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULLIF($12, '')::date, $13)
-       RETURNING id, nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome`,
+        (nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, rg, data_nascimento, documento_nome)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NULLIF($13, '')::date, $14)
+       RETURNING id, nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, rg, data_nascimento, documento_nome`,
             [
                 payload.nome,
                 payload.email || null,
@@ -1984,6 +1986,7 @@ app.post('/api/clientes', ensureDb, async (req, res) => {
                 payload.estado || null,
                 payload.status,
                 payload.cpfCnpj || null,
+                payload.rg || null,
                 payload.dataNascimento,
                 payload.documentoNome || null,
             ]
@@ -2015,7 +2018,7 @@ app.put('/api/clientes/:id', ensureDb, async (req, res) => {
 
     try {
         const result = await pool.query(
-            `UPDATE public.clientes
+                        `UPDATE public.clientes
           SET nome = $1,
               email = $2,
               telefone = $3,
@@ -2027,11 +2030,12 @@ app.put('/api/clientes/:id', ensureDb, async (req, res) => {
               estado = $9,
               status = $10,
               cpf_cnpj = $11,
-              data_nascimento = NULLIF($12, '')::date,
-              documento_nome = $13,
+              rg = $12,
+              data_nascimento = NULLIF($13, '')::date,
+              documento_nome = $14,
               atualizado_em = NOW()
-        WHERE id = $14
-      RETURNING id, nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, data_nascimento, documento_nome`,
+          WHERE id = $15
+        RETURNING id, nome, email, telefone, cep, endereco, numero, complemento, cidade, estado, status, cpf_cnpj, rg, data_nascimento, documento_nome`,
             [
                 payload.nome,
                 payload.email || null,
@@ -2044,6 +2048,7 @@ app.put('/api/clientes/:id', ensureDb, async (req, res) => {
                 payload.estado || null,
                 payload.status,
                 payload.cpfCnpj || null,
+                payload.rg || null,
                 payload.dataNascimento,
                 payload.documentoNome || null,
                 id,

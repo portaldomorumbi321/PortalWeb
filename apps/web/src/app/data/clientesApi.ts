@@ -11,6 +11,7 @@ export interface Cliente {
   estado: string;
   status: 'Ativo' | 'Inativo';
   cpfCnpj: string;
+  rg: string;
   dataNascimento: string;
   documentoNome: string;
 }

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS public.clientes (
   estado VARCHAR(2),
   status VARCHAR(10) NOT NULL DEFAULT 'Ativo' CHECK (status IN ('Ativo', 'Inativo')),
   cpf_cnpj VARCHAR(32),
+  rg VARCHAR(32),
   data_nascimento DATE,
   documento_nome VARCHAR(255),
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -29,3 +30,4 @@ ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS cep VARCHAR(16);
 ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS endereco VARCHAR(255);
 ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS numero VARCHAR(20);
 ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS complemento VARCHAR(120);
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS rg VARCHAR(32);

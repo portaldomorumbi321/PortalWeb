@@ -27,6 +27,7 @@ const clienteVazio: ClienteForm = {
   estado: "",
   status: "Ativo",
   cpfCnpj: "",
+  rg: "",
   dataNascimento: "",
   documentoNome: "",
 };
@@ -68,6 +69,7 @@ export default function CadastroClientes() {
       c.cep.includes(termo) ||
       c.endereco.toLowerCase().includes(termo) ||
       c.cidade.toLowerCase().includes(termo) ||
+      c.rg.includes(termo) ||
       c.cpfCnpj.includes(termo);
     const matchStatus = filtroStatus === "Todos" || c.status === filtroStatus;
     return matchBusca && matchStatus;
@@ -95,6 +97,7 @@ export default function CadastroClientes() {
       estado: cliente.estado,
       status: cliente.status,
       cpfCnpj: cliente.cpfCnpj,
+      rg: cliente.rg || "",
       dataNascimento: cliente.dataNascimento,
       documentoNome: cliente.documentoNome,
     });
@@ -390,7 +393,7 @@ export default function CadastroClientes() {
                   className="mt-1"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4 md:col-span-2 xl:col-span-1">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 md:col-span-2 xl:col-span-2">
                 <div>
                   <Label htmlFor="cpfCnpj">CPF / CNPJ</Label>
                   <Input
@@ -398,6 +401,16 @@ export default function CadastroClientes() {
                     value={form.cpfCnpj}
                     onChange={(e) => setForm({ ...form, cpfCnpj: e.target.value })}
                     placeholder="000.000.000-00"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="rg">RG</Label>
+                  <Input
+                    id="rg"
+                    value={form.rg}
+                    onChange={(e) => setForm({ ...form, rg: e.target.value })}
+                    placeholder="00.000.000-0"
                     className="mt-1"
                   />
                 </div>
