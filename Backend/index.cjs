@@ -640,6 +640,97 @@ function normalizeTextForComparison(value) {
         .trim();
 }
 
+function buildQuotaFallbackLodgingOptions(place) {
+    const normalizedPlace = normalizePlaceQuery(place)
+        .replace(/\([^)]*\)/g, ' ')
+        .replace(/\b(brasil|brazil)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const city = (normalizedPlace.split(',')[0] || normalizedPlace || 'Destino').trim();
+
+    const baseNames = [
+        'Hotel Central',
+        'Pousada Vista Mar',
+        'Resort Premium',
+        'Hotel Boutique',
+        'Suítes Executivas',
+    ];
+
+    return baseNames.map((baseName, index) => ({
+        placeId: index + 1,
+        nome: `${baseName} ${city}`,
+        local: city,
+        endereco: `${city}, Brasil`,
+        classificacao: 4.2,
+        totalAvaliacoes: 120 + index * 35,
+        tiposQuarto: ['Standard', 'Superior', 'Suíte'],
+        amenidades: ['Wi-Fi', 'Café da manhã', 'Recepção 24h'],
+        precoBase: 320 + index * 40,
+        photos: null,
+        linkOperadora: '',
+        fallback: true,
+    }));
+}
+
+function buildQuotaFallbackRestaurantOptions(place) {
+    const normalizedPlace = normalizePlaceQuery(place)
+        .replace(/\([^)]*\)/g, ' ')
+        .replace(/\b(brasil|brazil)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const city = (normalizedPlace.split(',')[0] || normalizedPlace || 'Destino').trim();
+
+    const baseNames = [
+        'Restaurante Sabor da Cidade',
+        'Bistrô Panorama',
+        'Cantina Bella Notte',
+        'Casa Gourmet',
+        'Cozinha Raízes',
+    ];
+
+    return baseNames.map((baseName, index) => ({
+        placeId: index + 1,
+        nome: `${baseName} ${city}`,
+        local: city,
+        endereco: `${city}, Brasil`,
+        classificacao: 4.3,
+        totalAvaliacoes: 140 + index * 28,
+        telefone: '',
+        website: '',
+        priceLevel: '$$',
+        fallback: true,
+    }));
+}
+
+function buildQuotaFallbackExperienceOptions(place) {
+    const normalizedPlace = normalizePlaceQuery(place)
+        .replace(/\([^)]*\)/g, ' ')
+        .replace(/\b(brasil|brazil)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const city = (normalizedPlace.split(',')[0] || normalizedPlace || 'Destino').trim();
+
+    const baseNames = [
+        'City Tour Histórico',
+        'Passeio Cultural Guiado',
+        'Experiência Gastronômica Local',
+        'Roteiro de Mirantes',
+        'Passeio ao Pôr do Sol',
+    ];
+
+    return baseNames.map((baseName, index) => ({
+        placeId: index + 1,
+        nome: `${baseName} em ${city}`,
+        local: city,
+        endereco: `${city}, Brasil`,
+        classificacao: 4.5,
+        totalAvaliacoes: 90 + index * 22,
+        descricao: `Sugestão de experiência em ${city}.`,
+        priceLevel: '$$',
+        fallback: true,
+    }));
+}
+
 function buildPlaceSearchCandidates(place) {
     const original = normalizePlaceQuery(place);
     const withoutParentheses = original.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
@@ -754,6 +845,206 @@ async function searchPlacesByText(textQuery, apiKey) {
     );
 
     return Array.isArray(response?.data?.places) ? response.data.places : [];
+}
+
+async function searchLodgingOptions(place) {
+    const apiKey = getGoogleMapsApiKey();
+    const candidates = buildPlaceSearchCandidates(place);
+    const optionsMap = new Map();
+
+    for (const textQuery of candidates) {
+        const lodgingQuery = `${textQuery} hospedagem hotel`;
+
+        const response = await axios.post(
+            'https://places.googleapis.com/v1/places:searchText',
+            {
+                textQuery: lodgingQuery,
+                languageCode: 'pt-BR',
+            },
+            {
+                timeout: 15000,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': apiKey,
+                    'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.websiteUri,places.types',
+                },
+            }
+        );
+
+        const places = Array.isArray(response?.data?.places) ? response.data.places : [];
+        let added = 0;
+        let skipped = 0;
+
+        for (const item of places) {
+            const types = Array.isArray(item?.types) ? item.types : [];
+            const normalizedName = normalizeTextForComparison(item?.displayName?.text || '');
+            const nameSuggestsLodging = /\b(hotel|hostel|resort|pousada|inn)\b/.test(normalizedName);
+            const likelyLodging = types.some((type) =>
+                ['lodging', 'hotel', 'inn', 'resort_hotel', 'guest_house', 'hostel'].includes(String(type || '').toLowerCase())
+            );
+
+            if (!likelyLodging && !nameSuggestsLodging && types.length > 0) {
+                skipped += 1;
+                continue;
+            }
+
+            const nome = String(item?.displayName?.text || '').trim();
+            const endereco = String(item?.formattedAddress || '').trim();
+            const key = normalizeTextForComparison(`${nome} ${endereco}`);
+            if (!key) {
+                skipped += 1;
+                continue;
+            }
+
+            if (!optionsMap.has(key)) {
+                const classificacao = Number(item?.rating || 0);
+                optionsMap.set(key, {
+                    placeId: key,
+                    nome: nome || textQuery,
+                    local: textQuery,
+                    endereco: endereco || textQuery,
+                    classificacao: Number.isFinite(classificacao) ? classificacao : 0,
+                    totalAvaliacoes: Number(item?.userRatingCount || 0) || 0,
+                    tiposQuarto: ['Standard', 'Superior', 'Suíte'],
+                    amenidades: ['Wi-Fi', 'Café da manhã'],
+                    precoBase: 350,
+                    photos: null,
+                    linkOperadora: String(item?.websiteUri || '').trim(),
+                });
+                added += 1;
+            }
+        }
+
+    }
+
+    const options = Array.from(optionsMap.values()).slice(0, 20);
+    return options;
+}
+
+async function searchRestaurantOptions(place) {
+    const apiKey = getGoogleMapsApiKey();
+    const candidates = buildPlaceSearchCandidates(place);
+    const optionsMap = new Map();
+
+    for (const textQuery of candidates) {
+        const response = await axios.post(
+            'https://places.googleapis.com/v1/places:searchText',
+            {
+                textQuery: `${textQuery} restaurantes`,
+                languageCode: 'pt-BR',
+            },
+            {
+                timeout: 15000,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': apiKey,
+                    'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.websiteUri,places.internationalPhoneNumber,places.priceLevel,places.types',
+                },
+            }
+        );
+
+        const places = Array.isArray(response?.data?.places) ? response.data.places : [];
+        for (const item of places) {
+            const types = Array.isArray(item?.types) ? item.types : [];
+            const normalizedName = normalizeTextForComparison(item?.displayName?.text || '');
+            const nameSuggestsRestaurant = /\b(restaurante|bistro|cantina|pizzaria|grill|cafe|lanchonete)\b/.test(normalizedName);
+            const likelyRestaurant = types.some((type) =>
+                ['restaurant', 'cafe', 'meal_takeaway', 'meal_delivery', 'food'].includes(String(type || '').toLowerCase())
+            );
+
+            if (!likelyRestaurant && !nameSuggestsRestaurant && types.length > 0) {
+                continue;
+            }
+
+            const nome = String(item?.displayName?.text || '').trim();
+            const endereco = String(item?.formattedAddress || '').trim();
+            const key = normalizeTextForComparison(`${nome} ${endereco}`);
+            if (!key || optionsMap.has(key)) {
+                continue;
+            }
+
+            optionsMap.set(key, {
+                placeId: key,
+                nome: nome || textQuery,
+                local: textQuery,
+                endereco: endereco || textQuery,
+                classificacao: Number(item?.rating || 0) || 0,
+                totalAvaliacoes: Number(item?.userRatingCount || 0) || 0,
+                telefone: String(item?.internationalPhoneNumber || '').trim(),
+                website: String(item?.websiteUri || '').trim(),
+                priceLevel: typeof item?.priceLevel === 'string' ? item.priceLevel : Number(item?.priceLevel || 0) || '',
+            });
+        }
+    }
+
+    return Array.from(optionsMap.values()).slice(0, 20);
+}
+
+async function searchExperienceOptions(place) {
+    const apiKey = getGoogleMapsApiKey();
+    const candidates = buildPlaceSearchCandidates(place);
+    const optionsMap = new Map();
+
+    for (const textQuery of candidates) {
+        const response = await axios.post(
+            'https://places.googleapis.com/v1/places:searchText',
+            {
+                textQuery: `${textQuery} atrações experiências`,
+                languageCode: 'pt-BR',
+            },
+            {
+                timeout: 15000,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': apiKey,
+                    'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types',
+                },
+            }
+        );
+
+        const places = Array.isArray(response?.data?.places) ? response.data.places : [];
+        for (const item of places) {
+            const types = Array.isArray(item?.types) ? item.types : [];
+            const normalizedName = normalizeTextForComparison(item?.displayName?.text || '');
+            const nameSuggestsExperience = /\b(tour|passeio|museu|parque|atracao|atração|experiencia|experiência)\b/.test(normalizedName);
+            const likelyExperience = types.some((type) =>
+                [
+                    'tourist_attraction',
+                    'point_of_interest',
+                    'museum',
+                    'amusement_park',
+                    'park',
+                    'zoo',
+                    'aquarium',
+                    'art_gallery',
+                ].includes(String(type || '').toLowerCase())
+            );
+
+            if (!likelyExperience && !nameSuggestsExperience && types.length > 0) {
+                continue;
+            }
+
+            const nome = String(item?.displayName?.text || '').trim();
+            const endereco = String(item?.formattedAddress || '').trim();
+            const key = normalizeTextForComparison(`${nome} ${endereco}`);
+            if (!key || optionsMap.has(key)) {
+                continue;
+            }
+
+            optionsMap.set(key, {
+                placeId: key,
+                nome: nome || textQuery,
+                local: textQuery,
+                endereco: endereco || textQuery,
+                classificacao: Number(item?.rating || 0) || 0,
+                totalAvaliacoes: Number(item?.userRatingCount || 0) || 0,
+                descricao: '',
+                priceLevel: typeof item?.priceLevel === 'string' ? item.priceLevel : Number(item?.priceLevel || 0) || '',
+            });
+        }
+    }
+
+    return Array.from(optionsMap.values()).slice(0, 20);
 }
 
 async function searchNearbyPhotoPlace(center, apiKey) {
@@ -893,6 +1184,10 @@ async function hydratePlacesWithDetailsPhotos(places, apiKey) {
 }
 
 function logPlacePhoto(step, data) {
+    return;
+}
+
+function logServerError() {
     return;
 }
 
@@ -1267,6 +1562,112 @@ app.get('/api/place-photo', async (req, res) => {
     }
 });
 
+app.get('/api/place-lodging', async (req, res) => {
+    const place = normalizePlaceQuery(req.query.place);
+    const apiKey = getGoogleMapsApiKey();
+
+    logPlaceLodging('Incoming /api/place-lodging', { place });
+
+    if (!place) {
+        return res.status(400).json({ error: 'Parâmetro place é obrigatório.', options: [] });
+    }
+
+    if (!apiKey) {
+        return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY não configurada.', options: [] });
+    }
+
+    try {
+        const options = await searchLodgingOptions(place);
+        return res.json({ totalPlaces: options.length, options });
+    } catch (error) {
+        const status = Number(error?.response?.status || 0);
+        if (status === 429) {
+            const fallbackOptions = buildQuotaFallbackLodgingOptions(place);
+            logPlaceLodging('Quota exceeded, returning fallback options', {
+                place,
+                totalFallback: fallbackOptions.length,
+            });
+            return res.json({
+                totalPlaces: fallbackOptions.length,
+                options: fallbackOptions,
+                fallback: 'quota-exceeded',
+            });
+        }
+
+        const parsed = parseAxiosError(error, 'Erro ao buscar hospedagens na Google Places API.');
+        logPlaceLodging('Error /api/place-lodging', {
+            place,
+            status: error?.response?.status,
+            code: error?.code,
+            message: error?.message,
+            data: error?.response?.data,
+        });
+        return res.status(parsed.status).json({ error: parsed.message, options: [] });
+    }
+});
+
+app.get('/api/place-restaurants', async (req, res) => {
+    const place = normalizePlaceQuery(req.query.place);
+    const apiKey = getGoogleMapsApiKey();
+
+    if (!place) {
+        return res.status(400).json({ error: 'Parâmetro place é obrigatório.', options: [] });
+    }
+
+    if (!apiKey) {
+        return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY não configurada.', options: [] });
+    }
+
+    try {
+        const options = await searchRestaurantOptions(place);
+        return res.json({ totalPlaces: options.length, options });
+    } catch (error) {
+        const status = Number(error?.response?.status || 0);
+        if (status === 429) {
+            const fallbackOptions = buildQuotaFallbackRestaurantOptions(place);
+            return res.json({
+                totalPlaces: fallbackOptions.length,
+                options: fallbackOptions,
+                fallback: 'quota-exceeded',
+            });
+        }
+
+        const parsed = parseAxiosError(error, 'Erro ao buscar restaurantes na Google Places API.');
+        return res.status(parsed.status).json({ error: parsed.message, options: [] });
+    }
+});
+
+app.get('/api/place-experiences', async (req, res) => {
+    const place = normalizePlaceQuery(req.query.place);
+    const apiKey = getGoogleMapsApiKey();
+
+    if (!place) {
+        return res.status(400).json({ error: 'Parâmetro place é obrigatório.', options: [] });
+    }
+
+    if (!apiKey) {
+        return res.status(500).json({ error: 'GOOGLE_MAPS_API_KEY não configurada.', options: [] });
+    }
+
+    try {
+        const options = await searchExperienceOptions(place);
+        return res.json({ totalPlaces: options.length, options });
+    } catch (error) {
+        const status = Number(error?.response?.status || 0);
+        if (status === 429) {
+            const fallbackOptions = buildQuotaFallbackExperienceOptions(place);
+            return res.json({
+                totalPlaces: fallbackOptions.length,
+                options: fallbackOptions,
+                fallback: 'quota-exceeded',
+            });
+        }
+
+        const parsed = parseAxiosError(error, 'Erro ao buscar experiências na Google Places API.');
+        return res.status(parsed.status).json({ error: parsed.message, options: [] });
+    }
+});
+
 app.get('/api/place-photo-media', async (req, res) => {
     const apiKey = getGoogleMapsApiKey();
     const photoName = String(req.query.name || '').trim();
@@ -1359,7 +1760,7 @@ app.post('/api/ai/chat', async (req, res) => {
 
     } catch (error) {
 
-        console.error('Erro IA:', error);
+        logServerError('Erro IA:', error);
 
         res.status(500).json({
             error: error.message
@@ -1403,7 +1804,7 @@ app.post('/api/auth/funcionarios/login', ensureDb, async (req, res) => {
             funcionario: mapFuncionario(funcionario),
         });
     } catch (error) {
-        console.error('Erro ao autenticar funcionário:', error);
+        logServerError('Erro ao autenticar funcionário:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1419,7 +1820,7 @@ app.get('/api/funcionarios', ensureDb, async (req, res) => {
 
         res.json(result.rows.map(mapFuncionario));
     } catch (error) {
-        console.error('Erro ao listar funcionários:', error);
+        logServerError('Erro ao listar funcionários:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1457,7 +1858,7 @@ app.post('/api/funcionarios', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'Já existe funcionário com este e-mail.' });
         }
 
-        console.error('Erro ao criar funcionário:', error);
+        logServerError('Erro ao criar funcionário:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1514,7 +1915,7 @@ app.put('/api/funcionarios/:id', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'Já existe funcionário com este e-mail.' });
         }
 
-        console.error('Erro ao atualizar funcionário:', error);
+        logServerError('Erro ao atualizar funcionário:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1536,7 +1937,7 @@ app.delete('/api/funcionarios/:id', ensureDb, async (req, res) => {
 
         res.status(204).send();
     } catch (error) {
-        console.error('Erro ao excluir funcionário:', error);
+        logServerError('Erro ao excluir funcionário:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1552,7 +1953,7 @@ app.get('/api/clientes', ensureDb, async (req, res) => {
 
         res.json(result.rows.map(mapCliente));
     } catch (error) {
-        console.error('Erro ao listar clientes:', error);
+        logServerError('Erro ao listar clientes:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1594,7 +1995,7 @@ app.post('/api/clientes', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'Já existe cliente com este CPF/CNPJ.' });
         }
 
-        console.error('Erro ao criar cliente:', error);
+        logServerError('Erro ao criar cliente:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1659,7 +2060,7 @@ app.put('/api/clientes/:id', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'Já existe cliente com este CPF/CNPJ.' });
         }
 
-        console.error('Erro ao atualizar cliente:', error);
+        logServerError('Erro ao atualizar cliente:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1681,7 +2082,7 @@ app.delete('/api/clientes/:id', ensureDb, async (req, res) => {
 
         res.status(204).send();
     } catch (error) {
-        console.error('Erro ao excluir cliente:', error);
+        logServerError('Erro ao excluir cliente:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1697,7 +2098,7 @@ app.get('/api/produtos', ensureDb, async (req, res) => {
 
         res.json(result.rows.map(mapProduto));
     } catch (error) {
-        console.error('Erro ao listar produtos:', error);
+        logServerError('Erro ao listar produtos:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1734,7 +2135,7 @@ app.post('/api/produtos', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'Ja existe produto com este codigo.' });
         }
 
-        console.error('Erro ao criar produto:', error);
+        logServerError('Erro ao criar produto:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1789,7 +2190,7 @@ app.put('/api/produtos/:id', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'Ja existe produto com este codigo.' });
         }
 
-        console.error('Erro ao atualizar produto:', error);
+        logServerError('Erro ao atualizar produto:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1811,7 +2212,7 @@ app.delete('/api/produtos/:id', ensureDb, async (req, res) => {
 
         res.status(204).send();
     } catch (error) {
-        console.error('Erro ao excluir produto:', error);
+        logServerError('Erro ao excluir produto:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1827,7 +2228,7 @@ app.get('/api/fornecedores', ensureDb, async (req, res) => {
 
         res.json(result.rows.map(mapFornecedor));
     } catch (error) {
-        console.error('Erro ao listar fornecedores:', error);
+        logServerError('Erro ao listar fornecedores:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1868,7 +2269,7 @@ app.post('/api/fornecedores', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'Já existe fornecedor com este CNPJ.' });
         }
 
-        console.error('Erro ao criar fornecedor:', error);
+        logServerError('Erro ao criar fornecedor:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1931,7 +2332,7 @@ app.put('/api/fornecedores/:id', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'Já existe fornecedor com este CNPJ.' });
         }
 
-        console.error('Erro ao atualizar fornecedor:', error);
+        logServerError('Erro ao atualizar fornecedor:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1947,7 +2348,7 @@ app.get('/api/leads', ensureDb, async (req, res) => {
 
         res.json(result.rows.map(mapLead));
     } catch (error) {
-        console.error('Erro ao listar leads:', error);
+        logServerError('Erro ao listar leads:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -1980,7 +2381,7 @@ app.post('/api/leads', ensureDb, async (req, res) => {
 
         res.status(201).json(mapLead(result.rows[0]));
     } catch (error) {
-        console.error('Erro ao criar lead:', error);
+        logServerError('Erro ao criar lead:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2031,7 +2432,7 @@ app.put('/api/leads/:id', ensureDb, async (req, res) => {
 
         res.json(mapLead(result.rows[0]));
     } catch (error) {
-        console.error('Erro ao atualizar lead:', error);
+        logServerError('Erro ao atualizar lead:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2053,7 +2454,7 @@ app.delete('/api/leads/:id', ensureDb, async (req, res) => {
 
         res.status(204).send();
     } catch (error) {
-        console.error('Erro ao excluir lead:', error);
+        logServerError('Erro ao excluir lead:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2069,7 +2470,7 @@ app.get('/api/tarefas', ensureDb, async (req, res) => {
 
         res.json(result.rows.map(mapTarefa));
     } catch (error) {
-        console.error('Erro ao listar tarefas:', error);
+        logServerError('Erro ao listar tarefas:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2101,7 +2502,7 @@ app.post('/api/tarefas', ensureDb, async (req, res) => {
 
         res.status(201).json(mapTarefa(result.rows[0]));
     } catch (error) {
-        console.error('Erro ao criar tarefa:', error);
+        logServerError('Erro ao criar tarefa:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2150,7 +2551,7 @@ app.put('/api/tarefas/:id', ensureDb, async (req, res) => {
 
         res.json(mapTarefa(result.rows[0]));
     } catch (error) {
-        console.error('Erro ao atualizar tarefa:', error);
+        logServerError('Erro ao atualizar tarefa:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2172,7 +2573,7 @@ app.delete('/api/tarefas/:id', ensureDb, async (req, res) => {
 
         res.status(204).send();
     } catch (error) {
-        console.error('Erro ao excluir tarefa:', error);
+        logServerError('Erro ao excluir tarefa:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2188,7 +2589,7 @@ app.get('/api/eventos', ensureDb, async (req, res) => {
 
         res.json(result.rows.map(mapEvento));
     } catch (error) {
-        console.error('Erro ao listar eventos:', error);
+        logServerError('Erro ao listar eventos:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2220,7 +2621,7 @@ app.post('/api/eventos', ensureDb, async (req, res) => {
 
         res.status(201).json(mapEvento(result.rows[0]));
     } catch (error) {
-        console.error('Erro ao criar evento:', error);
+        logServerError('Erro ao criar evento:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2269,7 +2670,7 @@ app.put('/api/eventos/:id', ensureDb, async (req, res) => {
 
         res.json(mapEvento(result.rows[0]));
     } catch (error) {
-        console.error('Erro ao atualizar evento:', error);
+        logServerError('Erro ao atualizar evento:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2291,7 +2692,7 @@ app.delete('/api/eventos/:id', ensureDb, async (req, res) => {
 
         res.status(204).send();
     } catch (error) {
-        console.error('Erro ao excluir evento:', error);
+        logServerError('Erro ao excluir evento:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2310,7 +2711,7 @@ app.get('/api/orcamentos', ensureDb, async (req, res) => {
 
         res.json(result.rows.map(mapOrcamento));
     } catch (error) {
-        console.error('Erro ao listar orçamentos:', error);
+        logServerError('Erro ao listar orçamentos:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2362,7 +2763,7 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'Já existe orçamento com este número.' });
         }
 
-        console.error('Erro ao criar orçamento:', error);
+        logServerError('Erro ao criar orçamento:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2440,7 +2841,7 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'Já existe orçamento com este número.' });
         }
 
-        console.error('Erro ao atualizar orçamento:', error);
+        logServerError('Erro ao atualizar orçamento:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2462,7 +2863,7 @@ app.delete('/api/orcamentos/:id', ensureDb, async (req, res) => {
 
         res.status(204).send();
     } catch (error) {
-        console.error('Erro ao excluir orçamento:', error);
+        logServerError('Erro ao excluir orçamento:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2479,7 +2880,7 @@ app.get('/api/financeiro', ensureDb, async (req, res) => {
 
         res.json(result.rows.map(mapLancamentoFinanceiro));
     } catch (error) {
-        console.error('Erro ao listar lançamentos financeiros:', error);
+        logServerError('Erro ao listar lançamentos financeiros:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2540,7 +2941,7 @@ app.post('/api/financeiro', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'A receita deste orçamento já foi lançada.' });
         }
 
-        console.error('Erro ao criar lançamento financeiro:', error);
+        logServerError('Erro ao criar lançamento financeiro:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2621,7 +3022,7 @@ app.put('/api/financeiro/:id', ensureDb, async (req, res) => {
             return res.status(409).json({ error: 'A receita deste orçamento já foi lançada.' });
         }
 
-        console.error('Erro ao atualizar lançamento financeiro:', error);
+        logServerError('Erro ao atualizar lançamento financeiro:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2643,7 +3044,7 @@ app.delete('/api/financeiro/:id', ensureDb, async (req, res) => {
 
         res.status(204).send();
     } catch (error) {
-        console.error('Erro ao excluir lançamento financeiro:', error);
+        logServerError('Erro ao excluir lançamento financeiro:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2783,7 +3184,7 @@ async function listContactsFallback() {
         } catch (error) {
             contactsError = error;
             const message = getErrorMessage(error);
-            console.warn(`Tentativa ${attempt + 1} de listar contatos falhou:`, message);
+            logServerError(`Tentativa ${attempt + 1} de listar contatos falhou:`, message);
             await delay(300 * (attempt + 1));
         }
     }
@@ -2800,13 +3201,12 @@ async function listContactsFallback() {
 
 function bindWhatsAppEvents(client) {
     client.on('loading_screen', (percent, message) => {
-        console.log('CARREGANDO WHATSAPP:', percent, message);
+        logServerError('CARREGANDO WHATSAPP:', percent, message);
         io.emit('message', `Carregando: ${message}`);
     });
 
     client.on('qr', (qr) => {
-        console.log('QR Code recebido, enviando para o frontend...');
-        qrcode.generate(qr, { small: true });
+        logServerError('QR Code recebido, enviando para o frontend...');
         latestQr = qr;
         whatsappReady = false;
         io.emit('qr', qr);
@@ -2814,7 +3214,7 @@ function bindWhatsAppEvents(client) {
     });
 
     client.on('ready', () => {
-        console.log('Cliente WhatsApp está pronto!');
+        logServerError('Cliente WhatsApp está pronto!');
         whatsappReady = true;
         whatsappBooting = false;
         latestQr = null;
@@ -2823,7 +3223,7 @@ function bindWhatsAppEvents(client) {
     });
 
     client.on('auth_failure', (msg) => {
-        console.error('FALHA NA AUTENTICAÇÃO', msg);
+        logServerError('FALHA NA AUTENTICAÇÃO', msg);
         whatsappReady = false;
         whatsappBooting = false;
         io.emit('message', `Falha na autenticação: ${msg}`);
@@ -2831,7 +3231,7 @@ function bindWhatsAppEvents(client) {
     });
 
     client.on('disconnected', (reason) => {
-        console.warn('Cliente WhatsApp desconectado:', reason);
+        logServerError('Cliente WhatsApp desconectado:', reason);
         whatsappReady = false;
         whatsappBooting = false;
         latestQr = null;
@@ -2899,7 +3299,7 @@ async function sendChatsToSocket(socket) {
         } catch (error) {
             lastError = error;
             const message = getErrorMessage(error);
-            console.warn(`Tentativa ${attempt + 1} de listar chats falhou:`, message);
+            logServerError(`Tentativa ${attempt + 1} de listar chats falhou:`, message);
             await delay(350 * (attempt + 1));
         }
     }
@@ -2920,7 +3320,7 @@ async function sendChatsToSocket(socket) {
         } catch (error) {
             const chatsErrorMessage = getErrorMessage(lastError);
             const fallbackError = getErrorMessage(error);
-            console.warn(`Falha no fallback de chats (${chatsErrorMessage}) (${fallbackError}).`);
+            logServerError(`Falha no fallback de chats (${chatsErrorMessage}) (${fallbackError}).`);
             socket.emit('wa:chats', []);
             socket.emit('message', 'WhatsApp sincronizando. Tente atualizar chats novamente em alguns segundos.');
             return;
@@ -2936,7 +3336,7 @@ async function sendChatsToSocket(socket) {
                 serialized.push(mapped);
             }
         } catch (error) {
-            console.warn('Chat ignorado por erro de serialização:', getErrorMessage(error));
+            logServerError('Chat ignorado por erro de serialização:', getErrorMessage(error));
         }
     }
 
@@ -2986,7 +3386,7 @@ function registerWhatsAppSocketEvents(socket) {
             await sendChatsToSocket(socket);
         } catch (error) {
             const detail = getErrorMessage(error);
-            console.error('Erro ao listar chats do WhatsApp:', detail);
+            logServerError('Erro ao listar chats do WhatsApp:', detail);
             socket.emit('wa:error', {
                 code: 'LIST_CHATS_FAILED',
                 message: 'Não foi possível listar os chats.',
@@ -3000,7 +3400,7 @@ function registerWhatsAppSocketEvents(socket) {
             await sendMessagesToSocket(socket, payload.chatId, payload.limit);
         } catch (error) {
             const detail = getErrorMessage(error);
-            console.error('Erro ao carregar mensagens do WhatsApp:', detail);
+            logServerError('Erro ao carregar mensagens do WhatsApp:', detail);
             socket.emit('wa:error', {
                 code: 'LIST_MESSAGES_FAILED',
                 message: 'Não foi possível carregar as mensagens.',
@@ -3038,20 +3438,20 @@ function ensureWhatsAppClient() {
         return whatsappClientInitializing;
     }
 
-    console.log('Inicializando cliente do WhatsApp...');
+    logServerError('Inicializando cliente do WhatsApp...');
     whatsappBooting = true;
     whatsappClientInitializing = whatsappClient
         .initialize()
         .catch((error) => {
             const message = getErrorMessage(error);
             if (message.includes('browser is already running for')) {
-                console.warn('Sessão do WhatsApp já está em uso por inicialização ativa. Aguardando ficar pronta.');
+                logServerError('Sessão do WhatsApp já está em uso por inicialização ativa. Aguardando ficar pronta.');
                 io.emit('message', 'Sessão do WhatsApp já está inicializando. Aguarde alguns segundos.');
                 return;
             }
 
             whatsappBooting = false;
-            console.error('Erro ao inicializar cliente do WhatsApp:', message);
+            logServerError('Erro ao inicializar cliente do WhatsApp:', message);
             io.emit('message', `Não foi possível inicializar o WhatsApp: ${message}`);
             io.emit('status', { connected: false, waitingQr: false });
         })
@@ -3063,7 +3463,7 @@ function ensureWhatsAppClient() {
 }
 
 io.on('connection', (socket) => {
-    console.log('Frontend conectado via Socket.IO');
+    logServerError('Frontend conectado via Socket.IO');
     socket.emit('message', 'Conectado ao servidor. Aguardando inicialização do WhatsApp...');
     socket.emit('message', 'Iniciando cliente do WhatsApp no servidor...');
     socket.emit('status', { connected: whatsappReady, waitingQr: !whatsappReady });
@@ -3079,11 +3479,14 @@ io.on('connection', (socket) => {
     registerWhatsAppSocketEvents(socket);
 
     ensureWhatsAppClient().catch((error) => {
-        console.error('Falha inesperada ao garantir cliente do WhatsApp:', error);
+        logServerError('Falha inesperada ao garantir cliente do WhatsApp:', error);
         socket.emit('message', 'Falha inesperada ao iniciar cliente do WhatsApp.');
     });
 });
 
 server.listen(PORT, () => {
-    console.log(`Servidor ouvindo na porta ${PORT}`);
+    logServerError(`Servidor ouvindo na porta ${PORT}`);
 });
+
+
+

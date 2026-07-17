@@ -78,6 +78,7 @@ export default function RestauranteForm({
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
   const [resultados, setResultados] = useState<any[]>([]);
+  const [avisoTemporario, setAvisoTemporario] = useState("");
   const [buscou, setBuscou] = useState(false);
   const [selecionado, setSelecionado] = useState<any | null>(null);
   const [mostrarManual, setMostrarManual] = useState(false);
@@ -115,10 +116,15 @@ export default function RestauranteForm({
     setResultados([]);
     setBuscou(false);
     setMostrarManual(false);
+    setAvisoTemporario("");
 
     try {
-      const itens = await buscarRestaurantesDestino(busca);
+      const resposta = await buscarRestaurantesDestino(busca);
+      const itens = Array.isArray(resposta?.itens) ? resposta.itens : [];
       setResultados(itens);
+      if (resposta?.fallback) {
+        setAvisoTemporario("Resultados temporários.");
+      }
 
       if (itens.length === 0) {
         setErro("Nenhum restaurante encontrado. Adicione manualmente ou tente outra busca.");
@@ -306,6 +312,9 @@ export default function RestauranteForm({
           {erro && (
             <p className="text-xs text-red-500">{erro}</p>
           )}
+          {avisoTemporario && (
+            <p className="text-xs text-amber-600">{avisoTemporario}</p>
+          )}
         </div>
       </Card>
       <div className="text-center">
@@ -321,6 +330,11 @@ export default function RestauranteForm({
             <h4 className="font-semibold text-gray-900">
               <Globe className="w-4 h-4 inline-block mr-1 text-blue-500" />
               Restaurantes Encontrados ({resultados.length})
+              {avisoTemporario && (
+                <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                  Temporário
+                </span>
+              )}
             </h4>
           </div>
           <div className="space-y-2 max-h-96 overflow-y-auto">

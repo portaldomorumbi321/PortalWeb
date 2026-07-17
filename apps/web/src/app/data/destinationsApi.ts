@@ -17,6 +17,12 @@ export interface HospedagemDestinoResultado {
   linkOperadora: string;
 }
 
+export interface HospedagemBuscaResponse {
+  itens: HospedagemDestinoResultado[];
+  fallback: boolean;
+  fallbackReason?: string;
+}
+
 export interface ExperienciaDestinoResultado {
   placeId: number;
   nome: string;
@@ -38,6 +44,18 @@ export interface RestauranteDestinoResultado {
   telefone: string;
   website: string;
   priceLevel: string | number;
+}
+
+export interface RestauranteBuscaResponse {
+  itens: RestauranteDestinoResultado[];
+  fallback: boolean;
+  fallbackReason?: string;
+}
+
+export interface ExperienciaBuscaResponse {
+  itens: ExperienciaDestinoResultado[];
+  fallback: boolean;
+  fallbackReason?: string;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || (import.meta.env.DEV ? '/api' : (() => { throw new Error('VITE_API_URL não configurada no deploy. Defina a URL do backend, por exemplo: https://seu-backend.up.railway.app/api.'); })());
@@ -161,62 +179,169 @@ async function fetchDestinations(query: string, limit = 200): Promise<Destinatio
   return items.filter((item) => buildSearchableText(item.data).includes(normalizedQuery));
 }
 
-export async function buscarHospedagensDestino(query: string): Promise<HospedagemDestinoResultado[]> {
-  const items = await fetchDestinations(query);
+export async function buscarHospedagensDestino(query: string): Promise<HospedagemBuscaResponse> {
+  const normalizedQuery = String(query || '').trim();
+  if (!normalizedQuery) {
+    return { itens: [], fallback: false };
+  }
 
-  return items.slice(0, 10).map((item) => {
-    const nome = getString(item.data, ['nome', 'name', 'titulo', 'title']) || query;
-    const local = getString(item.data, ['local', 'cidade', 'destino', 'nome', 'name']) || query;
-    const endereco = getString(item.data, ['endereco', 'formattedAddress', 'address']) || local;
-    const classificacao = getNumber(item.data, ['classificacao', 'rating', 'score']);
-    const totalAvaliacoes = getNumber(item.data, ['totalAvaliacoes', 'userRatingCount', 'avaliacoes']);
-    const amenidades = getStringArray(item.data, ['amenidades', 'amenities', 'facilidades']);
-    const precoBase = getNumber(item.data, ['precoBase', 'preco', 'price']) || 150;
-    const tiposQuarto = getStringArray(item.data, ['tiposQuarto', 'roomTypes']);
+  try {
+    const response = await request<{ totalPlaces?: number; options?: HospedagemDestinoResultado[]; fallback?: string }>(
+      `/place-lodging?place=${encodeURIComponent(normalizedQuery)}`,
+    );
+
+    const options = Array.isArray(response?.options) ? response.options : [];
+    const itens = options.slice(0, 10).map((item, index) => ({
+      placeId: Number(item?.placeId) || index + 1,
+      nome: String(item?.nome || normalizedQuery),
+      local: String(item?.local || normalizedQuery),
+      endereco: String(item?.endereco || normalizedQuery),
+      classificacao: Number(item?.classificacao || 0),
+      totalAvaliacoes: Number(item?.totalAvaliacoes || 0),
+      tiposQuarto: Array.isArray(item?.tiposQuarto) && item.tiposQuarto.length ? item.tiposQuarto : ['Standard', 'Superior', 'Suíte'],
+      amenidades: Array.isArray(item?.amenidades) && item.amenidades.length ? item.amenidades : ['WiFi Grátis', 'Café da Manhã'],
+      precoBase: Number(item?.precoBase || 150),
+      photos: item?.photos || null,
+      linkOperadora: String(item?.linkOperadora || ''),
+    }));
 
     return {
-      placeId: item.id,
-      nome,
-      local,
-      endereco,
-      classificacao,
-      totalAvaliacoes,
-      tiposQuarto: tiposQuarto.length ? tiposQuarto : ['Standard', 'Superior', 'Suíte'],
-      amenidades: amenidades.length ? amenidades : ['WiFi Grátis', 'Café da Manhã'],
-      precoBase,
-      photos: null,
-      linkOperadora: getString(item.data, ['linkOperadora', 'website', 'url']),
+      itens,
+      fallback: typeof response?.fallback === 'string' && response.fallback.length > 0,
+      fallbackReason: typeof response?.fallback === 'string' ? response.fallback : undefined,
     };
-  });
+  } catch {
+    const items = await fetchDestinations(normalizedQuery);
+
+    const itens = items.slice(0, 10).map((item) => {
+      const nome = getString(item.data, ['nome', 'name', 'titulo', 'title']) || normalizedQuery;
+      const local = getString(item.data, ['local', 'cidade', 'destino', 'nome', 'name']) || normalizedQuery;
+      const endereco = getString(item.data, ['endereco', 'formattedAddress', 'address']) || local;
+      const classificacao = getNumber(item.data, ['classificacao', 'rating', 'score']);
+      const totalAvaliacoes = getNumber(item.data, ['totalAvaliacoes', 'userRatingCount', 'avaliacoes']);
+      const amenidades = getStringArray(item.data, ['amenidades', 'amenities', 'facilidades']);
+      const precoBase = getNumber(item.data, ['precoBase', 'preco', 'price']) || 150;
+      const tiposQuarto = getStringArray(item.data, ['tiposQuarto', 'roomTypes']);
+
+      return {
+        placeId: item.id,
+        nome,
+        local,
+        endereco,
+        classificacao,
+        totalAvaliacoes,
+        tiposQuarto: tiposQuarto.length ? tiposQuarto : ['Standard', 'Superior', 'Suíte'],
+        amenidades: amenidades.length ? amenidades : ['WiFi Grátis', 'Café da Manhã'],
+        precoBase,
+        photos: null,
+        linkOperadora: getString(item.data, ['linkOperadora', 'website', 'url']),
+      };
+    });
+
+    return {
+      itens,
+      fallback: true,
+      fallbackReason: 'legacy-dataset',
+    };
+  }
 }
 
-export async function buscarExperienciasDestino(query: string): Promise<ExperienciaDestinoResultado[]> {
-  const items = await fetchDestinations(query);
+export async function buscarExperienciasDestino(query: string): Promise<ExperienciaBuscaResponse> {
+  const normalizedQuery = String(query || '').trim();
+  if (!normalizedQuery) {
+    return { itens: [], fallback: false };
+  }
 
-  return items.slice(0, 10).map((item) => ({
-    placeId: item.id,
-    nome: getString(item.data, ['nome', 'name', 'titulo', 'title']) || query,
-    local: getString(item.data, ['local', 'cidade', 'destino', 'nome', 'name']) || query,
-    endereco: getString(item.data, ['endereco', 'formattedAddress', 'address']) || query,
-    classificacao: getNumber(item.data, ['classificacao', 'rating', 'score']),
-    totalAvaliacoes: getNumber(item.data, ['totalAvaliacoes', 'userRatingCount', 'avaliacoes']),
-    descricao: getString(item.data, ['descricao', 'description', 'resumo']),
-    priceLevel: getString(item.data, ['priceLevel', 'faixaPreco']) || getNumber(item.data, ['priceLevel', 'price']),
-  }));
+  try {
+    const response = await request<{ options?: ExperienciaDestinoResultado[]; fallback?: string }>(
+      `/place-experiences?place=${encodeURIComponent(normalizedQuery)}`,
+    );
+
+    const options = Array.isArray(response?.options) ? response.options : [];
+    const itens = options.slice(0, 10).map((item, index) => ({
+      placeId: Number(item?.placeId) || index + 1,
+      nome: String(item?.nome || normalizedQuery),
+      local: String(item?.local || normalizedQuery),
+      endereco: String(item?.endereco || normalizedQuery),
+      classificacao: Number(item?.classificacao || 0),
+      totalAvaliacoes: Number(item?.totalAvaliacoes || 0),
+      descricao: String(item?.descricao || ''),
+      priceLevel: String(item?.priceLevel || ''),
+    }));
+
+    return {
+      itens,
+      fallback: typeof response?.fallback === 'string' && response.fallback.length > 0,
+      fallbackReason: typeof response?.fallback === 'string' ? response.fallback : undefined,
+    };
+  } catch {
+    const items = await fetchDestinations(normalizedQuery);
+    const itens = items.slice(0, 10).map((item) => ({
+      placeId: item.id,
+      nome: getString(item.data, ['nome', 'name', 'titulo', 'title']) || normalizedQuery,
+      local: getString(item.data, ['local', 'cidade', 'destino', 'nome', 'name']) || normalizedQuery,
+      endereco: getString(item.data, ['endereco', 'formattedAddress', 'address']) || normalizedQuery,
+      classificacao: getNumber(item.data, ['classificacao', 'rating', 'score']),
+      totalAvaliacoes: getNumber(item.data, ['totalAvaliacoes', 'userRatingCount', 'avaliacoes']),
+      descricao: getString(item.data, ['descricao', 'description', 'resumo']),
+      priceLevel: getString(item.data, ['priceLevel', 'faixaPreco']) || getNumber(item.data, ['priceLevel', 'price']),
+    }));
+
+    return {
+      itens,
+      fallback: true,
+      fallbackReason: 'legacy-dataset',
+    };
+  }
 }
 
-export async function buscarRestaurantesDestino(query: string): Promise<RestauranteDestinoResultado[]> {
-  const items = await fetchDestinations(query);
+export async function buscarRestaurantesDestino(query: string): Promise<RestauranteBuscaResponse> {
+  const normalizedQuery = String(query || '').trim();
+  if (!normalizedQuery) {
+    return { itens: [], fallback: false };
+  }
 
-  return items.slice(0, 10).map((item) => ({
-    placeId: item.id,
-    nome: getString(item.data, ['nome', 'name', 'titulo', 'title']) || query,
-    local: getString(item.data, ['local', 'cidade', 'destino', 'nome', 'name']) || query,
-    endereco: getString(item.data, ['endereco', 'formattedAddress', 'address']) || query,
-    classificacao: getNumber(item.data, ['classificacao', 'rating', 'score']),
-    totalAvaliacoes: getNumber(item.data, ['totalAvaliacoes', 'userRatingCount', 'avaliacoes']),
-    telefone: getString(item.data, ['telefone', 'phone', 'internationalPhoneNumber']),
-    website: getString(item.data, ['website', 'websiteUri', 'url']),
-    priceLevel: getString(item.data, ['priceLevel', 'faixaPreco']) || getNumber(item.data, ['priceLevel', 'price']),
-  }));
+  try {
+    const response = await request<{ options?: RestauranteDestinoResultado[]; fallback?: string }>(
+      `/place-restaurants?place=${encodeURIComponent(normalizedQuery)}`,
+    );
+
+    const options = Array.isArray(response?.options) ? response.options : [];
+    const itens = options.slice(0, 10).map((item, index) => ({
+      placeId: Number(item?.placeId) || index + 1,
+      nome: String(item?.nome || normalizedQuery),
+      local: String(item?.local || normalizedQuery),
+      endereco: String(item?.endereco || normalizedQuery),
+      classificacao: Number(item?.classificacao || 0),
+      totalAvaliacoes: Number(item?.totalAvaliacoes || 0),
+      telefone: String(item?.telefone || ''),
+      website: String(item?.website || ''),
+      priceLevel: String(item?.priceLevel || ''),
+    }));
+
+    return {
+      itens,
+      fallback: typeof response?.fallback === 'string' && response.fallback.length > 0,
+      fallbackReason: typeof response?.fallback === 'string' ? response.fallback : undefined,
+    };
+  } catch {
+    const items = await fetchDestinations(normalizedQuery);
+    const itens = items.slice(0, 10).map((item) => ({
+      placeId: item.id,
+      nome: getString(item.data, ['nome', 'name', 'titulo', 'title']) || normalizedQuery,
+      local: getString(item.data, ['local', 'cidade', 'destino', 'nome', 'name']) || normalizedQuery,
+      endereco: getString(item.data, ['endereco', 'formattedAddress', 'address']) || normalizedQuery,
+      classificacao: getNumber(item.data, ['classificacao', 'rating', 'score']),
+      totalAvaliacoes: getNumber(item.data, ['totalAvaliacoes', 'userRatingCount', 'avaliacoes']),
+      telefone: getString(item.data, ['telefone', 'phone', 'internationalPhoneNumber']),
+      website: getString(item.data, ['website', 'websiteUri', 'url']),
+      priceLevel: getString(item.data, ['priceLevel', 'faixaPreco']) || getNumber(item.data, ['priceLevel', 'price']),
+    }));
+
+    return {
+      itens,
+      fallback: true,
+      fallbackReason: 'legacy-dataset',
+    };
+  }
 }

@@ -12,9 +12,6 @@ app.post('/api/ai/chat', async (req, res) => {
         });
 
     } catch (error) {
-
-        console.error(error);
-
         res.status(500).json({
             error: error.message
         });

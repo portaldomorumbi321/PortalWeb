@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -88,6 +88,7 @@ export default function HospedagemForm({
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
   const [resultados, setResultados] = useState<any[]>([]);
+  const [avisoTemporario, setAvisoTemporario] = useState("");
   const [buscou, setBuscou] = useState(false);
   const [selecionado, setSelecionado] = useState<any | null>(null);
   const [mostrarManual, setMostrarManual] = useState(false);
@@ -114,8 +115,14 @@ export default function HospedagemForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formManualRef = useRef<HTMLDivElement>(null);
-  const buscarHospedagem = async () => {
-    if (!busca.trim()) {
+  const buscarHospedagem = async (termoBusca?: string, silencioso = false) => {
+    const termo = String(termoBusca ?? busca).trim();
+
+    if (!termo) {
+      if (!silencioso) {
+        setResultados([]);
+        setBuscou(false);
+      }
       setErro("Digite um local para buscar");
       return;
     }
@@ -125,24 +132,44 @@ export default function HospedagemForm({
     setResultados([]);
     setBuscou(false);
     setMostrarManual(false);
+    setAvisoTemporario("");
 
     try {
-      const itens = await buscarHospedagensDestino(busca);
+      const resposta = await buscarHospedagensDestino(termo);
+      const itens = Array.isArray(resposta?.itens) ? resposta.itens : [];
       setResultados(itens);
+      if (resposta?.fallback) {
+        setAvisoTemporario("Resultados temporários.");
+      }
 
       if (itens.length === 0) {
-        setErro("Nenhuma hospedagem encontrada. Você pode adicionar manualmente.");
-        setMostrarManual(true);
+        if (!silencioso) {
+          setErro("Nenhuma hospedagem encontrada. Você pode adicionar manualmente.");
+          setMostrarManual(true);
+        }
       }
     } catch (err) {
-      console.error("Erro ao buscar hospedagens:", err);
-      setErro("Erro ao buscar hospedagens. Verifique o console (F12) para mais detalhes. Você pode adicionar manualmente.");
-      setMostrarManual(true);
+      if (!silencioso) {
+        setErro("Erro ao buscar hospedagens. Tente novamente ou adicione manualmente.");
+        setMostrarManual(true);
+      }
     } finally {
       setCarregando(false);
       setBuscou(true);
     }
   };
+
+  useEffect(() => {
+    if (!busca.trim() || selecionado) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void buscarHospedagem(busca, true);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [busca, selecionado]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -339,6 +366,9 @@ export default function HospedagemForm({
           </div>
           {erro && (
             <p className="text-xs text-red-500">{erro}</p>
+          )}
+          {avisoTemporario && (
+            <p className="text-xs text-amber-600">{avisoTemporario}</p>
           )}
         </div>
       </Card>
