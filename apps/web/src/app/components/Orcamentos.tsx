@@ -197,7 +197,7 @@ type Tela = "lista" | "form" | "preview";
 const orcVazio = (): OrcamentoPayload => ({
   numero: "", cliente: "", email: "", destino: "", agenteViagem: "", status: "Rascunho",
   dataCriacao: new Date().toISOString().split("T")[0],
-  dataValidade: "", observacoes: "", passageiros: [], itens: [itemVazio()],
+  dataValidade: "", observacoes: "", passageiros: [], formaPagamento: "", parcelas: null, itens: [itemVazio()],
 });
 
 export default function Orcamentos() {
@@ -239,6 +239,7 @@ export default function Orcamentos() {
   const [orcamentoDuplicacaoPendente, setOrcamentoDuplicacaoPendente] = useState<Orcamento | null>(null);
   const [dadosClienteMinimizados, setDadosClienteMinimizados] = useState(false);
   const [passageiroSelecionado, setPassageiroSelecionado] = useState("");
+  const [detalhesMinimizados, setDetalhesMinimizados] = useState(false);
 
   function obterDestinoPrincipalOrcamento(orcBase?: Partial<Orcamento>, preferirEstadoFormulario = false) {
     const hospedagemFonte = hospedagem.length > 0 ? hospedagem : Array.isArray(orcBase?.hospedagem) ? orcBase.hospedagem : [];
@@ -486,6 +487,7 @@ export default function Orcamentos() {
     setExperiencias([]);
     setSeguro([]);
     setDadosClienteMinimizados(false);
+    setDetalhesMinimizados(false);
     setPassageiroSelecionado("");
     setStatusBloqueado(false);
     setTela("form");
@@ -494,7 +496,7 @@ export default function Orcamentos() {
   async function abrirEdicao(o: Orcamento) {
     setEditando(o);
     setErro(null);
-    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, destino: o.destino || "", agenteViagem: o.agenteViagem || "", passageiros: Array.isArray(o.passageiros) ? o.passageiros : [], status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
+    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, destino: o.destino || "", agenteViagem: o.agenteViagem || "", passageiros: Array.isArray(o.passageiros) ? o.passageiros : [], formaPagamento: o.formaPagamento || "", parcelas: typeof o.parcelas === "number" ? o.parcelas : null, status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
     // Carrega os dados das seções para os estados correspondentes
     setVoos(o.voos || []);
     setHospedagem(o.hospedagem || []);
@@ -505,6 +507,7 @@ export default function Orcamentos() {
     setExperiencias(o.experiencias || []);
     setSeguro(o.seguro || []);
     setDadosClienteMinimizados(false);
+    setDetalhesMinimizados(false);
     setPassageiroSelecionado("");
     await verificarReceitaLancada(o.id);
     setTela("form");
@@ -932,7 +935,7 @@ export default function Orcamentos() {
     ];
     return (
       <div>
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-6 flex-wrap">
           <Button variant="outline" onClick={voltar} className="flex items-center gap-2"><X className="w-4 h-4" /> Cancelar</Button>
           <h2 className="text-xl font-bold text-gray-900">{editando ? `Editar ${editando.numero}` : "Novo Orçamento"}</h2>
         </div>
@@ -1217,7 +1220,20 @@ export default function Orcamentos() {
           {/* Sidebar */}
           <div className="space-y-6">
             <Card className="p-5">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><FileText className="w-4 h-4 text-indigo-500" /> Detalhes</h3>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2"><FileText className="w-4 h-4 text-indigo-500" /> Detalhes</h3>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDetalhesMinimizados((prev) => !prev)}
+                  className="h-8 px-2 text-gray-600"
+                >
+                  {detalhesMinimizados ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  <span className="ml-1">{detalhesMinimizados ? "Expandir" : "Minimizar"}</span>
+                </Button>
+              </div>
+              {!detalhesMinimizados && (
               <div className="space-y-4">
                 <div>
                   <Label>Número</Label>
@@ -1231,6 +1247,52 @@ export default function Orcamentos() {
                   <Label htmlFor="dataValidade">Válido até</Label>
                   <Input id="dataValidade" type="date" value={form.dataValidade} onChange={(e) => setForm({ ...form, dataValidade: e.target.value })} className="mt-1" />
                 </div>
+                <div>
+                  <Label htmlFor="formaPagamento">Forma de pagamento</Label>
+                  <select
+                    id="formaPagamento"
+                    value={form.formaPagamento || ""}
+                    onChange={(e) => setForm({ ...form, formaPagamento: e.target.value })}
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  >
+                    <option value="">Selecione</option>
+                    <option value="pix">PIX</option>
+                    <option value="cartao_credito">Cartão de crédito</option>
+                    <option value="cartao_debito">Cartão de débito</option>
+                    <option value="boleto">Boleto</option>
+                    <option value="transferencia">Transferência</option>
+                    <option value="dinheiro">Dinheiro</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="orcamento-parcelado">Parcelado?</Label>
+                  <select
+                    id="orcamento-parcelado"
+                    value={(form.parcelas || 1) > 1 ? "sim" : "nao"}
+                    onChange={(e) => {
+                      const parcelado = e.target.value === "sim";
+                      setForm({ ...form, parcelas: parcelado ? Math.max(2, Number(form.parcelas) || 2) : 1 });
+                    }}
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  >
+                    <option value="nao">Não</option>
+                    <option value="sim">Sim</option>
+                  </select>
+                </div>
+                {(form.parcelas || 1) > 1 && (
+                  <div>
+                    <Label htmlFor="orcamento-parcelas">Qtd. de parcelas</Label>
+                    <Input
+                      id="orcamento-parcelas"
+                      type="number"
+                      min="2"
+                      step="1"
+                      value={form.parcelas || 2}
+                      onChange={(e) => setForm({ ...form, parcelas: Math.max(2, Number(e.target.value) || 2) })}
+                      className="mt-1"
+                    />
+                  </div>
+                )}
                 <div>
                   <Label>Status</Label>
                   <select
@@ -1250,6 +1312,7 @@ export default function Orcamentos() {
                   )}
                 </div>
               </div>
+              )}
             </Card>
 
             {/* Resumo de valores */}

@@ -24,6 +24,8 @@ export interface Orcamento {
   cliente: string;
   email: string;
   passageiros?: string[];
+  formaPagamento?: string;
+  parcelas?: number | null;
   destino?: string;
   agenteViagem?: string;
   status: StatusOrc;
