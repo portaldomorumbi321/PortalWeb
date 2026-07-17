@@ -2,11 +2,12 @@ import { useParams } from "react-router";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import {
-  Share2, X, Plane, Bed, Map, CalendarDays, Car, Utensils, Sparkles, Shield, Info, Instagram, Mail, MessageCircle
+  Share2, X, Plane, Bed, Map, CalendarDays, Car, Utensils, Sparkles, Shield, Info, Instagram, Mail, MessageCircle, Users
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
 import DestinationPhoto from "./DestinationPhoto";
+import logo from "../../imports/logo.png";
 
 interface Voo {
   id: number;
@@ -34,6 +35,7 @@ interface Orcamento {
   numero: string;
   cliente: string;
   email: string;
+  passageiros?: string[];
   destino?: string;
   agenteViagem?: string;
   status: "Rascunho" | "Enviado" | "Aprovado" | "Rejeitado" | "Cancelado";
@@ -310,8 +312,16 @@ export default function RoteiroOrcamento() {
   };
 
   const destinoPrincipal = obterDestinoPrincipal(orc);
+  const possuiVoo = Boolean(orc.voos?.length);
+  const possuiHospedagem = Boolean(orc.hospedagem?.length);
+  const possuiPlanejamentoBase = possuiVoo || possuiHospedagem;
+  const destinoParaImagem = possuiPlanejamentoBase ? destinoPrincipal : "";
   const dataCheckinPrincipal = orc.hospedagem && orc.hospedagem.length > 0 ? orc.hospedagem[0].checkin : null;
   const dataViagemPrincipal = dataCheckinPrincipal || orc.voos?.[0]?.data || null;
+  const listaPassageiros = Array.isArray(orc.passageiros)
+    ? orc.passageiros.map((nome) => String(nome || "").trim()).filter(Boolean)
+    : [];
+  const passageirosTexto = listaPassageiros.length > 0 ? listaPassageiros.join(", ") : "Sem passageiros adicionais";
   const agente = orc.agenteViagem
     ? funcionarios.find((funcionario) => funcionario.name === orc.agenteViagem)
     : null;
@@ -331,6 +341,7 @@ export default function RoteiroOrcamento() {
     { id: "restaurantes", titulo: "Restaurantes", icone: Utensils, classe: "bg-red-100 text-red-700 hover:bg-red-200", disponivel: Boolean(orc.restaurante?.length) },
     { id: "experiencias", titulo: "Experiências", icone: Sparkles, classe: "bg-pink-100 text-pink-700 hover:bg-pink-200", disponivel: Boolean(orc.experiencias?.length) },
     { id: "seguro", titulo: "Seguro", icone: Shield, classe: "bg-teal-100 text-teal-700 hover:bg-teal-200", disponivel: Boolean(orc.seguro?.length) },
+    { id: "passageiros", titulo: "Passageiros", icone: Users, classe: "bg-indigo-100 text-indigo-700 hover:bg-indigo-200", disponivel: Boolean(listaPassageiros.length) },
   ].filter((item) => item.disponivel);
 
   const navegarParaItem = (id: string) => {
@@ -342,28 +353,37 @@ export default function RoteiroOrcamento() {
     <div className="px-4 py-6 sm:px-6 sm:py-8 max-w-4xl mx-auto bg-white min-h-screen" style={{ fontFamily: "'Cambria', 'Palatino Linotype', 'Book Antiqua', serif" }}>
       <div className="flex items-start justify-between mb-8">
         <div className="text-center flex-1 group">
-          <h1 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
-            Roteiro da Sua Viagem
-          </h1>
-          {destinoPrincipal && (
-            <p className="text-lg text-gray-600 mt-2">
-              Preparado para {destinoPrincipal}
-            </p>
-          )}
+          <div className="flex items-center justify-center gap-3">
+            <img src={logo} alt="Logo" className="h-9 w-9 sm:h-11 sm:w-11 object-contain" />
+            <h1
+              className="text-2xl sm:text-4xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-sky-700 via-cyan-600 to-emerald-600"
+              style={{ fontFamily: "'Palatino Linotype', 'Book Antiqua', 'Times New Roman', serif" }}
+            >
+              Roteiro da Sua Viagem
+            </h1>
+          </div>
+          <p
+            className="text-lg sm:text-xl mt-2 font-medium text-slate-700"
+            style={{ fontFamily: "'Palatino Linotype', 'Book Antiqua', 'Times New Roman', serif" }}
+          >
+            {possuiPlanejamentoBase ? `Preparado para ${destinoPrincipal}` : "Ainda não tem voo definido."}
+          </p>
         </div>
         <button onClick={() => window.close()} className="p-2 text-gray-600 hover:text-gray-900">
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      <DestinationPhoto destination={destinoPrincipal} />
+      <DestinationPhoto destination={destinoParaImagem} />
 
-      {dataViagemPrincipal && (
-        <Card className="p-4 mb-6 text-center">
-          <h2 className="font-bold text-purple-700 mb-3">Sr(a) {orc.cliente}, falta para sua viagem:</h2>
+      <Card className="p-4 mb-6 text-center">
+        <h2 className="font-bold text-purple-700 mb-3">Sr(a) {orc.cliente || "Cliente"}, falta para sua viagem:</h2>
+        {dataViagemPrincipal ? (
           <Countdown targetDate={dataViagemPrincipal} />
-        </Card>
-      )}
+        ) : (
+          <p className="text-sm text-gray-500">Data da viagem ainda não definida.</p>
+        )}
+      </Card>
 
       {itensRoteiro.length > 0 && (
         <nav aria-label="Itens do roteiro" className="mb-6 print:hidden">
@@ -573,6 +593,17 @@ export default function RoteiroOrcamento() {
                 <p>{s.tipo}: {s.detalhes}</p>
               </div>
             ))}
+          </div>
+        </Card>
+      )}
+
+      {listaPassageiros.length > 0 && itemAtivo === "passageiros" && (
+        <Card id="passageiros" className="overflow-hidden mb-6 scroll-mt-4">
+          <div className="bg-indigo-100 p-3">
+            <h2 className="font-bold text-indigo-800 flex items-center gap-2"><Users className="w-5 h-5"/> Passageiros</h2>
+          </div>
+          <div className="p-4">
+            <p className="text-sm text-gray-700 leading-6">{passageirosTexto}</p>
           </div>
         </Card>
       )}

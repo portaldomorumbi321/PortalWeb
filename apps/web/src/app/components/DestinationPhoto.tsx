@@ -9,7 +9,7 @@ const photoCache = new Map<string, string | null>();
 const inFlightCache = new Map<string, Promise<string | null>>();
 
 const DEFAULT_TRAVEL_IMAGE =
-  "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1400&q=80";
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80";
 
 function normalizeDestination(destination: string) {
   return String(destination || "").trim().toLowerCase();
