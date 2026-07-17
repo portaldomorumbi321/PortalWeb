@@ -163,6 +163,7 @@ const pool = connectionString
     : null;
 
 let ensureOrcamentosDestinoColumnPromise = null;
+let ensureOrcamentosPassageirosColumnPromise = null;
 
 async function ensureOrcamentosDestinoColumn() {
     if (!pool) {
@@ -179,6 +180,23 @@ async function ensureOrcamentosDestinoColumn() {
     }
 
     await ensureOrcamentosDestinoColumnPromise;
+}
+
+async function ensureOrcamentosPassageirosColumn() {
+    if (!pool) {
+        return;
+    }
+
+    if (!ensureOrcamentosPassageirosColumnPromise) {
+        ensureOrcamentosPassageirosColumnPromise = pool
+            .query("ALTER TABLE public.orcamentos ADD COLUMN IF NOT EXISTS passageiros JSONB DEFAULT '[]'::jsonb")
+            .catch((error) => {
+                ensureOrcamentosPassageirosColumnPromise = null;
+                throw error;
+            });
+    }
+
+    await ensureOrcamentosPassageirosColumnPromise;
 }
 
 function ensureDb(req, res, next) {
@@ -330,6 +348,7 @@ function mapOrcamento(row) {
         numero: row.numero,
         cliente: row.cliente,
         email: row.email || '',
+        passageiros: Array.isArray(row.passageiros) ? row.passageiros : [],
         destino: row.destino || '',
         agenteViagem: row.agente_viagem || '',
         status: row.status,
@@ -487,6 +506,11 @@ function normalizeOrcamentoPayload(body) {
         numero: String(body?.numero || '').trim(),
         cliente: String(body?.cliente || '').trim(),
         email: String(body?.email || '').trim().toLowerCase(),
+        passageiros: Array.isArray(body?.passageiros)
+            ? body.passageiros
+                .map((item) => String(item || '').trim())
+                .filter(Boolean)
+            : [],
         destino: String(body?.destino || '').trim(),
         agenteViagem: String(body?.agenteViagem || '').trim(),
         status: status === 'Enviado' || status === 'Aprovado' || status === 'Rejeitado' || status === 'Cancelado' ? status : 'Rascunho',
@@ -2706,10 +2730,11 @@ app.delete('/api/eventos/:id', ensureDb, async (req, res) => {
 app.get('/api/orcamentos', ensureDb, async (req, res) => {
     try {
         await ensureOrcamentosDestinoColumn();
+        await ensureOrcamentosPassageirosColumn();
 
         const result = await pool.query(
             `SELECT id, numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-              itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro
+              itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros
        FROM public.orcamentos
        ORDER BY data_criacao DESC, id DESC`
         );
@@ -2731,15 +2756,16 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
 
     try {
         await ensureOrcamentosDestinoColumn();
+        await ensureOrcamentosPassageirosColumn();
 
         const result = await pool.query(
             `INSERT INTO public.orcamentos
         (numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-         itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro)
+         itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros)
            VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, '')::date, NULLIF($8, '')::date, $9,
-               $10::jsonb, $11::jsonb, $12::jsonb, $13, $14::jsonb, $15::jsonb, $16::jsonb, $17::jsonb, $18::jsonb)
+               $10::jsonb, $11::jsonb, $12::jsonb, $13, $14::jsonb, $15::jsonb, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb)
            RETURNING id, numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-                 itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro`,
+                 itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros`,
             [
                 payload.numero,
                 payload.cliente,
@@ -2759,6 +2785,7 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
                 JSON.stringify(payload.restaurante),
                 JSON.stringify(payload.experiencias),
                 JSON.stringify(payload.seguro),
+                JSON.stringify(payload.passageiros),
             ]
         );
 
@@ -2788,6 +2815,7 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
 
     try {
         await ensureOrcamentosDestinoColumn();
+        await ensureOrcamentosPassageirosColumn();
 
         const result = await pool.query(
             `UPDATE public.orcamentos
@@ -2809,10 +2837,11 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
                             restaurante = $16::jsonb,
                             experiencias = $17::jsonb,
                             seguro = $18::jsonb,
+                            passageiros = $19::jsonb,
               atualizado_em = NOW()
-                WHERE id = $19
+                WHERE id = $20
             RETURNING id, numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-                itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro`,
+                itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros`,
             [
                 payload.numero,
                 payload.cliente,
@@ -2832,6 +2861,7 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
                 JSON.stringify(payload.restaurante),
                 JSON.stringify(payload.experiencias),
                 JSON.stringify(payload.seguro),
+                JSON.stringify(payload.passageiros),
                 id,
             ]
         );

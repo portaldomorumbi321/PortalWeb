@@ -23,6 +23,7 @@ export interface Orcamento {
   numero: string;
   cliente: string;
   email: string;
+  passageiros?: string[];
   destino?: string;
   agenteViagem?: string;
   status: StatusOrc;

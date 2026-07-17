@@ -197,7 +197,7 @@ type Tela = "lista" | "form" | "preview";
 const orcVazio = (): OrcamentoPayload => ({
   numero: "", cliente: "", email: "", destino: "", agenteViagem: "", status: "Rascunho",
   dataCriacao: new Date().toISOString().split("T")[0],
-  dataValidade: "", observacoes: "", itens: [itemVazio()],
+  dataValidade: "", observacoes: "", passageiros: [], itens: [itemVazio()],
 });
 
 export default function Orcamentos() {
@@ -236,6 +236,8 @@ export default function Orcamentos() {
   const [parcelasLancamento, setParcelasLancamento] = useState("1");
   const [dataLancamento, setDataLancamento] = useState(new Date().toISOString().slice(0, 10));
   const [popupAprovadoAberto, setPopupAprovadoAberto] = useState(false);
+  const [dadosClienteMinimizados, setDadosClienteMinimizados] = useState(false);
+  const [passageiroSelecionado, setPassageiroSelecionado] = useState("");
 
   function obterDestinoPrincipalOrcamento(orcBase?: Partial<Orcamento>, preferirEstadoFormulario = false) {
     const hospedagemFonte = hospedagem.length > 0 ? hospedagem : Array.isArray(orcBase?.hospedagem) ? orcBase.hospedagem : [];
@@ -482,6 +484,8 @@ export default function Orcamentos() {
     setRestaurante([]);
     setExperiencias([]);
     setSeguro([]);
+    setDadosClienteMinimizados(false);
+    setPassageiroSelecionado("");
     setStatusBloqueado(false);
     setTela("form");
   }
@@ -489,7 +493,7 @@ export default function Orcamentos() {
   async function abrirEdicao(o: Orcamento) {
     setEditando(o);
     setErro(null);
-    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, destino: o.destino || "", agenteViagem: o.agenteViagem || "", status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
+    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, destino: o.destino || "", agenteViagem: o.agenteViagem || "", passageiros: Array.isArray(o.passageiros) ? o.passageiros : [], status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
     // Carrega os dados das seções para os estados correspondentes
     setVoos(o.voos || []);
     setHospedagem(o.hospedagem || []);
@@ -499,8 +503,33 @@ export default function Orcamentos() {
     setRestaurante(o.restaurante || []);
     setExperiencias(o.experiencias || []);
     setSeguro(o.seguro || []);
+    setDadosClienteMinimizados(false);
+    setPassageiroSelecionado("");
     await verificarReceitaLancada(o.id);
     setTela("form");
+  }
+
+  function adicionarPassageiro(nomePassageiro: string) {
+    const nome = nomePassageiro.trim();
+    if (!nome) {
+      return;
+    }
+
+    setForm((prev) => {
+      const atuais = Array.isArray(prev.passageiros) ? prev.passageiros : [];
+      if (atuais.includes(nome)) {
+        return prev;
+      }
+
+      return { ...prev, passageiros: [...atuais, nome] };
+    });
+  }
+
+  function removerPassageiro(nomePassageiro: string) {
+    setForm((prev) => ({
+      ...prev,
+      passageiros: (prev.passageiros || []).filter((nome) => nome !== nomePassageiro),
+    }));
   }
 
   function abrirPreview(o: Orcamento) { setPreview(o); setTela("preview"); }
@@ -894,7 +923,20 @@ export default function Orcamentos() {
           <div className="lg:col-span-2 space-y-6">
             {/* Dados do cliente */}
             <Card className="p-5">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><User className="w-4 h-4 text-indigo-500" /> Dados do Cliente</h3>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2"><User className="w-4 h-4 text-indigo-500" /> Dados do Cliente</h3>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDadosClienteMinimizados((prev) => !prev)}
+                  className="h-8 px-2 text-gray-600"
+                >
+                  {dadosClienteMinimizados ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  <span className="ml-1">{dadosClienteMinimizados ? "Expandir" : "Minimizar"}</span>
+                </Button>
+              </div>
+              {!dadosClienteMinimizados && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                 <div>
                   <Label htmlFor="cliente">Cliente *</Label>
@@ -937,7 +979,46 @@ export default function Orcamentos() {
                     <Plus className="w-4 h-4" /> Cadastrar funcionário
                   </Button>
                 </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="passageiros">Passageiros</Label>
+                  <select
+                    id="passageiros"
+                    value={passageiroSelecionado}
+                    onChange={(e) => {
+                      const nome = e.target.value;
+                      setPassageiroSelecionado("");
+                      adicionarPassageiro(nome);
+                    }}
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  >
+                    <option value="">Selecione e adicione passageiros</option>
+                    {clientesAtivos
+                      .filter((cliente) => cliente.nome !== form.cliente && !(form.passageiros || []).includes(cliente.nome))
+                      .map((cliente) => (
+                        <option key={cliente.id} value={cliente.nome}>{cliente.nome}</option>
+                      ))}
+                  </select>
+
+                  {(form.passageiros || []).length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(form.passageiros || []).map((nome) => (
+                        <span key={nome} className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700 border border-indigo-100">
+                          {nome}
+                          <button
+                            type="button"
+                            onClick={() => removerPassageiro(nome)}
+                            className="text-indigo-500 hover:text-indigo-700"
+                            aria-label={`Remover passageiro ${nome}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
+              )}
             </Card>
 
             {/* Seções do orçamento (sub-páginas) */}
