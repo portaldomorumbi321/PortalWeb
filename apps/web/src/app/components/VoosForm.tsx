@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card } from "./ui/card";
-import { Plus, Trash2, Search, Plane, Upload, FileText, Image, Link2, X } from "lucide-react";
+import { Plus, Trash2, Search, Plane, Upload, FileText, Image, Link2, X, Pencil } from "lucide-react";
 
 interface Voo {
   id: number;
@@ -50,6 +50,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
   const [erro, setErro] = useState("");
   const [resultados, setResultados] = useState<Voo | null>(null);
   const [mostrarManual, setMostrarManual] = useState(false);
+  const [vooEditandoId, setVooEditandoId] = useState<number | null>(null);
   const [formManual, setFormManual] = useState<Omit<Voo, 'id'>>({
     companhia: "",
     numero: "",
@@ -187,6 +188,24 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
       setErro("Preencha os campos obrigatórios: Cia Aérea, Origem, Destino e Data.");
       return;
     }
+
+    if (vooEditandoId !== null) {
+      const vooAtualizado: Voo = {
+        ...formManual,
+        id: vooEditandoId,
+      };
+
+      onVoosChange(voos.map((voo) => (voo.id === vooEditandoId ? vooAtualizado : voo)));
+      setFormManual({ companhia: "", numero: "", data: "", origem: "", destino: "", partida: "", chegada: "", valor: 0, duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
+      setVooEditandoId(null);
+      if (manualFileInputRef.current) {
+        manualFileInputRef.current.value = "";
+      }
+      setMostrarManual(false);
+      setErro("");
+      return;
+    }
+
     const novoVoo: Voo = {
       ...formManual,
       id: Date.now(),
@@ -205,11 +224,26 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
   };
 
   const abrirFormManual = () => {
+    setVooEditandoId(null);
+    setFormManual({ companhia: "", numero: "", data: "", origem: "", destino: "", partida: "", chegada: "", valor: 0, duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
+    if (manualFileInputRef.current) {
+      manualFileInputRef.current.value = "";
+    }
     setMostrarManual(true);
     setResultados(null);
     setErro("");
     setTimeout(() => formManualRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
+
+  const editarVoo = (voo: Voo) => {
+    const { id, ...dados } = voo;
+    setVooEditandoId(id);
+    setFormManual(dados);
+    setMostrarManual(true);
+    setResultados(null);
+    setErro("");
+    setTimeout(() => formManualRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
 
   return (
     <div className="space-y-4">
@@ -377,7 +411,9 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
       {/* Formulário Manual */}
       {mostrarManual && (
         <Card ref={formManualRef} className="p-4 border-2 border-dashed border-indigo-300 bg-indigo-50/50">
-          <h4 className="font-semibold text-gray-900 mb-4">Adicionar Voo Manualmente</h4>
+          <h4 className="font-semibold text-gray-900 mb-4">
+            {vooEditandoId !== null ? "Editar Voo" : "Adicionar Voo Manualmente"}
+          </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
             <div>
               <Label className="text-xs">CIA Aérea *</Label>
@@ -481,9 +517,17 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
           {erro && <p className="text-xs text-red-500 mb-3">{erro}</p>}
           <div className="flex gap-2">
             <Button onClick={adicionarVooManual} className="flex-1 gap-2 bg-indigo-600 hover:bg-indigo-700">
-              <Plus className="w-4 h-4" /> Adicionar Voo
+              {vooEditandoId !== null ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              {vooEditandoId !== null ? "Salvar edição" : "Adicionar Voo"}
             </Button>
-            <Button onClick={() => setMostrarManual(false)} variant="outline" className="flex-1">
+            <Button
+              onClick={() => {
+                setMostrarManual(false);
+                setVooEditandoId(null);
+              }}
+              variant="outline"
+              className="flex-1"
+            >
               Cancelar
             </Button>
           </div>
@@ -555,12 +599,22 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={() => removerVoo(voo.id)}
-                  className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors ml-3 flex-shrink-0 self-center"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="ml-3 flex flex-col gap-1.5 flex-shrink-0 self-center">
+                  <button
+                    onClick={() => editarVoo(voo)}
+                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    title="Editar voo"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => removerVoo(voo.id)}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                    title="Excluir voo"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

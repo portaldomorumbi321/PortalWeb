@@ -12,6 +12,7 @@ import {
   Image,
   Upload,
   X,
+  Pencil,
   Building2,
   Star,
   ChevronDown,
@@ -112,6 +113,7 @@ export default function HospedagemForm({
     tipo: "pdf" | "imagem";
     nome: string;
   } | null>(null);
+  const [hospedagemEditandoId, setHospedagemEditandoId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formManualRef = useRef<HTMLDivElement>(null);
@@ -268,6 +270,50 @@ export default function HospedagemForm({
     const noites = calcularNoites(formQuarto.checkin, formQuarto.checkout);
     const precoTotal = formManual.precoNoite * noites;
 
+    if (hospedagemEditandoId !== null) {
+      const hospedagemAtual = hospedagens.find((h) => h.id === hospedagemEditandoId);
+      const hospedagemAtualizada: Hospedagem = {
+        id: hospedagemEditandoId,
+        nome: formManual.nome,
+        local: formManual.local,
+        endereco: formManual.endereco,
+        linkOperadora: formManual.linkOperadora,
+        tipoQuarto: formManual.tipoQuarto || "Standard",
+        checkin: formQuarto.checkin,
+        checkout: formQuarto.checkout,
+        noites,
+        preco: precoTotal,
+        classificacao: formManual.classificacao,
+        amenidades: hospedagemAtual?.amenidades || [],
+        voucher: voucher?.base64 || null,
+        voucherTipo: voucher?.tipo || null,
+        voucherNome: voucher?.nome || "",
+      };
+
+      onHospedagensChange(
+        hospedagens.map((h) => (h.id === hospedagemEditandoId ? hospedagemAtualizada : h))
+      );
+
+      setFormManual({
+        nome: "",
+        local: "",
+        endereco: "",
+        linkOperadora: "",
+        tipoQuarto: "",
+        precoNoite: 0,
+        classificacao: 0,
+      });
+      setFormQuarto({ tipoQuarto: "", checkin: "", checkout: "", noites: 1 });
+      setVoucher(null);
+      setHospedagemEditandoId(null);
+      setMostrarManual(false);
+      setErro("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
     const novaHospedagem: Hospedagem = {
       id: Date.now(),
       nome: formManual.nome,
@@ -318,6 +364,21 @@ export default function HospedagemForm({
   };
 
   const abrirFormManual = () => {
+    setHospedagemEditandoId(null);
+    setFormManual({
+      nome: "",
+      local: "",
+      endereco: "",
+      linkOperadora: "",
+      tipoQuarto: "",
+      precoNoite: 0,
+      classificacao: 0,
+    });
+    setFormQuarto({ tipoQuarto: "", checkin: "", checkout: "", noites: 1 });
+    setVoucher(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
     setMostrarManual(true);
     setResultados([]);
     setSelecionado(null);
@@ -326,6 +387,42 @@ export default function HospedagemForm({
     // Scroll para o formulário manual
     setTimeout(() => formManualRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
+
+  const editarHospedagem = (hosp: Hospedagem) => {
+    setHospedagemEditandoId(hosp.id);
+    setFormManual({
+      nome: hosp.nome,
+      local: hosp.local,
+      endereco: hosp.endereco,
+      linkOperadora: hosp.linkOperadora || "",
+      tipoQuarto: hosp.tipoQuarto || "",
+      precoNoite: hosp.noites > 0 ? Number((hosp.preco / hosp.noites).toFixed(2)) : hosp.preco,
+      classificacao: hosp.classificacao || 0,
+    });
+    setFormQuarto({
+      tipoQuarto: hosp.tipoQuarto || "",
+      checkin: hosp.checkin,
+      checkout: hosp.checkout,
+      noites: hosp.noites || 1,
+    });
+    setVoucher(
+      hosp.voucher && hosp.voucherTipo
+        ? {
+            base64: hosp.voucher,
+            tipo: hosp.voucherTipo,
+            nome: hosp.voucherNome || "Voucher",
+          }
+        : null
+    );
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    setSelecionado(null);
+    setResultados([]);
+    setMostrarManual(true);
+    setErro("");
+    setTimeout(() => formManualRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
 
   return (
     <div className="space-y-4">
@@ -693,11 +790,12 @@ export default function HospedagemForm({
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-semibold text-gray-900">
               <Building2 className="w-4 h-4 inline-block mr-1 text-indigo-500" />
-              Adicionar Hospedagem Manualmente
+              {hospedagemEditandoId !== null ? "Editar Hospedagem" : "Adicionar Hospedagem Manualmente"}
             </h4>
             <button
               onClick={() => {
                 setMostrarManual(false);
+                setHospedagemEditandoId(null);
                 setBuscou(false);
               }}
               className="p-1 text-gray-400 hover:text-gray-600"
@@ -919,12 +1017,13 @@ export default function HospedagemForm({
               onClick={adicionarHospedagemManual}
               className="flex-1 gap-2 bg-indigo-600 hover:bg-indigo-700"
             >
-              <Plus className="w-4 h-4" />
-              Adicionar Hospedagem
+              {hospedagemEditandoId !== null ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              {hospedagemEditandoId !== null ? "Salvar edição" : "Adicionar Hospedagem"}
             </Button>
             <Button
               onClick={() => {
                 setMostrarManual(false);
+                setHospedagemEditandoId(null);
                 setBuscou(false);
               }}
               variant="outline"
@@ -1021,8 +1120,16 @@ export default function HospedagemForm({
                     })}
                   </p>
                   <button
+                    onClick={() => editarHospedagem(hosp)}
+                    className="mt-1 p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    title="Editar hospedagem"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => removerHospedagem(hosp.id)}
                     className="mt-1 p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                    title="Excluir hospedagem"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
