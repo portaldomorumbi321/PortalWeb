@@ -236,6 +236,7 @@ export default function Orcamentos() {
   const [parcelasLancamento, setParcelasLancamento] = useState("1");
   const [dataLancamento, setDataLancamento] = useState(new Date().toISOString().slice(0, 10));
   const [popupAprovadoAberto, setPopupAprovadoAberto] = useState(false);
+  const [orcamentoDuplicacaoPendente, setOrcamentoDuplicacaoPendente] = useState<Orcamento | null>(null);
   const [dadosClienteMinimizados, setDadosClienteMinimizados] = useState(false);
   const [passageiroSelecionado, setPassageiroSelecionado] = useState("");
 
@@ -584,6 +585,24 @@ export default function Orcamentos() {
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Erro ao duplicar orçamento.");
     }
+  }
+
+  function confirmarDuplicacao(o: Orcamento) {
+    setOrcamentoDuplicacaoPendente(o);
+  }
+
+  function cancelarDuplicacao() {
+    setOrcamentoDuplicacaoPendente(null);
+  }
+
+  async function executarDuplicacaoConfirmada() {
+    if (!orcamentoDuplicacaoPendente) {
+      return;
+    }
+
+    const orc = orcamentoDuplicacaoPendente;
+    setOrcamentoDuplicacaoPendente(null);
+    await duplicar(orc);
   }
 
   function gerarRoteiro(orc: Orcamento | null = null) {
@@ -1535,7 +1554,7 @@ export default function Orcamentos() {
                     title={orc.status !== "Aprovado" ? "O orçamento precisa estar Aprovado" : "Gerar Roteiro"}
                     className="p-1.5 rounded text-green-600 hover:bg-green-50 transition-colors disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                   ><MapPin className="w-4 h-4" /></button>
-                  <button onClick={() => duplicar(orc)} title="Duplicar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Copy className="w-4 h-4" /></button>
+                  <button onClick={() => confirmarDuplicacao(orc)} title="Duplicar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Copy className="w-4 h-4" /></button>
                   <button onClick={() => toggleFavorito(orc.id)} title={favoritos.includes(orc.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"} className={`p-1.5 rounded transition-colors ${favoritos.includes(orc.id) ? 'text-yellow-400 hover:text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}>
                     <Star className={`w-4 h-4 ${favoritos.includes(orc.id) ? 'fill-yellow-400' : ''}`} />
                   </button>
@@ -1584,6 +1603,25 @@ export default function Orcamentos() {
           );
         })}
       </div>
+
+      {orcamentoDuplicacaoPendente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/50" onClick={cancelarDuplicacao} />
+          <div className="relative z-10 w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">Duplicar orçamento</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Tem certeza que deseja duplicar o orçamento <span className="font-semibold text-gray-800">{orcamentoDuplicacaoPendente.numero}</span>?
+            </p>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="outline" onClick={cancelarDuplicacao}>Cancelar</Button>
+              <Button onClick={() => void executarDuplicacaoConfirmada()} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                Sim, duplicar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
