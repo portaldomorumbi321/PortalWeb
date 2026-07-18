@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.orcamentos (
   data_validade DATE,
   observacoes TEXT,
   itens JSONB NOT NULL DEFAULT '[]'::jsonb,
+  pacotes JSONB NOT NULL DEFAULT '[]'::jsonb,
   voos JSONB NOT NULL DEFAULT '[]'::jsonb,
   hospedagem JSONB NOT NULL DEFAULT '[]'::jsonb,
   roteiro TEXT,

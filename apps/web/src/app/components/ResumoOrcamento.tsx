@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Plane, Bed, ShieldCheck, ShoppingCart, User, Mail, Share2, DollarSign, Map, CalendarDays, Car, Utensils, Sparkles, Info, FileText, Link2 } from "lucide-react";
+import { Plane, Bed, ShieldCheck, ShoppingCart, User, Mail, Share2, DollarSign, Map, CalendarDays, Car, Utensils, Sparkles, Info, FileText, Link2, Users } from "lucide-react";
 import { Button } from "./ui/button";
 // Tipos replicados de Orcamentos.tsx para consistência
 interface ItemOrc {
@@ -73,11 +73,24 @@ interface Day {
   atividades: { id: number; hora: string; descricao: string }[];
 }
 
+interface Pacote {
+  id: number;
+  operador: string;
+  origem?: string;
+  destino?: string;
+  link: string;
+  descricao: string;
+  foto: string | null;
+  valor?: number;
+}
+
 interface OrcamentoCompleto {
   numero: string;
   cliente: string;
   email: string;
+  passageiros?: string[];
   status: string;
+  pacotes?: Pacote[];
   voos?: Voo[];
   hospedagem?: Hospedagem[];
   seguro?: Seguro[];
@@ -124,16 +137,17 @@ export default function ResumoOrcamento() {
     );
   }
 
-  const totalVendas = orcamento.itens.reduce((acc, i) => acc + calcItem(i), 0);
+  const itensVendaAdicionados = (orcamento.itens || []).filter((item) => item.descricao?.trim());
+  const totalVendas = itensVendaAdicionados.reduce((acc, i) => acc + calcItem(i), 0);
+  const totalPacotes = orcamento.pacotes?.reduce((acc, p) => acc + (Number(p.valor) || 0), 0) || 0;
   const totalHospedagem = orcamento.hospedagem?.reduce((acc, h) => acc + (h.preco || 0), 0) || 0;
-  // Voos e Seguro não têm valor no modelo atual, mas podemos adicionar se necessário.
   const totalSeguro = orcamento.seguro?.reduce((acc, s) => acc + (s.valor || 0), 0) || 0;
   const totalTransporte = orcamento.transporte?.reduce((acc, t) => acc + (t.valor || 0), 0) || 0;
   const totalRestaurante = orcamento.restaurante?.reduce((acc, r) => acc + (r.preco || 0), 0) || 0;
   const totalExperiencias = orcamento.experiencias?.reduce((acc, e) => acc + (e.preco || 0), 0) || 0;
+  const pacoteDestaque = (orcamento.pacotes || []).find((item) => Boolean(item?.foto)) || (orcamento.pacotes || [])[0] || null;
 
-
-  const totalGeral = totalVendas + totalHospedagem + totalSeguro + totalTransporte + totalRestaurante + totalExperiencias;
+  const totalGeral = totalPacotes + totalVendas + totalHospedagem + totalSeguro + totalTransporte + totalRestaurante + totalExperiencias;
 
   const handleShareWhatsApp = () => {
     if (!orcamento) return;
@@ -150,6 +164,25 @@ export default function ResumoOrcamento() {
           <p className="text-lg text-indigo-600 font-mono mt-1">{orcamento.numero}</p>
         </div>
 
+        {pacoteDestaque?.foto && (
+          <Card className="mb-6 overflow-hidden">
+            <img
+              src={pacoteDestaque.foto}
+              alt="Foto do pacote"
+              className="h-64 w-full object-cover sm:h-80"
+            />
+            {(pacoteDestaque.origem || pacoteDestaque.destino) && (
+              <CardContent className="p-4">
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Origem:</span> {pacoteDestaque.origem || "-"}
+                  <span className="mx-2 text-gray-400">|</span>
+                  <span className="font-semibold">Destino:</span> {pacoteDestaque.destino || "-"}
+                </p>
+              </CardContent>
+            )}
+          </Card>
+        )}
+
         <Card className="mb-6 p-6">
           <CardHeader className="p-0 mb-4">
             <CardTitle className="flex items-center gap-2 text-xl">
@@ -165,8 +198,29 @@ export default function ResumoOrcamento() {
           </CardContent>
         </Card>
 
+        {Array.isArray(orcamento.passageiros) && orcamento.passageiros.length > 0 && (
+          <Card className="mb-6 p-6">
+            <CardHeader className="p-0 mb-4">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Users className="w-5 h-5 text-indigo-500" />
+                <span>Passageiros</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="flex flex-wrap gap-2">
+                {orcamento.passageiros.map((nome) => (
+                  <span key={nome} className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700 border border-indigo-100">
+                    {nome}
+                  </span>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="space-y-6">
           {/* Voos */}
+          {orcamento.voos && orcamento.voos.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -174,7 +228,6 @@ export default function ResumoOrcamento() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {orcamento.voos && orcamento.voos.length > 0 ? (
                 <div className="space-y-2 text-sm">
                   {orcamento.voos.map(voo => (
                     <div key={voo.id} className="p-3 bg-gray-50 rounded-lg">
@@ -219,56 +272,50 @@ export default function ResumoOrcamento() {
                     </div>
                   ))}
                 </div>
-              ) : <p className="text-sm text-gray-500">Nenhuma informação de voo adicionada.</p>}
             </CardContent>
           </Card>
+          )}
 
           {/* Hospedagem */}
+          {orcamento.hospedagem && orcamento.hospedagem.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2"><Bed className="text-purple-500" /> Hospedagem</span>
-                {totalHospedagem > 0 && <span className="text-lg font-bold text-gray-700">{moeda(totalHospedagem)}</span>}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {orcamento.hospedagem && orcamento.hospedagem.length > 0 ? (
                 <div className="space-y-2 text-sm">
                   {orcamento.hospedagem.map(h => (
                     <div key={h.id} className="p-2 bg-gray-50 rounded">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{h.nome} - {h.local}</span>
-                        <span className="font-semibold">{moeda(h.preco)}</span>
-                      </div>
+                      <span className="font-medium">{h.nome} - {h.local}</span>
                       <p className="text-xs text-gray-500 mt-1">{new Date(h.checkin + 'T00:00:00').toLocaleDateString('pt-BR')} → {new Date(h.checkout + 'T00:00:00').toLocaleDateString('pt-BR')} ({h.noites} noites)</p>
                     </div>
                   ))}
                 </div>
-              ) : <p className="text-sm text-gray-500">Nenhuma informação de hospedagem adicionada.</p>}
             </CardContent>
           </Card>
+          )}
 
           {/* Seguro */}
+          {orcamento.seguro && orcamento.seguro.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2"><ShieldCheck className="text-green-500" /> Seguro</span>
-                {totalSeguro > 0 && <span className="text-lg font-bold text-gray-700">{moeda(totalSeguro)}</span>}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {orcamento.seguro && orcamento.seguro.length > 0 ? (
                 <div className="space-y-2 text-sm">
                   {orcamento.seguro.map(s => (
-                    <div key={s.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <div key={s.id} className="p-2 bg-gray-50 rounded">
                       <span>{s.tipo}</span>
-                      <span className="font-semibold">{moeda(s.valor)}</span>
                     </div>
                   ))}
                 </div>
-              ) : <p className="text-sm text-gray-500">Nenhuma informação de seguro adicionada.</p>}
             </CardContent>
           </Card>
+          )}
 
           {/* Roteiro */}
           {orcamento.roteiro && (
@@ -298,99 +345,80 @@ export default function ResumoOrcamento() {
           )}
 
           {/* Transporte */}
+          {orcamento.transporte && orcamento.transporte.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2"><Car className="text-yellow-500" /> Transporte</span>
-                {totalTransporte > 0 && <span className="text-lg font-bold text-gray-700">{moeda(totalTransporte)}</span>}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {orcamento.transporte && orcamento.transporte.length > 0 ? (
                 <div className="space-y-2 text-sm">
                   {orcamento.transporte.map(t => (
-                    <div key={t.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <div key={t.id} className="p-2 bg-gray-50 rounded">
                       <span>{t.tipo}: {t.origem} → {t.destino}</span>
-                      <span className="font-semibold">{moeda(t.valor)}</span>
                     </div>
                   ))}
                 </div>
-              ) : <p className="text-sm text-gray-500">Nenhuma informação de transporte adicionada.</p>}
             </CardContent>
           </Card>
+          )}
 
           {/* Restaurantes */}
+          {orcamento.restaurante && orcamento.restaurante.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2"><Utensils className="text-red-500" /> Restaurantes</span>
-                {totalRestaurante > 0 && <span className="text-lg font-bold text-gray-700">{moeda(totalRestaurante)}</span>}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {orcamento.restaurante && orcamento.restaurante.length > 0 ? (
                 <div className="space-y-2 text-sm">
                   {orcamento.restaurante.map(r => (
-                    <div key={r.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <div key={r.id} className="p-2 bg-gray-50 rounded">
                       <span>{r.nome} - {r.local}</span>
-                      <span className="font-semibold">{moeda(r.preco)}</span>
                     </div>
                   ))}
                 </div>
-              ) : <p className="text-sm text-gray-500">Nenhuma informação de restaurante adicionada.</p>}
             </CardContent>
           </Card>
+          )}
 
           {/* Experiências */}
+          {orcamento.experiencias && orcamento.experiencias.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2"><Sparkles className="text-pink-500" /> Experiências</span>
-                {totalExperiencias > 0 && <span className="text-lg font-bold text-gray-700">{moeda(totalExperiencias)}</span>}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {orcamento.experiencias && orcamento.experiencias.length > 0 ? (
                 <div className="space-y-2 text-sm">
                   {orcamento.experiencias.map(e => (
-                    <div key={e.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <div key={e.id} className="p-2 bg-gray-50 rounded">
                       <span>{e.nome} - {e.local}</span>
-                      <span className="font-semibold">{moeda(e.preco)}</span>
                     </div>
                   ))}
                 </div>
-              ) : <p className="text-sm text-gray-500">Nenhuma informação de experiência adicionada.</p>}
             </CardContent>
           </Card>
+          )}
 
           {/* Vendas */}
+          {itensVendaAdicionados.length > 0 && (
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><ShoppingCart className="text-orange-500" /> Vendas</CardTitle></CardHeader>
             <CardContent>
-              {orcamento.itens && orcamento.itens.length > 0 && orcamento.itens.some(i => i.descricao) ? (
-                <div className="space-y-2">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {orcamento.itens.map(item => (
-                        <tr key={item.id} className="border-b">
-                          <td className="py-2">{item.descricao}</td>
-                          <td className="py-2 text-right font-semibold">{moeda(calcItem(item))}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="flex justify-end pt-2">
-                    <div className="text-right">
-                      <span className="text-sm font-semibold">Total Vendas: </span>
-                      <span className="text-lg font-bold text-indigo-600">{moeda(totalVendas)}</span>
+                <div className="space-y-2 text-sm">
+                  {itensVendaAdicionados.map(item => (
+                    <div key={item.id} className="p-2 bg-gray-50 rounded">
+                      {item.descricao}
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ) : (
-                <p className="text-sm text-gray-500">Nenhum item de venda adicionado.</p>
-              )}
             </CardContent>
           </Card>
+          )}
         </div>
 
         {/* Observações */}

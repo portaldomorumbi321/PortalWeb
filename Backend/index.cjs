@@ -165,6 +165,7 @@ const pool = connectionString
 let ensureOrcamentosDestinoColumnPromise = null;
 let ensureOrcamentosPassageirosColumnPromise = null;
 let ensureOrcamentosPagamentoColumnsPromise = null;
+let ensureOrcamentosPacotesColumnPromise = null;
 
 async function ensureOrcamentosDestinoColumn() {
     if (!pool) {
@@ -216,6 +217,23 @@ async function ensureOrcamentosPagamentoColumns() {
     }
 
     await ensureOrcamentosPagamentoColumnsPromise;
+}
+
+async function ensureOrcamentosPacotesColumn() {
+    if (!pool) {
+        return;
+    }
+
+    if (!ensureOrcamentosPacotesColumnPromise) {
+        ensureOrcamentosPacotesColumnPromise = pool
+            .query("ALTER TABLE public.orcamentos ADD COLUMN IF NOT EXISTS pacotes JSONB DEFAULT '[]'::jsonb")
+            .catch((error) => {
+                ensureOrcamentosPacotesColumnPromise = null;
+                throw error;
+            });
+    }
+
+    await ensureOrcamentosPacotesColumnPromise;
 }
 
 function ensureDb(req, res, next) {
@@ -377,6 +395,7 @@ function mapOrcamento(row) {
         dataValidade: row.data_validade ? new Date(row.data_validade).toISOString().slice(0, 10) : '',
         observacoes: row.observacoes || '',
         itens: Array.isArray(row.itens) ? row.itens : [],
+        pacotes: Array.isArray(row.pacotes) ? row.pacotes : [],
         voos: Array.isArray(row.voos) ? row.voos : [],
         hospedagem: Array.isArray(row.hospedagem) ? row.hospedagem : [],
         roteiro: row.roteiro || '',
@@ -542,6 +561,7 @@ function normalizeOrcamentoPayload(body) {
         dataValidade: String(body?.dataValidade || '').trim(),
         observacoes: String(body?.observacoes || '').trim(),
         itens: Array.isArray(body?.itens) ? body.itens : [],
+        pacotes: Array.isArray(body?.pacotes) ? body.pacotes : [],
         voos: Array.isArray(body?.voos) ? body.voos : [],
         hospedagem: Array.isArray(body?.hospedagem) ? body.hospedagem : [],
         roteiro: typeof body?.roteiro === 'string' ? body.roteiro : '',
@@ -2755,11 +2775,12 @@ app.get('/api/orcamentos', ensureDb, async (req, res) => {
     try {
         await ensureOrcamentosDestinoColumn();
         await ensureOrcamentosPassageirosColumn();
-                await ensureOrcamentosPagamentoColumns();
+    await ensureOrcamentosPagamentoColumns();
+    await ensureOrcamentosPacotesColumn();
 
         const result = await pool.query(
             `SELECT id, numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-                            itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
+                            itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
                             forma_pagamento, parcelas
        FROM public.orcamentos
        ORDER BY data_criacao DESC, id DESC`
@@ -2784,29 +2805,31 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
         await ensureOrcamentosDestinoColumn();
         await ensureOrcamentosPassageirosColumn();
         await ensureOrcamentosPagamentoColumns();
+        await ensureOrcamentosPacotesColumn();
 
         const result = await pool.query(
             `INSERT INTO public.orcamentos
         (numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-         itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
+         itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
          forma_pagamento, parcelas)
            VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, '')::date, NULLIF($8, '')::date, $9,
-               $10::jsonb, $11::jsonb, $12::jsonb, $13, $14::jsonb, $15::jsonb, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb,
-               $20, $21)
+               $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15::jsonb, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb,
+               $21, $22)
            RETURNING id, numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-                 itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
+                 itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
                  forma_pagamento, parcelas`,
             [
                 payload.numero,
                 payload.cliente,
                 payload.email || null,
-            payload.destino || null,
+                payload.destino || null,
                 payload.agenteViagem || null,
                 payload.status,
                 payload.dataCriacao,
                 payload.dataValidade,
                 payload.observacoes || null,
                 JSON.stringify(payload.itens),
+                JSON.stringify(payload.pacotes),
                 JSON.stringify(payload.voos),
                 JSON.stringify(payload.hospedagem),
                 payload.roteiro || null,
@@ -2849,6 +2872,7 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
         await ensureOrcamentosDestinoColumn();
         await ensureOrcamentosPassageirosColumn();
         await ensureOrcamentosPagamentoColumns();
+        await ensureOrcamentosPacotesColumn();
 
         const result = await pool.query(
             `UPDATE public.orcamentos
@@ -2862,33 +2886,35 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
                             data_validade = NULLIF($8, '')::date,
                             observacoes = $9,
                             itens = $10::jsonb,
-                            voos = $11::jsonb,
-                            hospedagem = $12::jsonb,
-                            roteiro = $13,
-                            day_by_day = $14::jsonb,
-                            transporte = $15::jsonb,
-                            restaurante = $16::jsonb,
-                            experiencias = $17::jsonb,
-                            seguro = $18::jsonb,
-                            passageiros = $19::jsonb,
-                            forma_pagamento = $20,
-                            parcelas = $21,
+                            pacotes = $11::jsonb,
+                            voos = $12::jsonb,
+                            hospedagem = $13::jsonb,
+                            roteiro = $14,
+                            day_by_day = $15::jsonb,
+                            transporte = $16::jsonb,
+                            restaurante = $17::jsonb,
+                            experiencias = $18::jsonb,
+                            seguro = $19::jsonb,
+                            passageiros = $20::jsonb,
+                            forma_pagamento = $21,
+                            parcelas = $22,
               atualizado_em = NOW()
-                WHERE id = $22
+                WHERE id = $23
             RETURNING id, numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-                itens, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
+                itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
                 forma_pagamento, parcelas`,
             [
                 payload.numero,
                 payload.cliente,
                 payload.email || null,
-                                payload.destino || null,
+                payload.destino || null,
                 payload.agenteViagem || null,
                 payload.status,
                 payload.dataCriacao,
                 payload.dataValidade,
                 payload.observacoes || null,
                 JSON.stringify(payload.itens),
+                JSON.stringify(payload.pacotes),
                 JSON.stringify(payload.voos),
                 JSON.stringify(payload.hospedagem),
                 payload.roteiro || null,

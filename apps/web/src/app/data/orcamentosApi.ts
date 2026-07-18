@@ -33,6 +33,7 @@ export interface Orcamento {
   dataValidade: string;
   observacoes: string;
   itens: ItemOrc[];
+  pacotes?: any[];
   voos?: any[];
   hospedagem?: any[];
   roteiro?: string;

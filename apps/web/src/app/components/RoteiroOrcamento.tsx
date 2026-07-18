@@ -2,7 +2,7 @@ import { useParams } from "react-router";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import {
-  Share2, X, Plane, Bed, Map, CalendarDays, Car, Utensils, Sparkles, Shield, Info, Instagram, Mail, MessageCircle, Users
+  Share2, X, Plane, Bed, Map, CalendarDays, Car, Utensils, Sparkles, Shield, Info, Instagram, Mail, MessageCircle, Users, Package2, Link2
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
@@ -30,6 +30,16 @@ interface ItemOrc {
   desconto: number;
 }
 
+interface Pacote {
+  id: number;
+  operador: string;
+  link: string;
+  descricao: string;
+  foto?: string | null;
+  fotoNome?: string;
+  valor?: number;
+}
+
 interface Orcamento {
   id: number;
   numero: string;
@@ -43,6 +53,7 @@ interface Orcamento {
   dataValidade: string;
   observacoes: string;
   itens: ItemOrc[];
+  pacotes?: Pacote[];
   voos?: Voo[];
   hospedagem?: any[];
   roteiro?: string;
@@ -216,6 +227,10 @@ function formatarPeriodo(checkin: string, checkout: string): string {
   }
 }
 
+function formatarMoeda(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 function Countdown({ targetDate }: { targetDate: string }) {
   const calculateTimeLeft = () => {
     const difference = +new Date(targetDate + 'T00:00:00') - +new Date();
@@ -333,6 +348,7 @@ export default function RoteiroOrcamento() {
     .join("")
     .toUpperCase();
   const itensRoteiro = [
+    { id: "pacotes", titulo: "Pacotes", icone: Package2, classe: "bg-cyan-100 text-cyan-700 hover:bg-cyan-200", disponivel: Boolean(orc.pacotes?.length) },
     { id: "voos", titulo: "Voos", icone: Plane, classe: "bg-blue-100 text-blue-700 hover:bg-blue-200", disponivel: Boolean(orc.voos?.length) },
     { id: "hospedagem", titulo: "Hospedagem", icone: Bed, classe: "bg-green-100 text-green-700 hover:bg-green-200", disponivel: Boolean(orc.hospedagem?.length) },
     { id: "roteiro", titulo: "Roteiro", icone: Map, classe: "bg-sky-100 text-sky-700 hover:bg-sky-200", disponivel: Boolean(orc.roteiro) },
@@ -404,6 +420,50 @@ export default function RoteiroOrcamento() {
             ))}
           </div>
         </nav>
+      )}
+
+      {/* VOOS */}
+      {orc.pacotes && orc.pacotes.length > 0 && itemAtivo === "pacotes" && (
+        <Card id="pacotes" className="overflow-hidden mb-6 scroll-mt-4">
+          <div className="bg-cyan-100 p-3">
+            <h2 className="font-bold text-cyan-800 flex items-center gap-2"><Package2 className="w-5 h-5"/> Pacotes</h2>
+          </div>
+          <div className="p-4 space-y-3">
+            {orc.pacotes.map((pacote: any, idx: number) => (
+              <div key={pacote.id || idx} className="rounded-lg bg-gray-50 p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="font-medium text-gray-900">{pacote.operador || `Pacote ${idx + 1}`}</p>
+                  {pacote.link && (
+                    <a
+                      href={pacote.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-cyan-700 hover:text-cyan-800"
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      Ver link
+                    </a>
+                  )}
+                </div>
+
+                {pacote.foto && (
+                  <div className="mb-2 overflow-hidden rounded-md border border-cyan-100 bg-white">
+                    <img
+                      src={pacote.foto}
+                      alt={`Foto do pacote ${pacote.operador || idx + 1}`}
+                      className="h-52 w-full object-cover"
+                    />
+                  </div>
+                )}
+
+                {pacote.descricao && <p className="text-sm text-gray-600">{pacote.descricao}</p>}
+                {Number(pacote.valor) > 0 && (
+                  <p className="mt-1 text-sm font-semibold text-emerald-700">{formatarMoeda(Number(pacote.valor) || 0)}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* VOOS */}

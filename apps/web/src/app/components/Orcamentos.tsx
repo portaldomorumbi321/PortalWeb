@@ -9,6 +9,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Label } from "./ui/label";
+import PacotesForm from "./PacotesForm";
 import VoosForm from "./VoosForm";
 import HospedagemForm from "./HospedagemForm";
 import RoteiroForm from "./RoteiroForm";
@@ -50,7 +51,7 @@ const statusConfig: Record<StatusOrc, { bg: string; cor: string }> = {
 };
 
 const allStatus: StatusOrc[] = ["Rascunho", "Enviado", "Aprovado", "Rejeitado", "Cancelado"];
-const secoesOrcamento = ["Voos", "Hospedagem", "Roteiro", "Day by Day", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
+const secoesOrcamento = ["Pacotes", "Voos", "Hospedagem", "Roteiro", "Day by Day", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
 type SecaoOrcamento = typeof secoesOrcamento[number];
 
 function calcItem(item: ItemOrc) {
@@ -126,6 +127,7 @@ function montarLinhasDescricao(orc: Orcamento): ItemOrc[] {
   );
 
   const secoes = [
+    { titulo: "Pacotes", dados: orc.pacotes },
     { titulo: "Voos", dados: orc.voos },
     { titulo: "Hospedagem", dados: orc.hospedagem },
     { titulo: "Day by Day", dados: orc.dayByDay },
@@ -211,7 +213,8 @@ export default function Orcamentos() {
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusOrc | "Todos">("Todos");
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
-  const [section, setSection] = useState<SecaoOrcamento>("Voos");
+  const [section, setSection] = useState<SecaoOrcamento>("Pacotes");
+  const [pacotes, setPacotes] = useState<any[]>([]);
   const [voos, setVoos] = useState<any[]>([]);
   const [hospedagem, setHospedagem] = useState<any[]>([]);
   const [roteiro, setRoteiro] = useState<string>("");
@@ -272,13 +275,14 @@ export default function Orcamentos() {
 
   function calcularTotalOrcamentoAtual() {
     const totalVendas = form.itens.reduce((acc, item) => acc + calcItem(item), 0);
+    const totalPacotes = pacotes.reduce((acc, item) => acc + (Number(item?.valor) || 0), 0);
     const totalHospedagem = hospedagem.reduce((acc, item) => acc + (Number(item?.preco) || 0), 0);
     const totalTransporte = transporte.reduce((acc, item) => acc + (Number(item?.valor) || 0), 0);
     const totalRestaurante = restaurante.reduce((acc, item) => acc + (Number(item?.preco) || 0), 0);
     const totalExperiencias = experiencias.reduce((acc, item) => acc + (Number(item?.preco) || 0), 0);
     const totalSeguro = seguro.reduce((acc, item) => acc + (Number(item?.valor) || 0), 0);
 
-    return totalVendas + totalHospedagem + totalTransporte + totalRestaurante + totalExperiencias + totalSeguro;
+    return totalVendas + totalPacotes + totalHospedagem + totalTransporte + totalRestaurante + totalExperiencias + totalSeguro;
   }
 
   async function verificarReceitaLancada(orcamentoId: number) {
@@ -478,6 +482,7 @@ export default function Orcamentos() {
     setErro(null);
     // Limpa o formulário principal e as seções
     setForm({ ...orcVazio(), numero: gerarNumero(lista) });
+    setPacotes([]);
     setVoos([]);
     setHospedagem([]);
     setRoteiro("");
@@ -490,6 +495,7 @@ export default function Orcamentos() {
     setDetalhesMinimizados(false);
     setPassageiroSelecionado("");
     setStatusBloqueado(false);
+    setSection("Pacotes");
     setTela("form");
   }
 
@@ -498,6 +504,7 @@ export default function Orcamentos() {
     setErro(null);
     setForm({ numero: o.numero, cliente: o.cliente, email: o.email, destino: o.destino || "", agenteViagem: o.agenteViagem || "", passageiros: Array.isArray(o.passageiros) ? o.passageiros : [], formaPagamento: o.formaPagamento || "", parcelas: typeof o.parcelas === "number" ? o.parcelas : null, status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
     // Carrega os dados das seções para os estados correspondentes
+    setPacotes(o.pacotes || []);
     setVoos(o.voos || []);
     setHospedagem(o.hospedagem || []);
     setRoteiro(o.roteiro || "");
@@ -509,6 +516,7 @@ export default function Orcamentos() {
     setDadosClienteMinimizados(false);
     setDetalhesMinimizados(false);
     setPassageiroSelecionado("");
+    setSection("Pacotes");
     await verificarReceitaLancada(o.id);
     setTela("form");
   }
@@ -549,6 +557,7 @@ export default function Orcamentos() {
     const orcComSecoes = {
       ...form,
       destino: obterDestinoPrincipalOrcamento(),
+      pacotes: pacotes.length > 0 ? pacotes : undefined,
       voos: voos.length > 0 ? voos : undefined,
       hospedagem: hospedagem.length > 0 ? hospedagem : undefined,
       roteiro: roteiro.trim() ? roteiro : undefined,
@@ -618,6 +627,7 @@ export default function Orcamentos() {
     const orcComSecoes = {
       ...orcParaAbrir,
       destino: obterDestinoPrincipalOrcamento(orcParaAbrir, usandoEstadoFormulario),
+      pacotes: usandoEstadoFormulario ? pacotes : orcParaAbrir.pacotes,
       voos: usandoEstadoFormulario ? voos : orcParaAbrir.voos,
       hospedagem: usandoEstadoFormulario ? hospedagem : orcParaAbrir.hospedagem,
       roteiro: usandoEstadoFormulario ? roteiro : orcParaAbrir.roteiro,
@@ -643,6 +653,7 @@ export default function Orcamentos() {
     const orcComSecoes = {
       ...orcParaAbrir,
       destino: obterDestinoPrincipalOrcamento(orcParaAbrir, usandoEstadoFormulario),
+      pacotes: usandoEstadoFormulario ? pacotes : orcParaAbrir.pacotes,
       voos: usandoEstadoFormulario ? voos : orcParaAbrir.voos,
       hospedagem: usandoEstadoFormulario ? hospedagem : orcParaAbrir.hospedagem,
       roteiro: usandoEstadoFormulario ? roteiro : orcParaAbrir.roteiro,
@@ -911,6 +922,7 @@ export default function Orcamentos() {
   // ============ TELA FORMULÁRIO ============
   if (tela === "form") {
     const itensVendaComDescricao = form.itens.filter((item) => item.descricao.trim());
+    const totalPacotesResumo = pacotes.reduce((acc, item) => acc + (Number(item?.valor) || 0), 0);
     const totalHospedagemResumo = hospedagem.reduce((acc, item) => acc + (Number(item?.preco) || 0), 0);
     const totalTransporteResumo = transporte.reduce((acc, item) => acc + (Number(item?.valor) || 0), 0);
     const totalRestauranteResumo = restaurante.reduce((acc, item) => acc + (Number(item?.preco) || 0), 0);
@@ -918,12 +930,14 @@ export default function Orcamentos() {
     const totalSeguroResumo = seguro.reduce((acc, item) => acc + (Number(item?.valor) || 0), 0);
     const totalVendasResumo = itensVendaComDescricao.reduce((acc, item) => acc + calcItem(item), 0);
     const totalResumo = totalVendasResumo
+      + totalPacotesResumo
       + totalHospedagemResumo
       + totalTransporteResumo
       + totalRestauranteResumo
       + totalExperienciasResumo
       + totalSeguroResumo;
     const resumoSecoes: { nome: SecaoOrcamento; quantidade: number; valor: string }[] = [
+      { nome: "Pacotes", quantidade: pacotes.length, valor: moeda(totalPacotesResumo) },
       { nome: "Voos", quantidade: voos.length, valor: "—" },
       { nome: "Hospedagem", quantidade: hospedagem.length, valor: moeda(totalHospedagemResumo) },
       { nome: "Roteiro", quantidade: roteiro.trim() ? 1 : 0, valor: roteiro.trim() ? "Preenchido" : "—" },
@@ -959,7 +973,7 @@ export default function Orcamentos() {
                 </Button>
               </div>
               {!dadosClienteMinimizados && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div>
                   <Label htmlFor="cliente">Cliente *</Label>
                   <select
@@ -976,32 +990,23 @@ export default function Orcamentos() {
                       <option key={cliente.id} value={cliente.nome}>{cliente.nome}</option>
                     ))}
                   </select>
+                  {form.cliente && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700 border border-indigo-100">
+                        {form.cliente}
+                        <button
+                          type="button"
+                          onClick={() => setForm((prev) => ({ ...prev, cliente: "", email: "" }))}
+                          className="text-indigo-500 hover:text-indigo-700"
+                          aria-label={`Remover cliente ${form.cliente}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <Button type="button" variant="outline" onClick={() => navigate("/cadastros/clientes")} className="w-full gap-2">
-                    <Plus className="w-4 h-4" /> Cadastrar cliente
-                  </Button>
-                </div>
-                <div>
-                  <Label htmlFor="agente-viagem">Agente de Viagem</Label>
-                  <select
-                    id="agente-viagem"
-                    value={form.agenteViagem || ""}
-                    onChange={(e) => setForm({ ...form, agenteViagem: e.target.value })}
-                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  >
-                    <option value="">Selecione um agente</option>
-                    {funcionariosAtivos.map((funcionario) => (
-                      <option key={funcionario.id} value={funcionario.name}>{funcionario.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Button type="button" variant="outline" onClick={() => navigate("/funcionario")} className="w-full gap-2">
-                    <Plus className="w-4 h-4" /> Cadastrar funcionário
-                  </Button>
-                </div>
-                <div className="sm:col-span-2">
                   <Label htmlFor="passageiros">Passageiros</Label>
                   <select
                     id="passageiros"
@@ -1039,6 +1044,30 @@ export default function Orcamentos() {
                     </div>
                   )}
                 </div>
+                <div>
+                  <Button type="button" variant="outline" onClick={() => navigate("/cadastros/clientes")} className="w-full h-9 gap-2">
+                    <Plus className="w-4 h-4" /> Cliente
+                  </Button>
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="agente-viagem">Agente de Viagem</Label>
+                  <select
+                    id="agente-viagem"
+                    value={form.agenteViagem || ""}
+                    onChange={(e) => setForm({ ...form, agenteViagem: e.target.value })}
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  >
+                    <option value="">Selecione um agente</option>
+                    {funcionariosAtivos.map((funcionario) => (
+                      <option key={funcionario.id} value={funcionario.name}>{funcionario.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Button type="button" variant="outline" onClick={() => navigate("/funcionario")} className="w-full h-9 gap-2">
+                    <Plus className="w-4 h-4" /> Funcionário
+                  </Button>
+                </div>
               </div>
               )}
             </Card>
@@ -1063,6 +1092,10 @@ export default function Orcamentos() {
               </div>
 
               <div className="mt-3">
+                {section === 'Pacotes' && (
+                  <PacotesForm pacotes={pacotes} onPacotesChange={setPacotes} />
+                )}
+
                 {section === 'Voos' && (
                   <VoosForm voos={voos} onVoosChange={setVoos} />
                 )}
