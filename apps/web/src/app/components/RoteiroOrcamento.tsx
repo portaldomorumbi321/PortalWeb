@@ -21,6 +21,8 @@ interface Voo {
   partida: string;
   chegada: string;
   duracao: string;
+  documento?: string | null;
+  documentoTipo?: "pdf" | "imagem" | null;
 }
 
 interface ItemOrc {
@@ -425,6 +427,24 @@ export default function RoteiroOrcamento() {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const abrirVoucherPdf = async (documento: string) => {
+    try {
+      const documentoNormalizado = documento.startsWith("data:")
+        ? documento
+        : `data:application/pdf;base64,${documento}`;
+
+      const response = await fetch(documentoNormalizado);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+
+      // Revoga a URL depois de um tempo para evitar vazamento de memória.
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch {
+      window.open(documento, "_blank", "noopener,noreferrer");
+    }
+  };
+
   return (
     <div className="px-4 py-6 sm:px-6 sm:py-8 max-w-4xl mx-auto bg-white min-h-screen" style={{ fontFamily: "'Cambria', 'Palatino Linotype', 'Book Antiqua', serif" }}>
       <div className="flex items-start justify-between mb-8">
@@ -521,6 +541,17 @@ export default function RoteiroOrcamento() {
                 </div>
                 <p className="text-sm text-gray-600 mt-1.5">{voo.origem} → {voo.destino}</p>
                 <p className="text-xs text-gray-500 mt-1.5">{voo.data} | {voo.partida} - {voo.chegada} ({voo.duracao})</p>
+                {voo.documento && voo.documentoTipo === "pdf" && (
+                  <div className="mt-3 border-t border-gray-200 pt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => void abrirVoucherPdf(String(voo.documento))}
+                      className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                    >
+                      Clique aqui para abrir o Voucher
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
