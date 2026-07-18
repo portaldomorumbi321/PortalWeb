@@ -2,11 +2,10 @@ import { useParams } from "react-router";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import {
-  Share2, X, Plane, Bed, Map, CalendarDays, Car, Utensils, Sparkles, Shield, Info, Instagram, Mail, MessageCircle, Users, Package2, Link2
+  Share2, X, Plane, Bed, Map, CalendarDays, Car, Utensils, Sparkles, Shield, Info, Instagram, Mail, MessageCircle, Users, Package2
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
-import DestinationPhoto from "./DestinationPhoto";
 import logo from "../../imports/logo.png";
 
 interface Voo {
@@ -275,7 +274,7 @@ function Countdown({ targetDate }: { targetDate: string }) {
 export default function RoteiroOrcamento() {
   const { numero } = useParams<{ numero: string }>();
   const [orc, setOrc] = useState<Orcamento | null>(null);
-  const [itemAtivo, setItemAtivo] = useState<string>("voos");
+  const [itemAtivo, setItemAtivo] = useState<string>("pacotes");
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
 
   useEffect(() => {
@@ -330,7 +329,8 @@ export default function RoteiroOrcamento() {
   const possuiVoo = Boolean(orc.voos?.length);
   const possuiHospedagem = Boolean(orc.hospedagem?.length);
   const possuiPlanejamentoBase = possuiVoo || possuiHospedagem;
-  const destinoParaImagem = possuiPlanejamentoBase ? destinoPrincipal : "";
+  const fotoPacoteDestaque =
+    (orc.pacotes || []).find((item) => typeof item?.foto === "string" && item.foto.trim())?.foto || "";
   const dataCheckinPrincipal = orc.hospedagem && orc.hospedagem.length > 0 ? orc.hospedagem[0].checkin : null;
   const dataViagemPrincipal = dataCheckinPrincipal || orc.voos?.[0]?.data || null;
   const listaPassageiros = Array.isArray(orc.passageiros)
@@ -390,7 +390,11 @@ export default function RoteiroOrcamento() {
         </button>
       </div>
 
-      <DestinationPhoto destination={destinoParaImagem} />
+      {fotoPacoteDestaque && (
+        <div className="mb-6 overflow-hidden rounded-xl border border-cyan-100 bg-white shadow-sm">
+          <img src={fotoPacoteDestaque} alt="Foto do pacote" className="h-64 w-full object-cover sm:h-80" />
+        </div>
+      )}
 
       <Card className="p-4 mb-6 text-center">
         <h2 className="font-bold text-purple-700 mb-3">Sr(a) {orc.cliente || "Cliente"}, falta para sua viagem:</h2>
@@ -422,7 +426,7 @@ export default function RoteiroOrcamento() {
         </nav>
       )}
 
-      {/* VOOS */}
+      {/* PACOTES */}
       {orc.pacotes && orc.pacotes.length > 0 && itemAtivo === "pacotes" && (
         <Card id="pacotes" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="bg-cyan-100 p-3">
@@ -431,35 +435,7 @@ export default function RoteiroOrcamento() {
           <div className="p-4 space-y-3">
             {orc.pacotes.map((pacote: any, idx: number) => (
               <div key={pacote.id || idx} className="rounded-lg bg-gray-50 p-3">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="font-medium text-gray-900">{pacote.operador || `Pacote ${idx + 1}`}</p>
-                  {pacote.link && (
-                    <a
-                      href={pacote.link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-cyan-700 hover:text-cyan-800"
-                    >
-                      <Link2 className="h-3.5 w-3.5" />
-                      Ver link
-                    </a>
-                  )}
-                </div>
-
-                {pacote.foto && (
-                  <div className="mb-2 overflow-hidden rounded-md border border-cyan-100 bg-white">
-                    <img
-                      src={pacote.foto}
-                      alt={`Foto do pacote ${pacote.operador || idx + 1}`}
-                      className="h-52 w-full object-cover"
-                    />
-                  </div>
-                )}
-
                 {pacote.descricao && <p className="text-sm text-gray-600">{pacote.descricao}</p>}
-                {Number(pacote.valor) > 0 && (
-                  <p className="mt-1 text-sm font-semibold text-emerald-700">{formatarMoeda(Number(pacote.valor) || 0)}</p>
-                )}
               </div>
             ))}
           </div>

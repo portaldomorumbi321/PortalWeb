@@ -65,6 +65,11 @@ export default function ResumoOrcamentos() {
     window.open(`/financeiro/orcamentos/roteiro/${orc.numero}`, "_blank");
   };
 
+  const abrirOrcamento = (orc: Orcamento) => {
+    localStorage.setItem(`orc_${orc.numero}`, JSON.stringify(orc));
+    window.open(`/financeiro/orcamentos/resumo/${orc.numero}`, "_blank");
+  };
+
   const orcamentosRecentes = orcamentos.slice(0, 3);
 
   return (
@@ -180,8 +185,8 @@ export default function ResumoOrcamentos() {
                   variant="outline"
                   size="icon"
                   className="h-8 w-8 sm:h-9 sm:w-9"
-                  title="Visualizar"
-                  onClick={() => navigate("/financeiro/orcamentos", { state: { previewId: orcamento.id } })}
+                  title="Orçamento"
+                  onClick={() => abrirOrcamento(orcamento)}
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
@@ -198,7 +203,7 @@ export default function ResumoOrcamentos() {
                   variant="outline"
                   size="icon"
                   className="h-8 w-8 sm:h-9 sm:w-9 text-green-600 hover:text-green-700"
-                  title="Gerar Roteiro"
+                  title="Roteiro"
                   onClick={() => gerarRoteiro(orcamento)}
                 >
                   <MapPin className="h-4 w-4" />

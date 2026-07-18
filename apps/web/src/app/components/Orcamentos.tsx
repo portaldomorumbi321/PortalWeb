@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Search, Plus, Edit2, X, Check, FileText, ChevronDown, ChevronUp,
-  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Printer, Sparkles, Link2, Star
+  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Sparkles, Link2, Star
 } from "lucide-react"; // Adicionado Sparkles
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -194,7 +194,7 @@ function gerarNumero(lista: Orcamento[]) {
   return `${datePart}${seq}`;
 }
 
-type Tela = "lista" | "form" | "preview";
+type Tela = "lista" | "form";
 
 const orcVazio = (): OrcamentoPayload => ({
   numero: "", cliente: "", email: "", destino: "", agenteViagem: "", status: "Rascunho",
@@ -209,7 +209,6 @@ export default function Orcamentos() {
   const [tela, setTela] = useState<Tela>("lista");
   const [editando, setEditando] = useState<Orcamento | null>(null);
   const [form, setForm] = useState<OrcamentoPayload>(orcVazio());
-  const [preview, setPreview] = useState<Orcamento | null>(null);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusOrc | "Todos">("Todos");
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
@@ -429,15 +428,7 @@ export default function Orcamentos() {
   // Handle state params from ResumoOrcamentos
   useEffect(() => {
     const state = location.state as any;
-    if (state?.previewId) {
-      const orc = lista.find(o => o.id === state.previewId);
-      if (orc) {
-        setPreview(orc);
-        setTela("preview");
-        // Clear state to prevent reopening on refresh
-        navigate(location.pathname, { replace: true });
-      }
-    } else if (state?.editId) {
+    if (state?.editId) {
       const orc = lista.find(o => o.id === state.editId);
       if (orc) {
         void abrirEdicao(orc);
@@ -544,9 +535,7 @@ export default function Orcamentos() {
     }));
   }
 
-  function abrirPreview(o: Orcamento) { setPreview(o); setTela("preview"); }
-
-  function voltar() { setTela("lista"); setEditando(null); setPreview(null); }
+  function voltar() { setTela("lista"); setEditando(null); }
 
   async function salvar() {
     if (!form.cliente.trim()) return null;
@@ -667,14 +656,6 @@ export default function Orcamentos() {
     // Armazena no localStorage para acessar na nova aba
     localStorage.setItem(`orc_${orcComSecoes.numero}`, JSON.stringify(orcComSecoes));
     window.open(`/financeiro/orcamentos/resumo/${orcComSecoes.numero}`, "_blank");
-  }
-
-  function gerarOrcamento(orc: Orcamento | null = null) {
-    const orcParaAbrir = orc || (editando ? editando : null);
-    if (!orcParaAbrir) return;
-    setPreview(orcParaAbrir);
-    setTela("preview");
-    setTimeout(() => window.print(), 500); // Aguarda a renderização antes de imprimir
   }
 
   // --- itens do form ---
@@ -828,95 +809,6 @@ export default function Orcamentos() {
     } finally {
       setGerandoRoteiro(false);
     }
-  }
-
-  // ============ TELA PREVIEW ============
-  if (tela === "preview" && preview) {
-    const total = calcTotal(preview.itens);
-    const totalBruto = preview.itens.reduce((a, i) => a + i.quantidade * i.valorUnitario, 0);
-    const totalDesc = totalBruto - total;
-    return (
-      <div>
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
-          <Button variant="outline" onClick={voltar} className="flex items-center gap-2"><X className="w-4 h-4" /> Fechar</Button>
-          <h2 className="text-xl font-bold text-gray-900">Visualização do Orçamento</h2>
-          <Button onClick={() => abrirResumo(preview)} className="ml-auto bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
-            <FileText className="w-4 h-4" /> Resumo do Orçamento
-          </Button>
-          <Button onClick={() => gerarOrcamento(preview)} className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2">
-            <Printer className="w-4 h-4" /> Gerar Orçamento
-          </Button>
-          <Button
-            onClick={() => gerarRoteiro(preview)}
-            disabled={preview.status !== "Aprovado"}
-            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            title={preview.status !== "Aprovado" ? "O orçamento precisa estar Aprovado" : "Gerar Roteiro"}
-          >
-            <MapPin className="w-4 h-4" /> Gerar Roteiro
-          </Button>
-        </div>
-        <Card className="max-w-3xl mx-auto p-8">
-          {/* Cabeçalho do orçamento */}
-          <div className="flex items-start justify-between mb-8">
-            <div>
-              <h1 className="text-2xl font-bold text-indigo-700">{preview.numero}</h1>
-              <p className="text-gray-500 text-sm mt-1">Emitido em {fmtData(preview.dataCriacao)} · Válido até {fmtData(preview.dataValidade)}</p>
-            </div>
-            <Badge className={`${statusConfig[preview.status].bg} ${statusConfig[preview.status].cor} text-sm px-3 py-1`}>{preview.status}</Badge>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6 mb-8 p-4 bg-gray-50 rounded-lg">
-            <div>
-              <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Cliente</p>
-              <p className="font-semibold text-gray-900">{preview.cliente}</p>
-              <p className="text-sm text-gray-500">{preview.email}</p>
-            </div>
-          </div>
-
-          {/* Itens */}
-          <table className="w-full text-sm mb-6">
-            <thead>
-              <tr className="border-b-2 border-indigo-200">
-                <th className="text-left py-2 text-gray-600 font-semibold">Descrição</th>
-                <th className="text-center py-2 text-gray-600 font-semibold w-16">Qtd</th>
-                <th className="text-center py-2 text-gray-600 font-semibold w-12">Un</th>
-                <th className="text-right py-2 text-gray-600 font-semibold w-28">Unit.</th>
-                <th className="text-right py-2 text-gray-600 font-semibold w-16">Desc.</th>
-                <th className="text-right py-2 text-gray-600 font-semibold w-28">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {preview.itens.map((item, idx) => (
-                <tr key={item.id} className={`border-b border-gray-100 ${idx % 2 === 0 ? "" : "bg-gray-50/50"}`}>
-                  <td className="py-2.5 text-gray-800">{item.descricao}</td>
-                  <td className="py-2.5 text-center text-gray-600">{item.quantidade}</td>
-                  <td className="py-2.5 text-center text-gray-500">{item.unidade}</td>
-                  <td className="py-2.5 text-right text-gray-600">{moeda(item.valorUnitario)}</td>
-                  <td className="py-2.5 text-right text-orange-500">{item.desconto > 0 ? `${item.desconto}%` : "—"}</td>
-                  <td className="py-2.5 text-right font-semibold text-gray-900">{moeda(calcItem(item))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Totais */}
-          <div className="flex justify-end">
-            <div className="w-64 space-y-2">
-              <div className="flex justify-between text-sm text-gray-500"><span>Subtotal</span><span>{moeda(totalBruto)}</span></div>
-              {totalDesc > 0 && <div className="flex justify-between text-sm text-orange-500"><span>Descontos</span><span>- {moeda(totalDesc)}</span></div>}
-              <div className="flex justify-between text-base font-bold text-gray-900 border-t pt-2"><span>Total</span><span className="text-indigo-700">{moeda(total)}</span></div>
-            </div>
-          </div>
-
-          {preview.observacoes && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-xs font-semibold text-yellow-700 mb-1">Observações</p>
-              <p className="text-sm text-yellow-800">{preview.observacoes}</p>
-            </div>
-          )}
-        </Card>
-      </div>
-    );
   }
 
   // ============ TELA FORMULÁRIO ============
@@ -1391,21 +1283,18 @@ export default function Orcamentos() {
 
             <div className="flex flex-col gap-2">
               <Button onClick={salvar} disabled={salvando || !form.cliente.trim()} className="w-full gap-2">
-                <Check className="w-4 h-4 mr-1" />{salvando ? "Salvando..." : editando ? "Salvar alterações" : "Criar orçamento"}
+                <Check className="w-4 h-4 mr-1" />{salvando ? "Salvando..." : editando ? "Salvar alteração" : "Criar orçamento"}
               </Button>
               <Button variant="outline" onClick={voltar} className="w-full gap-2">Cancelar</Button>
-              <Button variant="ghost" onClick={() => abrirResumo()} className="w-full text-sm text-gray-600 gap-2">
-                Resumo do Orçamento
-              </Button>
-              <Button variant="ghost" onClick={() => gerarOrcamento()} className="w-full text-sm text-gray-600 gap-2">
-                Gerar Orçamento
+              <Button variant="ghost" onClick={() => abrirResumo()} className="w-full gap-2">
+                Orçamento
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => gerarRoteiro()}
                 disabled={form.status !== "Aprovado"}
-                className="w-full text-sm text-gray-600 gap-2 disabled:text-gray-400 disabled:cursor-not-allowed">
-                Gerar Roteiro
+                className="w-full gap-2">
+                Roteiro
               </Button>
             </div>
           </div>
@@ -1640,14 +1529,12 @@ export default function Orcamentos() {
                   <p className="font-bold text-lg text-indigo-700">{moeda(total)}</p>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0 flex-wrap justify-end">
-                  <button onClick={() => abrirPreview(orc)} title="Visualizar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Eye className="w-4 h-4" /></button>
-                  <button onClick={() => abrirResumo(orc)} title="Resumo do Orçamento" className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"><FileText className="w-4 h-4" /></button>
+                  <button onClick={() => abrirResumo(orc)} title="Orçamento" className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"><FileText className="w-4 h-4" /></button>
                   <button onClick={() => abrirEdicao(orc)} title="Editar" className="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition-colors"><Edit2 className="w-4 h-4" /></button>
-                  <button onClick={() => gerarOrcamento(orc)} title="Gerar Orçamento" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Printer className="w-4 h-4" /></button>
                   <button
                     onClick={() => gerarRoteiro(orc)}
                     disabled={orc.status !== "Aprovado"}
-                    title={orc.status !== "Aprovado" ? "O orçamento precisa estar Aprovado" : "Gerar Roteiro"}
+                    title={orc.status !== "Aprovado" ? "O orçamento precisa estar Aprovado" : "Roteiro"}
                     className="p-1.5 rounded text-green-600 hover:bg-green-50 transition-colors disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                   ><MapPin className="w-4 h-4" /></button>
                   <button onClick={() => confirmarDuplicacao(orc)} title="Duplicar" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"><Copy className="w-4 h-4" /></button>
