@@ -64,6 +64,10 @@ function calcTotal(itens: ItemOrc[]) {
   return itens.reduce((acc, i) => acc + calcItem(i), 0);
 }
 
+function calcTotalOrcamento(orc: Orcamento) {
+  return calcTotal(montarLinhasDescricao(orc));
+}
+
 function moeda(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -445,8 +449,8 @@ export default function Orcamentos() {
   });
 
   const totais = {
-    total: lista.reduce((a, o) => a + calcTotal(o.itens), 0),
-    aprovados: lista.filter((o) => o.status === "Aprovado").reduce((a, o) => a + calcTotal(o.itens), 0),
+    total: lista.reduce((a, o) => a + calcTotalOrcamento(o), 0),
+    aprovados: lista.filter((o) => o.status === "Aprovado").reduce((a, o) => a + calcTotalOrcamento(o), 0),
     pendentes: lista.filter((o) => o.status === "Enviado").length,
   };
 
@@ -1499,7 +1503,7 @@ export default function Orcamentos() {
           </Card>
         )}
         {filtrados.map((orc) => {
-          const total = calcTotal(orc.itens);
+          const total = calcTotalOrcamento(orc);
           const linhasDescricao = montarLinhasDescricao(orc);
           const totalDescricao = calcTotal(linhasDescricao);
           const cfg = statusConfig[orc.status];
