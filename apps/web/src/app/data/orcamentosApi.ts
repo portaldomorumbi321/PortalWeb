@@ -24,6 +24,7 @@ export interface Orcamento {
   publicToken?: string;
   cliente: string;
   email: string;
+  perfilViagem?: string[];
   passageiros?: string[];
   formaPagamento?: string;
   parcelas?: number | null;

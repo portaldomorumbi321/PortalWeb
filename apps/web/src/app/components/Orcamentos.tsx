@@ -54,6 +54,196 @@ const allStatus: StatusOrc[] = ["Rascunho", "Enviado", "Aprovado", "Rejeitado", 
 const secoesOrcamento = ["Pacotes", "Voos", "Hospedagem", "Roteiro", "Day by Day", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
 type SecaoOrcamento = typeof secoesOrcamento[number];
 
+type CategoriaPerfilViagem = {
+  titulo: string;
+  opcoes: string[];
+};
+
+const categoriasPerfilViagem: CategoriaPerfilViagem[] = [
+  {
+    titulo: "Perfil da viagem",
+    opcoes: [
+      "Casal",
+      "Família",
+      "Crianças",
+      "Bebê",
+      "Adolescente",
+      "Melhor idade",
+      "Grupo de amigos",
+      "Lua de mel",
+      "Viagem solo",
+      "Pet Friendly",
+      "LGBTQIA+",
+      "Comunidade Nerd/Gamer",
+      "Mochileiros",
+      "Turismo religioso",
+    ],
+  },
+  {
+    titulo: "Acessibilidade e Mobilidade",
+    opcoes: [
+      "Cadeirante",
+      "Mobilidade reduzida",
+      "Usuário de andador",
+      "Usuário de muletas",
+      "Elevadores",
+      "Rampas de acesso",
+      "Banheiro adaptado",
+      "Quarto acessível",
+      "Praia acessível",
+      "Cadeira anfíbia",
+      "Transporte acessível",
+      "Sinalização tátil",
+      "Intérprete de Libras",
+      "Audiodescrição",
+    ],
+  },
+  {
+    titulo: "Diversidade e Inclusão",
+    opcoes: [
+      "Destinos LGBTQIA+ Friendly",
+      "Hotéis LGBTQIA+ Friendly",
+      "Vida noturna LGBTQIA+",
+      "Eventos Pride",
+      "Destinos inclusivos",
+      "Resorts inclusivos",
+      "Segurança para viajantes LGBTQIA+",
+      "Destinos acolhedores",
+    ],
+  },
+  {
+    titulo: "Saúde",
+    opcoes: [
+      "Gestantes",
+      "Idosos",
+      "Pessoas com mobilidade reduzida",
+      "Oxigênio",
+      "Hemodiálise próxima",
+      "Hospitais próximos",
+      "Clínicas",
+      "Farmácia 24h",
+      "Seguro obrigatório",
+      "Alimentação especial",
+    ],
+  },
+  {
+    titulo: "Pet Friendly",
+    opcoes: [
+      "Aceita cães",
+      "Aceita gatos",
+      "Pet de grande porte",
+      "Pet sem taxa",
+      "Área pet",
+      "Praia pet",
+      "Hotel pet",
+      "Veterinário próximo",
+      "Dog Park",
+    ],
+  },
+  {
+    titulo: "Tipo de destino",
+    opcoes: [
+      "Nacional",
+      "Internacional",
+      "Praia",
+      "Serra",
+      "Campo",
+      "Cidade histórica",
+      "Natureza",
+      "Ecoturismo",
+      "Neve",
+      "Capital",
+      "Interior",
+      "Ilha",
+    ],
+  },
+  {
+    titulo: "Faixa de orçamento",
+    opcoes: [
+      "Econômico",
+      "Intermediário",
+      "Premium",
+      "Luxo",
+      "Resort",
+      "All Inclusive",
+      "Hotel Fazenda",
+      "Hostel",
+      "Pousada",
+    ],
+  },
+  {
+    titulo: "Objetivo da viagem",
+    opcoes: [
+      "Descanso",
+      "Romântica",
+      "Lua de mel",
+      "Aventura",
+      "Compras",
+      "Gastronomia",
+      "Parques",
+      "Disney",
+      "Cruzeiro",
+      "Shows",
+      "Eventos",
+      "Negócios",
+      "Home Office",
+      "Bem-estar",
+      "Spa",
+      "Pesca",
+      "Esportes",
+      "Mergulho",
+      "Esqui",
+    ],
+  },
+  {
+    titulo: "Transporte",
+    opcoes: [
+      "Sem carro",
+      "Com carro",
+      "Aluguel de carro",
+      "Transfer",
+      "Transporte público",
+      "Próximo ao aeroporto",
+      "Próximo ao metrô",
+      "Caminhável",
+    ],
+  },
+  {
+    titulo: "Alimentação",
+    opcoes: [
+      "Vegetariano",
+      "Vegano",
+      "Sem glúten",
+      "Sem lactose",
+      "Kosher",
+      "Halal",
+      "Restaurante infantil",
+    ],
+  },
+  {
+    titulo: "Hospedagem",
+    opcoes: [
+      "Piscina aquecida",
+      "Piscina coberta",
+      "Parque aquático",
+      "Spa",
+      "Academia",
+      "Recreação infantil",
+      "Copa do bebê",
+      "Monitoria",
+      "Cozinha no quarto",
+      "Vista para o mar",
+      "Frente para a praia",
+      "Wi-Fi de alta velocidade",
+      "Espaço para home office",
+    ],
+  },
+];
+
+function chavePerfilViagem(tituloCategoria: string, opcao: string) {
+  return `${tituloCategoria}::${opcao}`;
+}
+
 function calcItem(item: ItemOrc) {
   const bruto = item.quantidade * item.valorUnitario;
   const desc = bruto * (item.desconto / 100);
@@ -244,8 +434,12 @@ export default function Orcamentos() {
   const [popupAprovadoAberto, setPopupAprovadoAberto] = useState(false);
   const [orcamentoDuplicacaoPendente, setOrcamentoDuplicacaoPendente] = useState<Orcamento | null>(null);
   const [dadosClienteMinimizados, setDadosClienteMinimizados] = useState(false);
+  const [perfilViagemMinimizado, setPerfilViagemMinimizado] = useState(true);
+  const [perfilViagemSelecionado, setPerfilViagemSelecionado] = useState<string[]>([]);
   const [passageiroSelecionado, setPassageiroSelecionado] = useState("");
-  const [detalhesMinimizados, setDetalhesMinimizados] = useState(false);
+  const [detalhesMinimizados, setDetalhesMinimizados] = useState(true);
+  const [secoesOrcamentoMinimizadas, setSecoesOrcamentoMinimizadas] = useState(true);
+  const [resumoMinimizado, setResumoMinimizado] = useState(false);
 
   function obterDestinoPrincipalOrcamento(orcBase?: Partial<Orcamento>, preferirEstadoFormulario = false) {
     const hospedagemFonte = hospedagem.length > 0 ? hospedagem : Array.isArray(orcBase?.hospedagem) ? orcBase.hospedagem : [];
@@ -487,7 +681,11 @@ export default function Orcamentos() {
     setExperiencias([]);
     setSeguro([]);
     setDadosClienteMinimizados(false);
-    setDetalhesMinimizados(false);
+    setPerfilViagemSelecionado([]);
+    setPerfilViagemMinimizado(true);
+    setDetalhesMinimizados(true);
+    setSecoesOrcamentoMinimizadas(true);
+    setResumoMinimizado(false);
     setPassageiroSelecionado("");
     setStatusBloqueado(false);
     setSection("Pacotes");
@@ -509,7 +707,11 @@ export default function Orcamentos() {
     setExperiencias(o.experiencias || []);
     setSeguro(o.seguro || []);
     setDadosClienteMinimizados(false);
-    setDetalhesMinimizados(false);
+    setPerfilViagemSelecionado(Array.isArray(o.perfilViagem) ? o.perfilViagem.filter((item) => typeof item === "string") : []);
+    setPerfilViagemMinimizado(true);
+    setDetalhesMinimizados(true);
+    setSecoesOrcamentoMinimizadas(true);
+    setResumoMinimizado(false);
     setPassageiroSelecionado("");
     setSection("Pacotes");
     await verificarReceitaLancada(o.id);
@@ -539,6 +741,12 @@ export default function Orcamentos() {
     }));
   }
 
+  function toggleOpcaoPerfilViagem(chave: string) {
+    setPerfilViagemSelecionado((prev) => (
+      prev.includes(chave) ? prev.filter((item) => item !== chave) : [...prev, chave]
+    ));
+  }
+
   function voltar() { setTela("lista"); setEditando(null); }
 
   async function salvar() {
@@ -559,6 +767,7 @@ export default function Orcamentos() {
       restaurante: restaurante.length > 0 ? restaurante : undefined,
       experiencias: experiencias.length > 0 ? experiencias : undefined,
       seguro: seguro.length > 0 ? seguro : undefined,
+      perfilViagem: perfilViagemSelecionado,
     };
     
     try {
@@ -629,6 +838,7 @@ export default function Orcamentos() {
       restaurante: usandoEstadoFormulario ? restaurante : orcParaAbrir.restaurante,
       experiencias: usandoEstadoFormulario ? experiencias : orcParaAbrir.experiencias,
       seguro: usandoEstadoFormulario ? seguro : orcParaAbrir.seguro,
+      perfilViagem: usandoEstadoFormulario ? perfilViagemSelecionado : orcParaAbrir.perfilViagem,
     };
     
     // Store in localStorage to access from new tab
@@ -655,6 +865,7 @@ export default function Orcamentos() {
       restaurante: usandoEstadoFormulario ? restaurante : orcParaAbrir.restaurante,
       experiencias: usandoEstadoFormulario ? experiencias : orcParaAbrir.experiencias,
       seguro: usandoEstadoFormulario ? seguro : orcParaAbrir.seguro,
+      perfilViagem: usandoEstadoFormulario ? perfilViagemSelecionado : orcParaAbrir.perfilViagem,
     };
 
     // Armazena no localStorage para acessar na nova aba
@@ -968,10 +1179,78 @@ export default function Orcamentos() {
               )}
             </Card>
 
+            {/* Perfil da viagem */}
+            <Card className="p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2"><MapPin className="w-4 h-4 text-indigo-500" /> Perfil da Viagem</h3>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPerfilViagemMinimizado((prev) => !prev)}
+                  className="h-8 px-2 text-gray-600"
+                >
+                  {perfilViagemMinimizado ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  <span className="ml-1">{perfilViagemMinimizado ? "Expandir" : "Minimizar"}</span>
+                </Button>
+              </div>
+
+              {perfilViagemMinimizado ? (
+                <p className="text-sm text-gray-500">
+                  {perfilViagemSelecionado.length > 0
+                    ? `${perfilViagemSelecionado.length} opção(ões) selecionada(s).`
+                    : "Nenhuma opção selecionada."}
+                </p>
+              ) : (
+                <div className="space-y-5">
+                  {categoriasPerfilViagem.map((categoria) => (
+                    <div key={categoria.titulo}>
+                      <h4 className="mb-2 text-sm font-semibold text-gray-700">{categoria.titulo}</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                        {categoria.opcoes.map((opcao) => {
+                          const chave = chavePerfilViagem(categoria.titulo, opcao);
+                          const selecionado = perfilViagemSelecionado.includes(chave);
+
+                          return (
+                            <label
+                              key={chave}
+                              className="flex items-center gap-2 rounded-md border border-gray-200 px-2.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selecionado}
+                                onChange={() => toggleOpcaoPerfilViagem(chave)}
+                                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span>{opcao}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
             {/* Seções do orçamento (sub-páginas) */}
             <Card className="p-5">
-              <h3 className="font-semibold text-gray-900 mb-4"><FileText className="w-4 h-4 text-indigo-500 inline-block mr-2" /> Seções do Orçamento</h3>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2"><FileText className="w-4 h-4 text-indigo-500" /> Seções do Orçamento</h3>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSecoesOrcamentoMinimizadas((prev) => !prev)}
+                  className="h-8 px-2 text-gray-600"
+                >
+                  {secoesOrcamentoMinimizadas ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  <span className="ml-1">{secoesOrcamentoMinimizadas ? "Expandir" : "Minimizar"}</span>
+                </Button>
+              </div>
 
+              {!secoesOrcamentoMinimizadas && (
+              <>
               <div className="mb-3">
                 <div className="flex flex-wrap gap-2 text-sm">
                   {secoesOrcamento.map((s) => (
@@ -1137,6 +1416,8 @@ export default function Orcamentos() {
                   </div>
                 )}
               </div>
+              </>
+              )}
             </Card>
 
             {/* Observações */}
@@ -1246,7 +1527,20 @@ export default function Orcamentos() {
 
             {/* Resumo de valores */}
             <Card className="p-5">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><DollarSign className="w-4 h-4 text-indigo-500" /> Resumo</h3>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2"><DollarSign className="w-4 h-4 text-indigo-500" /> Resumo</h3>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setResumoMinimizado((prev) => !prev)}
+                  className="h-8 px-2 text-gray-600"
+                >
+                  {resumoMinimizado ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  <span className="ml-1">{resumoMinimizado ? "Expandir" : "Minimizar"}</span>
+                </Button>
+              </div>
+              {!resumoMinimizado && (
               <div className="space-y-2 text-sm">
                 <div className="space-y-1.5">
                   {resumoSecoes.map((secao) => (
@@ -1283,6 +1577,7 @@ export default function Orcamentos() {
                   <span className="text-indigo-700">{moeda(totalResumo)}</span>
                 </div>
               </div>
+              )}
             </Card>
 
             <div className="flex flex-col gap-2">
