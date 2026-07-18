@@ -532,6 +532,22 @@ export default function RoteiroOrcamento() {
           <div className="p-4 space-y-3">
             {orc.hospedagem.map((h: any, idx: number) => (
               <div key={idx} className="p-3 bg-gray-50 rounded-lg">
+                {typeof h.fotoHospedagem === "string" && h.fotoHospedagem.trim() && (
+                  <a
+                    href={h.fotoHospedagem}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mb-3 block overflow-hidden rounded-lg border border-gray-200"
+                    title="Abrir foto da hospedagem"
+                  >
+                    <img
+                      src={h.fotoHospedagem}
+                      alt={`Foto da hospedagem ${h.nome || ""}`.trim() || "Foto da hospedagem"}
+                      className="h-44 w-full object-cover"
+                      loading="lazy"
+                    />
+                  </a>
+                )}
                 <p className="font-medium text-gray-900">{h.nome}</p>
                 <p className="text-xs text-gray-500">{h.local}</p>
                 {h.endereco && <p className="text-xs text-gray-400">{h.endereco}</p>}

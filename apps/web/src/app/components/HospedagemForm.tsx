@@ -34,6 +34,7 @@ interface Hospedagem {
   noites: number;
   classificacao: number;
   amenidades: string[];
+  fotoHospedagem: string | null;
   voucher: string | null;
   voucherTipo: "pdf" | "imagem" | null;
   voucherNome: string;
@@ -113,6 +114,7 @@ export default function HospedagemForm({
     tipo: "pdf" | "imagem";
     nome: string;
   } | null>(null);
+  const [fotoHospedagemLink, setFotoHospedagemLink] = useState("");
   const [hospedagemEditandoId, setHospedagemEditandoId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -237,6 +239,7 @@ export default function HospedagemForm({
       preco: precoTotal,
       classificacao: selecionado.classificacao,
       amenidades: selecionado.amenidades || [],
+      fotoHospedagem: fotoHospedagemLink.trim() || null,
       voucher: voucher?.base64 || null,
       voucherTipo: voucher?.tipo || null,
       voucherNome: voucher?.nome || "",
@@ -249,6 +252,7 @@ export default function HospedagemForm({
     setFormQuarto({ tipoQuarto: "", checkin: "", checkout: "", noites: 1 });
     setResultados([]);
     setBusca("");
+    setFotoHospedagemLink("");
     setVoucher(null);
     setBuscou(false);
     if (fileInputRef.current) {
@@ -285,6 +289,7 @@ export default function HospedagemForm({
         preco: precoTotal,
         classificacao: formManual.classificacao,
         amenidades: hospedagemAtual?.amenidades || [],
+        fotoHospedagem: fotoHospedagemLink.trim() || null,
         voucher: voucher?.base64 || null,
         voucherTipo: voucher?.tipo || null,
         voucherNome: voucher?.nome || "",
@@ -304,6 +309,7 @@ export default function HospedagemForm({
         classificacao: 0,
       });
       setFormQuarto({ tipoQuarto: "", checkin: "", checkout: "", noites: 1 });
+      setFotoHospedagemLink("");
       setVoucher(null);
       setHospedagemEditandoId(null);
       setMostrarManual(false);
@@ -327,6 +333,7 @@ export default function HospedagemForm({
       preco: precoTotal,
       classificacao: formManual.classificacao,
       amenidades: [],
+      fotoHospedagem: fotoHospedagemLink.trim() || null,
       voucher: voucher?.base64 || null,
       voucherTipo: voucher?.tipo || null,
       voucherNome: voucher?.nome || "",
@@ -345,6 +352,7 @@ export default function HospedagemForm({
       classificacao: 0,
     });
     setFormQuarto({ tipoQuarto: "", checkin: "", checkout: "", noites: 1 });
+    setFotoHospedagemLink("");
     setVoucher(null);
     setMostrarManual(false);
     setErro("");
@@ -375,6 +383,7 @@ export default function HospedagemForm({
       classificacao: 0,
     });
     setFormQuarto({ tipoQuarto: "", checkin: "", checkout: "", noites: 1 });
+    setFotoHospedagemLink("");
     setVoucher(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -414,6 +423,7 @@ export default function HospedagemForm({
           }
         : null
     );
+    setFotoHospedagemLink(hosp.fotoHospedagem || "");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -705,6 +715,28 @@ export default function HospedagemForm({
             </div>
           )}
 
+          <div className="mb-3">
+            <Label className="text-xs">Link da Foto da Hospedagem</Label>
+            <Input
+              type="url"
+              placeholder="https://..."
+              value={fotoHospedagemLink}
+              onChange={(e) => setFotoHospedagemLink(e.target.value)}
+              className="mt-1"
+            />
+            {fotoHospedagemLink.trim() && (
+              <a
+                href={fotoHospedagemLink}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 underline"
+              >
+                <Image className="w-3.5 h-3.5" />
+                Visualizar foto da hospedagem
+              </a>
+            )}
+          </div>
+
           {/* Voucher */}
           <div className="mb-3">
             <Label className="text-xs">Voucher (PDF ou Imagem)</Label>
@@ -952,6 +984,28 @@ export default function HospedagemForm({
             </div>
           )}
 
+          <div className="mb-3">
+            <Label className="text-xs">Link da Foto da Hospedagem</Label>
+            <Input
+              type="url"
+              placeholder="https://..."
+              value={fotoHospedagemLink}
+              onChange={(e) => setFotoHospedagemLink(e.target.value)}
+              className="mt-1"
+            />
+            {fotoHospedagemLink.trim() && (
+              <a
+                href={fotoHospedagemLink}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 underline"
+              >
+                <Image className="w-3.5 h-3.5" />
+                Visualizar foto da hospedagem
+              </a>
+            )}
+          </div>
+
           {/* Voucher */}
           <div className="mb-3">
             <Label className="text-xs">Voucher (PDF ou Imagem)</Label>
@@ -1083,6 +1137,19 @@ export default function HospedagemForm({
                     <p className="text-xs text-gray-400 mt-0.5">
                       {hosp.amenidades.join(" • ")}
                     </p>
+                  )}
+                  {hosp.fotoHospedagem && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Image className="w-3.5 h-3.5 text-indigo-500" />
+                      <a
+                        href={hosp.fotoHospedagem}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                      >
+                        Visualizar foto
+                      </a>
+                    </div>
                   )}
                   {hosp.voucher && (
                     <div className="flex items-center gap-1.5 mt-1">
