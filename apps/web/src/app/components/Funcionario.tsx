@@ -1,10 +1,11 @@
 import { useEffect, useState, type ChangeEvent } from "react";
-import { User, Calendar, Clock, Award, Plus, Edit2, X, Camera } from "lucide-react";
+import { User, Calendar, Clock, Award, Plus, Edit2, X, Camera, Maximize2, Minimize2 } from "lucide-react";
 import { Card } from "./ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
 import {
   atualizarFuncionario,
   criarFuncionario,
@@ -12,7 +13,7 @@ import {
   type Funcionario,
 } from "../data/funcionariosApi";
 
-const funcionarioVazio: Omit<Funcionario, 'id' | 'initials'> = { name: "", role: "", department: "", status: "Ativo", accessLevel: "Agente", email: "", password: "" };
+const funcionarioVazio: Omit<Funcionario, 'id' | 'initials'> = { name: "", role: "", department: "", status: "Ativo", accessLevel: "Agente", email: "", saudacoes: "", password: "" };
 
 export default function Funcionario() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
@@ -22,6 +23,7 @@ export default function Funcionario() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [saudacoesExpandido, setSaudacoesExpandido] = useState(false);
 
   async function carregarFuncionarios() {
     setErro(null);
@@ -39,9 +41,9 @@ export default function Funcionario() {
     carregarFuncionarios();
   }, []);
 
-  function abrirNovo() { setErro(null); setEditando(null); setForm(funcionarioVazio); setModalAberto(true); }
-  function abrirEdicao(func: Funcionario) { setErro(null); setEditando(func); setForm({ ...func, password: "" }); setModalAberto(true); }
-  function fecharModal() { setModalAberto(false); setEditando(null); }
+  function abrirNovo() { setErro(null); setEditando(null); setForm(funcionarioVazio); setSaudacoesExpandido(false); setModalAberto(true); }
+  function abrirEdicao(func: Funcionario) { setErro(null); setEditando(func); setForm({ ...func, saudacoes: func.saudacoes || "", password: "" }); setSaudacoesExpandido(false); setModalAberto(true); }
+  function fecharModal() { setModalAberto(false); setEditando(null); setSaudacoesExpandido(false); }
 
   function selecionarFoto(event: ChangeEvent<HTMLInputElement>) {
     const arquivo = event.target.files?.[0];
@@ -63,6 +65,7 @@ export default function Funcionario() {
         ...form,
         name: form.name.trim(),
         email: form.email.trim(),
+        saudacoes: String(form.saudacoes || "").trim(),
       };
 
       if (editando) {
@@ -225,6 +228,29 @@ export default function Funcionario() {
                   <Label htmlFor="department">Departamento</Label>
                   <Input id="department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="Ex: Comercial" className="mt-1" />
                 </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="saudacoes">Saudações (frase para o cliente no Roteiro)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSaudacoesExpandido((atual) => !atual)}
+                    className="h-8 gap-1"
+                  >
+                    {saudacoesExpandido ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                    {saudacoesExpandido ? "Minimizar" : "Maximizar"}
+                  </Button>
+                </div>
+                <Textarea
+                  id="saudacoes"
+                  value={form.saudacoes || ""}
+                  onChange={(e) => setForm({ ...form, saudacoes: e.target.value })}
+                  placeholder={"Escreva 3 parágrafos para saudação do cliente no roteiro.\n\nParágrafo 1...\n\nParágrafo 2...\n\nParágrafo 3..."}
+                  className={`mt-1 transition-all ${saudacoesExpandido ? "min-h-56" : "min-h-28"}`}
+                />
+                <p className="mt-1 text-xs text-gray-500">Recomendado: 3 parágrafos para aparecer no roteiro do cliente.</p>
               </div>
               <div>
                 <Label>Status</Label>

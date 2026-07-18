@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.funcionarios (
   status VARCHAR(10) NOT NULL DEFAULT 'Ativo' CHECK (status IN ('Ativo', 'Inativo')),
   nivel_acesso VARCHAR(20) NOT NULL DEFAULT 'Agente' CHECK (nivel_acesso IN ('Administrador', 'Agente')),
   foto_url TEXT,
+  saudacoes TEXT,
   iniciais VARCHAR(8),
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()

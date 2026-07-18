@@ -166,6 +166,9 @@ let ensureOrcamentosDestinoColumnPromise = null;
 let ensureOrcamentosPassageirosColumnPromise = null;
 let ensureOrcamentosPagamentoColumnsPromise = null;
 let ensureOrcamentosPacotesColumnPromise = null;
+let ensureOrcamentosPublicTokenColumnPromise = null;
+let ensureOrcamentosPublicTokenBackfillPromise = null;
+let ensureFuncionariosSaudacoesColumnPromise = null;
 
 async function ensureOrcamentosDestinoColumn() {
     if (!pool) {
@@ -236,6 +239,74 @@ async function ensureOrcamentosPacotesColumn() {
     await ensureOrcamentosPacotesColumnPromise;
 }
 
+async function ensureOrcamentosPublicTokenColumn() {
+    if (!pool) {
+        return;
+    }
+
+    if (!ensureOrcamentosPublicTokenColumnPromise) {
+        ensureOrcamentosPublicTokenColumnPromise = pool
+            .query('ALTER TABLE public.orcamentos ADD COLUMN IF NOT EXISTS public_token VARCHAR(36)')
+            .catch((error) => {
+                ensureOrcamentosPublicTokenColumnPromise = null;
+                throw error;
+            });
+    }
+
+    await ensureOrcamentosPublicTokenColumnPromise;
+}
+
+async function backfillOrcamentosPublicToken() {
+    if (!pool) {
+        return;
+    }
+
+    if (!ensureOrcamentosPublicTokenBackfillPromise) {
+        ensureOrcamentosPublicTokenBackfillPromise = (async () => {
+            await ensureOrcamentosPublicTokenColumn();
+
+            const result = await pool.query(
+                `SELECT id
+                   FROM public.orcamentos
+                  WHERE public_token IS NULL OR btrim(public_token) = ''`
+            );
+
+            for (const row of result.rows) {
+                await pool.query(
+                    `UPDATE public.orcamentos
+                        SET public_token = $1,
+                            atualizado_em = NOW()
+                      WHERE id = $2
+                        AND (public_token IS NULL OR btrim(public_token) = '')`,
+                    [crypto.randomUUID(), row.id]
+                );
+            }
+        })().catch((error) => {
+            ensureOrcamentosPublicTokenBackfillPromise = null;
+            throw error;
+        });
+    }
+
+    await ensureOrcamentosPublicTokenBackfillPromise;
+}
+
+async function ensureFuncionariosSaudacoesColumn() {
+    if (!pool) {
+        return;
+    }
+
+    if (!ensureFuncionariosSaudacoesColumnPromise) {
+        ensureFuncionariosSaudacoesColumnPromise = pool
+            .query('ALTER TABLE public.funcionarios ADD COLUMN IF NOT EXISTS saudacoes TEXT')
+            .catch((error) => {
+                ensureFuncionariosSaudacoesColumnPromise = null;
+                throw error;
+            });
+    }
+
+    await ensureFuncionariosSaudacoesColumnPromise;
+}
+
 function ensureDb(req, res, next) {
     if (!pool) {
         return res.status(500).json({
@@ -283,6 +354,7 @@ function mapFuncionario(row) {
         initials: row.iniciais || getInitials(row.nome),
         accessLevel: row.nivel_acesso,
         email: row.email,
+        saudacoes: row.saudacoes || '',
         photo: row.foto_url || undefined,
     };
 }
@@ -383,6 +455,7 @@ function mapOrcamento(row) {
     return {
         id: Number(row.id),
         numero: row.numero,
+        publicToken: row.public_token || '',
         cliente: row.cliente,
         email: row.email || '',
         passageiros: Array.isArray(row.passageiros) ? row.passageiros : [],
@@ -432,6 +505,7 @@ function normalizePayload(body) {
         status: body.status === 'Inativo' ? 'Inativo' : 'Ativo',
         accessLevel: body.accessLevel === 'Administrador' ? 'Administrador' : 'Agente',
         email: String(body.email || '').trim().toLowerCase(),
+        saudacoes: String(body.saudacoes || '').trim(),
         password: typeof body.password === 'string' ? body.password : '',
         photo: typeof body.photo === 'string' ? body.photo : null,
     };
@@ -1882,8 +1956,10 @@ app.post('/api/auth/funcionarios/login', ensureDb, async (req, res) => {
 
 app.get('/api/funcionarios', ensureDb, async (req, res) => {
     try {
+        await ensureFuncionariosSaudacoesColumn();
+
         const result = await pool.query(
-            `SELECT id, nome, email, cargo, departamento, status, nivel_acesso, foto_url, iniciais
+            `SELECT id, nome, email, cargo, departamento, status, nivel_acesso, foto_url, iniciais, saudacoes
        FROM public.funcionarios
        ORDER BY nome ASC`
         );
@@ -1904,11 +1980,13 @@ app.post('/api/funcionarios', ensureDb, async (req, res) => {
     }
 
     try {
+        await ensureFuncionariosSaudacoesColumn();
+
         const result = await pool.query(
             `INSERT INTO public.funcionarios
-        (nome, email, senha_hash, cargo, departamento, status, nivel_acesso, foto_url, iniciais)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, nome, email, cargo, departamento, status, nivel_acesso, foto_url, iniciais`,
+        (nome, email, senha_hash, cargo, departamento, status, nivel_acesso, foto_url, iniciais, saudacoes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, nome, email, cargo, departamento, status, nivel_acesso, foto_url, iniciais, saudacoes`,
             [
                 payload.name,
                 payload.email,
@@ -1919,6 +1997,7 @@ app.post('/api/funcionarios', ensureDb, async (req, res) => {
                 payload.accessLevel,
                 payload.photo,
                 getInitials(payload.name),
+                payload.saudacoes,
             ]
         );
 
@@ -1947,6 +2026,8 @@ app.put('/api/funcionarios/:id', ensureDb, async (req, res) => {
     }
 
     try {
+                await ensureFuncionariosSaudacoesColumn();
+
         const result = await pool.query(
             `UPDATE public.funcionarios
           SET nome = $1,
@@ -1957,10 +2038,11 @@ app.put('/api/funcionarios/:id', ensureDb, async (req, res) => {
               nivel_acesso = $6,
               foto_url = $7,
               iniciais = $8,
-              senha_hash = COALESCE($9, senha_hash),
+                            senha_hash = COALESCE($9, senha_hash),
+                            saudacoes = $10,
               atualizado_em = NOW()
-        WHERE id = $10
-      RETURNING id, nome, email, cargo, departamento, status, nivel_acesso, foto_url, iniciais`,
+                WHERE id = $11
+            RETURNING id, nome, email, cargo, departamento, status, nivel_acesso, foto_url, iniciais, saudacoes`,
             [
                 payload.name,
                 payload.email,
@@ -1971,6 +2053,7 @@ app.put('/api/funcionarios/:id', ensureDb, async (req, res) => {
                 payload.photo,
                 getInitials(payload.name),
                 payload.password.trim() ? hashPassword(payload.password) : null,
+                                payload.saudacoes,
                 id,
             ]
         );
@@ -2775,11 +2858,12 @@ app.get('/api/orcamentos', ensureDb, async (req, res) => {
     try {
         await ensureOrcamentosDestinoColumn();
         await ensureOrcamentosPassageirosColumn();
-    await ensureOrcamentosPagamentoColumns();
-    await ensureOrcamentosPacotesColumn();
+        await ensureOrcamentosPagamentoColumns();
+        await ensureOrcamentosPacotesColumn();
+        await backfillOrcamentosPublicToken();
 
         const result = await pool.query(
-            `SELECT id, numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
+            `SELECT id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
                             itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
                             forma_pagamento, parcelas
        FROM public.orcamentos
@@ -2789,6 +2873,78 @@ app.get('/api/orcamentos', ensureDb, async (req, res) => {
         res.json(result.rows.map(mapOrcamento));
     } catch (error) {
         logServerError('Erro ao listar orçamentos:', error);
+        const dbError = resolveDatabaseError(error);
+        res.status(dbError.status).json({ error: dbError.message });
+    }
+});
+
+app.get('/api/orcamentos/numero/:numero', ensureDb, async (req, res) => {
+    const numero = String(req.params.numero || '').trim();
+
+    if (!numero) {
+        return res.status(400).json({ error: 'Número do orçamento é obrigatório.' });
+    }
+
+    try {
+        await ensureOrcamentosDestinoColumn();
+        await ensureOrcamentosPassageirosColumn();
+        await ensureOrcamentosPagamentoColumns();
+        await ensureOrcamentosPacotesColumn();
+        await backfillOrcamentosPublicToken();
+
+        const result = await pool.query(
+            `SELECT id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
+                            itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
+                            forma_pagamento, parcelas
+               FROM public.orcamentos
+              WHERE numero = $1
+              LIMIT 1`,
+            [numero]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Orçamento não encontrado.' });
+        }
+
+        res.json(mapOrcamento(result.rows[0]));
+    } catch (error) {
+        logServerError('Erro ao buscar orçamento por número:', error);
+        const dbError = resolveDatabaseError(error);
+        res.status(dbError.status).json({ error: dbError.message });
+    }
+});
+
+app.get('/api/orcamentos/public/:publicToken', ensureDb, async (req, res) => {
+    const publicToken = String(req.params.publicToken || '').trim();
+
+    if (!publicToken) {
+        return res.status(400).json({ error: 'Token público do orçamento é obrigatório.' });
+    }
+
+    try {
+        await ensureOrcamentosDestinoColumn();
+        await ensureOrcamentosPassageirosColumn();
+        await ensureOrcamentosPagamentoColumns();
+        await ensureOrcamentosPacotesColumn();
+        await backfillOrcamentosPublicToken();
+
+        const result = await pool.query(
+            `SELECT id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
+                            itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
+                            forma_pagamento, parcelas
+               FROM public.orcamentos
+              WHERE public_token = $1
+              LIMIT 1`,
+            [publicToken]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Orçamento não encontrado.' });
+        }
+
+        res.json(mapOrcamento(result.rows[0]));
+    } catch (error) {
+        logServerError('Erro ao buscar orçamento por token:', error);
         const dbError = resolveDatabaseError(error);
         res.status(dbError.status).json({ error: dbError.message });
     }
@@ -2806,16 +2962,19 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
         await ensureOrcamentosPassageirosColumn();
         await ensureOrcamentosPagamentoColumns();
         await ensureOrcamentosPacotesColumn();
+        await ensureOrcamentosPublicTokenColumn();
 
+        const publicToken = crypto.randomUUID();
         const result = await pool.query(
             `INSERT INTO public.orcamentos
         (numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
          itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
+         public_token,
          forma_pagamento, parcelas)
            VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, '')::date, NULLIF($8, '')::date, $9,
                $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15::jsonb, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb,
-               $21, $22)
-           RETURNING id, numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
+               $21, $22, $23)
+           RETURNING id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
                  itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
                  forma_pagamento, parcelas`,
             [
@@ -2839,6 +2998,7 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
                 JSON.stringify(payload.experiencias),
                 JSON.stringify(payload.seguro),
                 JSON.stringify(payload.passageiros),
+                publicToken,
                 payload.formaPagamento || null,
                 payload.parcelas,
             ]
@@ -2873,6 +3033,10 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
         await ensureOrcamentosPassageirosColumn();
         await ensureOrcamentosPagamentoColumns();
         await ensureOrcamentosPacotesColumn();
+        await ensureOrcamentosPublicTokenColumn();
+
+        const existing = await pool.query('SELECT public_token FROM public.orcamentos WHERE id = $1 LIMIT 1', [id]);
+        const existingToken = existing.rows[0]?.public_token || crypto.randomUUID();
 
         const result = await pool.query(
             `UPDATE public.orcamentos
@@ -2896,11 +3060,12 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
                             experiencias = $18::jsonb,
                             seguro = $19::jsonb,
                             passageiros = $20::jsonb,
-                            forma_pagamento = $21,
-                            parcelas = $22,
+                                                        public_token = COALESCE(NULLIF(public_token, ''), $21),
+                            forma_pagamento = $22,
+                            parcelas = $23,
               atualizado_em = NOW()
-                WHERE id = $23
-            RETURNING id, numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
+                                WHERE id = $24
+            RETURNING id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
                 itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, passageiros,
                 forma_pagamento, parcelas`,
             [
@@ -2924,6 +3089,7 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
                 JSON.stringify(payload.experiencias),
                 JSON.stringify(payload.seguro),
                 JSON.stringify(payload.passageiros),
+                existingToken,
                 payload.formaPagamento || null,
                 payload.parcelas,
                 id,

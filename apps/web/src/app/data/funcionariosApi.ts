@@ -7,6 +7,7 @@ export interface Funcionario {
   initials: string;
   accessLevel: 'Administrador' | 'Agente';
   email: string;
+  saudacoes?: string;
   password?: string;
   photo?: string;
 }

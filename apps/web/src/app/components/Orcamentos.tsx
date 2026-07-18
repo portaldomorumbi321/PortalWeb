@@ -634,7 +634,7 @@ export default function Orcamentos() {
     // Store in localStorage to access from new tab
     localStorage.setItem(`orc_${orcComSecoes.numero}`, JSON.stringify(orcComSecoes));
     // Open roteiro in new tab using numero (not id)
-    window.open(`/financeiro/orcamentos/roteiro/${orcComSecoes.numero}`, "_blank");
+    window.open(`/financeiro/orcamentos/roteiro/${orcComSecoes.publicToken || orcComSecoes.numero}`, "_blank");
   }
 
   function abrirResumo(orc: Orcamento | null = null) {
@@ -659,7 +659,7 @@ export default function Orcamentos() {
 
     // Armazena no localStorage para acessar na nova aba
     localStorage.setItem(`orc_${orcComSecoes.numero}`, JSON.stringify(orcComSecoes));
-    window.open(`/financeiro/orcamentos/resumo/${orcComSecoes.numero}`, "_blank");
+    window.open(`/financeiro/orcamentos/resumo/${orcComSecoes.publicToken || orcComSecoes.numero}`, "_blank");
   }
 
   // --- itens do form ---

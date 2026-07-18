@@ -62,12 +62,12 @@ export default function ResumoOrcamentos() {
 
   const gerarRoteiro = (orc: Orcamento) => {
     localStorage.setItem(`orc_${orc.numero}`, JSON.stringify(orc));
-    window.open(`/financeiro/orcamentos/roteiro/${orc.numero}`, "_blank");
+    window.open(`/financeiro/orcamentos/roteiro/${orc.publicToken || orc.numero}`, "_blank");
   };
 
   const abrirOrcamento = (orc: Orcamento) => {
     localStorage.setItem(`orc_${orc.numero}`, JSON.stringify(orc));
-    window.open(`/financeiro/orcamentos/resumo/${orc.numero}`, "_blank");
+    window.open(`/financeiro/orcamentos/resumo/${orc.publicToken || orc.numero}`, "_blank");
   };
 
   const orcamentosRecentes = orcamentos.slice(0, 3);

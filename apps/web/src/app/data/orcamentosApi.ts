@@ -21,6 +21,7 @@ export interface ItemOrc {
 export interface Orcamento {
   id: number;
   numero: string;
+  publicToken?: string;
   cliente: string;
   email: string;
   passageiros?: string[];
@@ -97,6 +98,22 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export function listarOrcamentos() {
   return request<Orcamento[]>('/orcamentos');
+}
+
+export function buscarOrcamentoPorNumero(numero: string) {
+  return request<Orcamento>(`/orcamentos/numero/${encodeURIComponent(numero)}`);
+}
+
+export function buscarOrcamentoPublico(identificador: string) {
+  const codigo = String(identificador || '').trim();
+
+  return request<Orcamento>(`/orcamentos/public/${encodeURIComponent(codigo)}`).catch(async (error) => {
+    if (/^\d+$/.test(codigo)) {
+      return buscarOrcamentoPorNumero(codigo);
+    }
+
+    throw error;
+  });
 }
 
 export function criarOrcamento(payload: OrcamentoPayload) {

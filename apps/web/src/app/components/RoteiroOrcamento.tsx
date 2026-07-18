@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
+import { buscarOrcamentoPublico } from "../data/orcamentosApi";
 import logo from "../../imports/logo.png";
 
 interface Voo {
@@ -276,14 +277,61 @@ export default function RoteiroOrcamento() {
   const [orc, setOrc] = useState<Orcamento | null>(null);
   const [itemAtivo, setItemAtivo] = useState<string>("pacotes");
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
 
   useEffect(() => {
-    if (numero) {
-      const stored = localStorage.getItem(`orc_${numero}`);
-      if (stored) {
-        setOrc(JSON.parse(stored));
+    let active = true;
+
+    async function carregarOrcamento() {
+      if (!numero) {
+        if (active) {
+          setOrc(null);
+          setErroCarregamento("Número do orçamento não informado.");
+          setCarregando(false);
+        }
+        return;
+      }
+
+      setCarregando(true);
+      setErroCarregamento(null);
+
+      try {
+        const orcamentoApi = await buscarOrcamentoPublico(numero);
+        if (active) {
+          setOrc(orcamentoApi);
+          setCarregando(false);
+        }
+        return;
+      } catch (error) {
+        const stored = localStorage.getItem(`orc_${numero}`);
+
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (active) {
+              setOrc(parsed);
+              setCarregando(false);
+            }
+            return;
+          } catch {
+            // segue para o estado de erro abaixo
+          }
+        }
+
+        if (active) {
+          setOrc(null);
+          setErroCarregamento(error instanceof Error ? error.message : "Roteiro não disponível no momento.");
+          setCarregando(false);
+        }
       }
     }
+
+    carregarOrcamento();
+
+    return () => {
+      active = false;
+    };
   }, [numero]);
 
   useEffect(() => {
@@ -309,11 +357,21 @@ export default function RoteiroOrcamento() {
     };
   }, []);
 
+  if (carregando) {
+    return (
+      <div className="px-4 py-8 max-w-lg mx-auto">
+        <Card className="p-4 text-center">
+          <p className="text-sm text-gray-600">Carregando roteiro...</p>
+        </Card>
+      </div>
+    );
+  }
+
   if (!orc) {
     return (
       <div className="px-4 py-8 max-w-lg mx-auto">
         <Card className="p-4 text-center">
-          <p className="text-sm text-gray-600">Roteiro não disponível.</p>
+          <p className="text-sm text-gray-600">{erroCarregamento || "Roteiro não disponível."}</p>
         </Card>
       </div>
     );

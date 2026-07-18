@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Plane, Bed, ShieldCheck, ShoppingCart, User, Mail, Share2, DollarSign, Map, CalendarDays, Car, Utensils, Sparkles, Info, FileText, Link2, Users } from "lucide-react";
 import { Button } from "./ui/button";
+import { buscarOrcamentoPublico } from "../data/orcamentosApi";
 // Tipos replicados de Orcamentos.tsx para consistência
 interface ItemOrc {
   id: number;
@@ -116,22 +117,80 @@ function calcItem(item: ItemOrc) {
 export default function ResumoOrcamento() {
   const { numero } = useParams<{ numero: string }>();
   const [orcamento, setOrcamento] = useState<OrcamentoCompleto | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
 
   useEffect(() => {
-    if (numero) {
-      const dados = localStorage.getItem(`orc_${numero}`);
-      if (dados) {
-        setOrcamento(JSON.parse(dados));
+    let active = true;
+
+    async function carregarOrcamento() {
+      if (!numero) {
+        if (active) {
+          setOrcamento(null);
+          setErroCarregamento("Número do orçamento não informado.");
+          setCarregando(false);
+        }
+        return;
+      }
+
+      setCarregando(true);
+      setErroCarregamento(null);
+
+      try {
+        const orcamentoApi = await buscarOrcamentoPublico(numero);
+        if (active) {
+          setOrcamento(orcamentoApi);
+          setCarregando(false);
+        }
+        return;
+      } catch (error) {
+        const dados = localStorage.getItem(`orc_${numero}`);
+
+        if (dados) {
+          try {
+            const parsed = JSON.parse(dados);
+            if (active) {
+              setOrcamento(parsed);
+              setCarregando(false);
+            }
+            return;
+          } catch {
+            // segue para o estado de erro abaixo
+          }
+        }
+
+        if (active) {
+          setOrcamento(null);
+          setErroCarregamento(error instanceof Error ? error.message : "Resumo não disponível no momento.");
+          setCarregando(false);
+        }
       }
     }
+
+    carregarOrcamento();
+
+    return () => {
+      active = false;
+    };
   }, [numero]);
+
+  if (carregando) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold text-gray-700">Carregando resumo...</h1>
+          <p className="text-gray-500 mt-2">Aguardando os dados do orçamento.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!orcamento) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-gray-700">Carregando resumo...</h1>
-          <p className="text-gray-500 mt-2">Se o orçamento não carregar, volte e tente novamente.</p>
+          <h1 className="text-2xl font-semibold text-gray-700">Resumo indisponível</h1>
+          <p className="text-gray-500 mt-2">{erroCarregamento || "Não foi possível carregar o orçamento deste link."}</p>
         </div>
       </div>
     );
