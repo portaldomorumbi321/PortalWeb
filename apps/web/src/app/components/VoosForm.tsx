@@ -9,6 +9,8 @@ interface Voo {
   id: number;
   companhia: string;
   numero: string;
+  tipoTrecho?: "IDA" | "VOLTA";
+  conexao?: number | null;
   data: string;
   origem: string;
   destino: string;
@@ -44,6 +46,105 @@ const companhiasAereas = [
   "Qatar Airways",
 ];
 
+const aeroportosPrincipais = [
+  "Sao Paulo - Guarulhos (GRU)",
+  "Sao Paulo - Congonhas (CGH)",
+  "Sao Paulo - Viracopos/Campinas (VCP)",
+  "Sao Paulo - Sao Jose dos Campos (SJK)",
+  "Sao Paulo - Ribeirao Preto (RAO)",
+  "Sao Paulo - Sao Jose do Rio Preto (SJP)",
+  "Sao Paulo - Presidente Prudente (PPB)",
+  "Sao Paulo - Aracatuba (ARU)",
+  "Sao Paulo - Marilia (MII)",
+  "Sao Paulo - Bauru/Arealva (JTC)",
+  "Rio de Janeiro - Galeao (GIG)",
+  "Rio de Janeiro - Santos Dumont (SDU)",
+  "Rio de Janeiro - Cabo Frio (CFB)",
+  "Rio de Janeiro - Macae (MEA)",
+  "Rio de Janeiro - Campos dos Goytacazes (CAW)",
+  "Brasilia - Juscelino Kubitschek (BSB)",
+  "Belo Horizonte - Confins (CNF)",
+  "Belo Horizonte - Pampulha (PLU)",
+  "Minas Gerais - Uberlandia (UDI)",
+  "Minas Gerais - Uberaba (UBA)",
+  "Minas Gerais - Montes Claros (MOC)",
+  "Minas Gerais - Ipatinga (IPN)",
+  "Minas Gerais - Juiz de Fora/Zona da Mata (IZA)",
+  "Minas Gerais - Governador Valadares (GVR)",
+  "Salvador - Deputado Luis Eduardo Magalhaes (SSA)",
+  "Bahia - Ilheus (IOS)",
+  "Bahia - Porto Seguro (BPS)",
+  "Bahia - Vitoria da Conquista (VDC)",
+  "Bahia - Barreiras (BRA)",
+  "Bahia - Lencois/Chapada Diamantina (LEC)",
+  "Recife - Guararapes (REC)",
+  "Pernambuco - Petrolina (PNZ)",
+  "Pernambuco - Fernando de Noronha (FEN)",
+  "Pernambuco - Caruaru (CAU)",
+  "Fortaleza - Pinto Martins (FOR)",
+  "Ceara - Juazeiro do Norte (JDO)",
+  "Ceara - Jericoacoara (JJD)",
+  "Curitiba - Afonso Pena (CWB)",
+  "Parana - Londrina (LDB)",
+  "Parana - Maringa (MGF)",
+  "Parana - Foz do Iguacu (IGU)",
+  "Parana - Cascavel (CAC)",
+  "Parana - Ponta Grossa (PGZ)",
+  "Porto Alegre - Salgado Filho (POA)",
+  "Rio Grande do Sul - Caxias do Sul (CXJ)",
+  "Rio Grande do Sul - Passo Fundo (PFB)",
+  "Rio Grande do Sul - Pelotas (PET)",
+  "Rio Grande do Sul - Santa Maria (RIA)",
+  "Florianopolis - Hercilio Luz (FLN)",
+  "Santa Catarina - Navegantes (NVT)",
+  "Santa Catarina - Joinville (JOI)",
+  "Santa Catarina - Chapeco (XAP)",
+  "Santa Catarina - Jaguaruna (JJG)",
+  "Santa Catarina - Correia Pinto (EEA)",
+  "Manaus - Eduardo Gomes (MAO)",
+  "Amazonas - Tabatinga (TBT)",
+  "Amazonas - Tefe (TFF)",
+  "Amazonas - Parintins (PIN)",
+  "Belem - Val de Caes (BEL)",
+  "Para - Santarem (STM)",
+  "Para - Maraba (MAB)",
+  "Para - Altamira (ATM)",
+  "Para - Carajas (CKS)",
+  "Goiania - Santa Genoveva (GYN)",
+  "Goias - Rio Verde (RVD)",
+  "Goias - Caldas Novas (CLV)",
+  "Cuiaba - Marechal Rondon (CGB)",
+  "Mato Grosso - Sinop (OPS)",
+  "Mato Grosso - Rondonopolis (ROO)",
+  "Mato Grosso - Alta Floresta (AFL)",
+  "Natal - Governador Aluizio Alves (NAT)",
+  "Rio Grande do Norte - Mossoro (MVF)",
+  "Maceio - Zumbi dos Palmares (MCZ)",
+  "Sergipe - Aracaju (AJU)",
+  "Paraiba - Joao Pessoa (JPA)",
+  "Paraiba - Campina Grande (CPV)",
+  "Piaui - Teresina (THE)",
+  "Piaui - Parnaiba (PHB)",
+  "Maranhao - Sao Luis (SLZ)",
+  "Maranhao - Imperatriz (IMP)",
+  "Tocantins - Palmas (PMW)",
+  "Tocantins - Araguaina (AUX)",
+  "Espirito Santo - Vitoria (VIX)",
+  "Alagoas - Arapiraca (APQ)",
+  "Acre - Rio Branco (RBR)",
+  "Acre - Cruzeiro do Sul (CZS)",
+  "Amapa - Macapa (MCP)",
+  "Rondonia - Porto Velho (PVH)",
+  "Rondonia - Ji-Parana (JPR)",
+  "Rondonia - Vilhena (BVH)",
+  "Rondonia - Cacoal (OAL)",
+  "Roraima - Boa Vista (BVB)",
+  "Mato Grosso do Sul - Campo Grande (CGR)",
+  "Mato Grosso do Sul - Dourados (DOU)",
+  "Mato Grosso do Sul - Corumba (CMG)",
+  "Mato Grosso do Sul - Bonito (BYO)",
+];
+
 export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
   const [busca, setBusca] = useState({ companhia: "", numero: "", data: "" });
   const [carregando, setCarregando] = useState(false);
@@ -54,6 +155,8 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
   const [formManual, setFormManual] = useState<Omit<Voo, 'id'>>({
     companhia: "",
     numero: "",
+    tipoTrecho: "IDA",
+    conexao: null,
     data: "",
     origem: "",
     destino: "",
@@ -145,6 +248,8 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
         id: Date.now(),
         companhia: busca.companhia,
         numero: busca.numero,
+        tipoTrecho: "IDA",
+        conexao: null,
         data: busca.data,
         origem: "São Paulo (GIG/CGH)",
         destino: "Rio de Janeiro (RIOx)",
@@ -196,7 +301,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
       };
 
       onVoosChange(voos.map((voo) => (voo.id === vooEditandoId ? vooAtualizado : voo)));
-      setFormManual({ companhia: "", numero: "", data: "", origem: "", destino: "", partida: "", chegada: "", valor: 0, duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
+      setFormManual({ companhia: "", numero: "", tipoTrecho: "IDA", conexao: null, data: "", origem: "", destino: "", partida: "", chegada: "", valor: 0, duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
       setVooEditandoId(null);
       if (manualFileInputRef.current) {
         manualFileInputRef.current.value = "";
@@ -211,7 +316,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
       id: Date.now(),
     };
     onVoosChange([...voos, novoVoo]);
-    setFormManual({ companhia: "", numero: "", data: "", origem: "", destino: "", partida: "", chegada: "", valor: 0, duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
+    setFormManual({ companhia: "", numero: "", tipoTrecho: "IDA", conexao: null, data: "", origem: "", destino: "", partida: "", chegada: "", valor: 0, duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
     if (manualFileInputRef.current) {
       manualFileInputRef.current.value = "";
     }
@@ -225,7 +330,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
 
   const abrirFormManual = () => {
     setVooEditandoId(null);
-    setFormManual({ companhia: "", numero: "", data: "", origem: "", destino: "", partida: "", chegada: "", valor: 0, duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
+    setFormManual({ companhia: "", numero: "", tipoTrecho: "IDA", conexao: null, data: "", origem: "", destino: "", partida: "", chegada: "", valor: 0, duracao: "", documento: null, documentoTipo: null, documentoNome: "", linkVoo: "" });
     if (manualFileInputRef.current) {
       manualFileInputRef.current.value = "";
     }
@@ -238,7 +343,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
   const editarVoo = (voo: Voo) => {
     const { id, ...dados } = voo;
     setVooEditandoId(id);
-    setFormManual(dados);
+    setFormManual({ tipoTrecho: "IDA", conexao: null, ...dados });
     setMostrarManual(true);
     setResultados(null);
     setErro("");
@@ -346,6 +451,34 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
             </div>
           </div>
           <div className="space-y-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Trecho</Label>
+                <select
+                  value={resultados.tipoTrecho || "IDA"}
+                  onChange={(e) => atualizarResultado({ tipoTrecho: e.target.value as "IDA" | "VOLTA" })}
+                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                >
+                  <option value="IDA">IDA</option>
+                  <option value="VOLTA">VOLTA</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs">Conexão</Label>
+                <select
+                  value={resultados.conexao ?? ""}
+                  onChange={(e) => atualizarResultado({ conexao: e.target.value ? Number(e.target.value) : null })}
+                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                >
+                  <option value="">Sem conexão</option>
+                  <option value="1">Conexão 1</option>
+                  <option value="2">Conexão 2</option>
+                  <option value="3">Conexão 3</option>
+                  <option value="4">Conexão 4</option>
+                  <option value="5">Conexão 5</option>
+                </select>
+              </div>
+            </div>
             <div>
               <Label className="text-xs">Link do Voo</Label>
               <div className="relative mt-1">
@@ -403,7 +536,7 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
           </div>
           <Button onClick={adicionarVoo} className="w-full gap-2 bg-green-600 hover:bg-green-700">
             <Plus className="w-4 h-4" />
-            Adicionar Voo {voos.length > 0 && "(com conexão)"}
+            Adicionar Voo
           </Button>
         </Card>
       )}
@@ -424,17 +557,60 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
               <Input placeholder="Ex: LA3210" value={formManual.numero} onChange={(e) => setFormManual({ ...formManual, numero: e.target.value })} className="mt-1" />
             </div>
             <div>
+              <Label className="text-xs">Trecho</Label>
+              <select
+                value={formManual.tipoTrecho || "IDA"}
+                onChange={(e) => setFormManual({ ...formManual, tipoTrecho: e.target.value as "IDA" | "VOLTA" })}
+                className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <option value="IDA">IDA</option>
+                <option value="VOLTA">VOLTA</option>
+              </select>
+            </div>
+            <div>
               <Label className="text-xs">Data *</Label>
               <Input type="date" value={formManual.data} onChange={(e) => setFormManual({ ...formManual, data: e.target.value })} className="mt-1" />
             </div>
             <div>
+              <Label className="text-xs">Conexão</Label>
+              <select
+                value={formManual.conexao ?? ""}
+                onChange={(e) => setFormManual({ ...formManual, conexao: e.target.value ? Number(e.target.value) : null })}
+                className="mt-1 flex h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <option value="">Sem conexão</option>
+                <option value="1">Conexão 1</option>
+                <option value="2">Conexão 2</option>
+                <option value="3">Conexão 3</option>
+                <option value="4">Conexão 4</option>
+                <option value="5">Conexão 5</option>
+              </select>
+            </div>
+            <div>
               <Label className="text-xs">Origem *</Label>
-              <Input placeholder="Ex: São Paulo (GRU)" value={formManual.origem} onChange={(e) => setFormManual({ ...formManual, origem: e.target.value })} className="mt-1" />
+              <Input
+                placeholder="Ex: Sao Paulo - Guarulhos (GRU)"
+                value={formManual.origem}
+                onChange={(e) => setFormManual({ ...formManual, origem: e.target.value })}
+                className="mt-1"
+                list="aeroportos-principais-list"
+              />
             </div>
             <div>
               <Label className="text-xs">Destino *</Label>
-              <Input placeholder="Ex: Paris (CDG)" value={formManual.destino} onChange={(e) => setFormManual({ ...formManual, destino: e.target.value })} className="mt-1" />
+              <Input
+                placeholder="Ex: Rio de Janeiro - Galeao (GIG)"
+                value={formManual.destino}
+                onChange={(e) => setFormManual({ ...formManual, destino: e.target.value })}
+                className="mt-1"
+                list="aeroportos-principais-list"
+              />
             </div>
+            <datalist id="aeroportos-principais-list">
+              {aeroportosPrincipais.map((aeroporto) => (
+                <option key={aeroporto} value={aeroporto} />
+              ))}
+            </datalist>
             <div>
               <Label className="text-xs">Duração</Label>
               <Input placeholder="Ex: 11h 30min" value={formManual.duracao} onChange={(e) => setFormManual({ ...formManual, duracao: e.target.value })} className="mt-1" />
@@ -542,13 +718,14 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
             Voos Adicionados ({voos.length})
           </h4>
           <div className="space-y-2">
-            {voos.map((voo, idx) => (
+            {voos.map((voo) => (
               <div key={voo.id} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-gray-900 text-sm">{voo.companhia}</span>
                     <span className="font-mono text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{voo.numero}</span>
-                    {idx > 0 && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Conexão {idx}</span>}
+                    <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded">{voo.tipoTrecho || "IDA"}</span>
+                    {typeof voo.conexao === "number" && voo.conexao > 0 && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Conexão {voo.conexao}</span>}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-x-4 gap-y-1 mt-2 text-xs">
                     <div>
@@ -618,9 +795,9 @@ export default function VoosForm({ voos, onVoosChange }: VoosFormProps) {
               </div>
             ))}
           </div>
-          {voos.length > 1 && (
+          {voos.some((voo) => typeof voo.conexao === "number" && voo.conexao > 0) && (
             <p className="text-xs text-amber-600 mt-3 text-center">
-              ⚠️ {voos.length - 1} conexão(ões) detectada(s)
+              ⚠️ {voos.filter((voo) => typeof voo.conexao === "number" && voo.conexao > 0).length} conexão(ões) informada(s)
             </p>
           )}
         </Card>

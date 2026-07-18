@@ -13,6 +13,8 @@ interface Voo {
   id: number;
   companhia: string;
   numero: string;
+  tipoTrecho?: "IDA" | "VOLTA";
+  conexao?: number | null;
   data: string;
   origem: string;
   destino: string;
@@ -507,13 +509,15 @@ export default function RoteiroOrcamento() {
             <h2 className="font-bold text-blue-800 flex items-center gap-2"><Plane className="w-5 h-5"/> Voos</h2>
           </div>
           <div className="p-4 space-y-3">
-            {orc.voos.map((voo: any, idx: number) => (
+            {orc.voos.map((voo: any) => (
               <div key={voo.id} className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-gray-900">
                     {voo.numero} - {voo.companhia}
                   </p>
-                  {idx > 0 && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Conexão {idx}</span>}
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                    {voo.tipoTrecho || "IDA"}
+                  </span>
                 </div>
                 <p className="text-sm text-gray-600 mt-1.5">{voo.origem} → {voo.destino}</p>
                 <p className="text-xs text-gray-500 mt-1.5">{voo.data} | {voo.partida} - {voo.chegada} ({voo.duracao})</p>
