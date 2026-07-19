@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Plane, Bed, ShieldCheck, ShoppingCart, User, Mail, Share2, DollarSign, Map, CalendarDays, Car, Utensils, Sparkles, Info, FileText, Link2, Users } from "lucide-react";
+import { Plane, Bed, ShieldCheck, ShoppingCart, User, Mail, Share2, DollarSign, CalendarDays, Car, Utensils, Sparkles, Info, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import { buscarOrcamentoPublico } from "../data/orcamentosApi";
 // Tipos replicados de Orcamentos.tsx para consistência
@@ -302,32 +302,6 @@ export default function ResumoOrcamento() {
                         <span>Chegada: <span className="font-semibold text-gray-700">{voo.chegada}</span></span>
                         <span className="font-semibold text-gray-700">({voo.duracao})</span>
                       </div>
-                      {(voo.linkVoo || voo.documentoNome) && (
-                        <div className="mt-3 pt-3 border-t border-gray-200 flex flex-wrap gap-4 text-xs">
-                          {voo.linkVoo && (
-                            <a
-                              href={voo.linkVoo}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                              <Link2 className="w-3.5 h-3.5" />
-                              Abrir link do voo
-                            </a>
-                          )}
-                          {voo.documento && voo.documentoNome && (
-                            <a
-                              href={voo.documento}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-medium"
-                            >
-                              <FileText className="w-3.5 h-3.5" />
-                              {voo.documentoNome}
-                            </a>
-                          )}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -374,14 +348,6 @@ export default function ResumoOrcamento() {
                 </div>
             </CardContent>
           </Card>
-          )}
-
-          {/* Roteiro */}
-          {orcamento.roteiro && (
-            <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><Map className="text-sky-500" /> Roteiro</CardTitle></CardHeader>
-              <CardContent><p className="text-sm text-gray-600 whitespace-pre-wrap">{orcamento.roteiro}</p></CardContent>
-            </Card>
           )}
 
           {/* Day by Day */}
