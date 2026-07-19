@@ -51,7 +51,7 @@ const statusConfig: Record<StatusOrc, { bg: string; cor: string }> = {
 };
 
 const allStatus: StatusOrc[] = ["Rascunho", "Enviado", "Aprovado", "Rejeitado", "Cancelado"];
-const secoesOrcamento = ["Pacotes", "Voos", "Hospedagem", "Roteiro", "Day by Day", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
+const secoesOrcamento = ["Pacotes", "Voos", "Hospedagem", "Roteiro", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
 type SecaoOrcamento = typeof secoesOrcamento[number];
 
 type CategoriaPerfilViagem = {
@@ -1100,7 +1100,7 @@ export default function Orcamentos() {
       { nome: "Restaurante", quantidade: restaurante.length, valor: moeda(totalRestauranteResumo) },
       { nome: "Experiências", quantidade: experiencias.length, valor: moeda(totalExperienciasResumo) },
       { nome: "Seguro", quantidade: seguro.length, valor: moeda(totalSeguroResumo) },
-    ];
+    ].filter((secao) => secao.quantidade > 0);
     return (
       <div>
         <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -1112,7 +1112,7 @@ export default function Orcamentos() {
           {/* Coluna principal */}
           <div className="lg:col-span-2 space-y-6">
             {/* Dados do cliente */}
-            <Card className="p-5">
+            <Card className="p-4">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h3 className="font-semibold text-gray-900 flex items-center gap-2"><User className="w-4 h-4 text-indigo-500" /> Dados do Cliente</h3>
                 <Button
@@ -1127,7 +1127,7 @@ export default function Orcamentos() {
                 </Button>
               </div>
               {!dadosClienteMinimizados && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                 <div>
                   <Label htmlFor="cliente">Cliente *</Label>
                   <select
@@ -1199,11 +1199,6 @@ export default function Orcamentos() {
                   )}
                 </div>
                 <div>
-                  <Button type="button" variant="outline" onClick={() => navigate("/cadastros/clientes")} className="w-full h-9 gap-2">
-                    <Plus className="w-4 h-4" /> Cliente
-                  </Button>
-                </div>
-                <div className="md:col-span-2">
                   <Label htmlFor="agente-viagem">Agente de Viagem</Label>
                   <select
                     id="agente-viagem"
@@ -1216,11 +1211,21 @@ export default function Orcamentos() {
                       <option key={funcionario.id} value={funcionario.name}>{funcionario.name}</option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <Button type="button" variant="outline" onClick={() => navigate("/funcionario")} className="w-full h-9 gap-2">
-                    <Plus className="w-4 h-4" /> Funcionário
-                  </Button>
+                  {form.agenteViagem && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700 border border-indigo-100">
+                        {form.agenteViagem}
+                        <button
+                          type="button"
+                          onClick={() => setForm((prev) => ({ ...prev, agenteViagem: "" }))}
+                          className="text-indigo-500 hover:text-indigo-700"
+                          aria-label={`Remover agente ${form.agenteViagem}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
               )}
@@ -1325,14 +1330,14 @@ export default function Orcamentos() {
 
               {!secoesOrcamentoMinimizadas && (
               <>
-              <div className="mb-3">
-                <div className="flex flex-wrap gap-2 text-sm">
+              <div className="-mx-1 mb-2 overflow-x-auto px-1 pb-1">
+                <div className="flex w-max min-w-full flex-nowrap gap-1.5 text-sm">
                   {secoesOrcamento.map((s) => (
                     <button
                       key={s}
                       type="button"
                       onClick={() => setSection(s)}
-                      className={`whitespace-nowrap px-3 py-2 rounded-md ${section === s ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'}`}
+                      className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs sm:text-sm ${section === s ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'}`}
                     >
                       {s}
                     </button>
@@ -1617,17 +1622,21 @@ export default function Orcamentos() {
               {!resumoMinimizado && (
               <div className="space-y-2 text-sm">
                 <div className="space-y-1.5">
-                  {resumoSecoes.map((secao) => (
-                    <div key={secao.nome} className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-2.5 py-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="inline-flex h-6 min-w-8 items-center justify-center rounded bg-indigo-100 px-2 text-xs font-semibold text-indigo-700">
-                          {secao.quantidade}x
-                        </span>
-                        <span className="truncate text-gray-700">{secao.nome}</span>
+                  {resumoSecoes.length > 0 ? (
+                    resumoSecoes.map((secao) => (
+                      <div key={secao.nome} className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-2.5 py-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="inline-flex h-6 min-w-8 items-center justify-center rounded bg-indigo-100 px-2 text-xs font-semibold text-indigo-700">
+                            {secao.quantidade}x
+                          </span>
+                          <span className="truncate text-gray-700">{secao.nome}</span>
+                        </div>
+                        <span className="text-right font-medium text-gray-700">{secao.valor}</span>
                       </div>
-                      <span className="text-right font-medium text-gray-700">{secao.valor}</span>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-500">Nenhuma seção preenchida.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   {itensVendaComDescricao.length > 0 ? (
