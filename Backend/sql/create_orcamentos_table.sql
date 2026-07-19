@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.orcamentos (
   restaurante JSONB NOT NULL DEFAULT '[]'::jsonb,
   experiencias JSONB NOT NULL DEFAULT '[]'::jsonb,
   seguro JSONB NOT NULL DEFAULT '[]'::jsonb,
+  prompt_perfil_ia TEXT,
   public_token VARCHAR(36) NOT NULL UNIQUE,
   criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -29,6 +30,9 @@ ADD COLUMN IF NOT EXISTS destino VARCHAR(255);
 
 ALTER TABLE public.orcamentos
 ADD COLUMN IF NOT EXISTS public_token VARCHAR(36);
+
+ALTER TABLE public.orcamentos
+ADD COLUMN IF NOT EXISTS prompt_perfil_ia TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_orcamentos_cliente ON public.orcamentos (cliente);
 CREATE INDEX IF NOT EXISTS idx_orcamentos_status ON public.orcamentos (status);

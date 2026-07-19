@@ -167,7 +167,7 @@ function normalizarTextoRoteiro(texto: string): string {
     .replace(/__/g, '')
     .replace(/(\d+\))\s+/g, '\n$1 ')
     .replace(/\s+(Dia\s+\d+[:\-])/gi, '\n$1')
-    .replace(/\s+(Dia a dia sugerido|Destaques imperdíveis|Dicas práticas|Evidências dos lugares|Resumo inspirador)/gi, '\n\n$1')
+    .replace(/\s+(Dia a dia sugerido|Destaques imperdíveis|Dicas práticas|Resumo inspirador)/gi, '\n\n$1')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -179,8 +179,7 @@ function isTituloNumerado(linha: string): boolean {
     texto.includes('resumo') ||
     texto.includes('dia') ||
     texto.includes('destaques') ||
-    texto.includes('dicas') ||
-    texto.includes('evidências')
+    texto.includes('dicas')
   );
 }
 
@@ -192,15 +191,20 @@ function isSubtituloRoteiro(linha: string): boolean {
     texto.includes('dia a dia') ||
     texto.includes('destaques') ||
     texto.includes('dicas práticas') ||
-    texto.includes('evidências dos lugares') ||
     texto.includes('resumo') ||
     /:$/.test(texto)
   );
 }
 
+function isLinhaDiaRoteiro(linha: string): boolean {
+  const texto = limparLinhaRoteiro(linha);
+  return /^dia\s+\d+\b/i.test(texto);
+}
+
 function getSubtituloClass(linha: string): string {
   const texto = limparLinhaRoteiro(linha).toLowerCase();
 
+  if (isLinhaDiaRoteiro(texto)) return 'text-[#e07b20]';
   if (texto.includes('resumo')) return 'text-[#e07b20]';
   if (texto.includes('dicas práticas')) return 'text-[#e07b20]';
 
@@ -230,8 +234,9 @@ function RenderRoteiroTexto({ texto }: { texto: string }) {
         }
 
         if (isTituloNumerado(linhaOriginal) || isSubtituloRoteiro(linhaOriginal)) {
+          const destaqueDia = isLinhaDiaRoteiro(linhaOriginal) ? 'text-xl font-extrabold' : 'text-lg font-bold';
           return (
-            <h4 key={`subtitle-${index}`} className={`pt-2 text-lg font-bold ${getSubtituloClass(linhaOriginal)}`}>
+            <h4 key={`subtitle-${index}`} className={`pt-2 ${destaqueDia} ${getSubtituloClass(linhaOriginal)}`}>
               {textoLimpo}
             </h4>
           );

@@ -436,6 +436,7 @@ export default function Orcamentos() {
   const [dadosClienteMinimizados, setDadosClienteMinimizados] = useState(false);
   const [perfilViagemMinimizado, setPerfilViagemMinimizado] = useState(true);
   const [perfilViagemSelecionado, setPerfilViagemSelecionado] = useState<string[]>([]);
+  const [promptPerfilViagemIA, setPromptPerfilViagemIA] = useState("");
   const [passageiroSelecionado, setPassageiroSelecionado] = useState("");
   const [detalhesMinimizados, setDetalhesMinimizados] = useState(true);
   const [secoesOrcamentoMinimizadas, setSecoesOrcamentoMinimizadas] = useState(true);
@@ -682,6 +683,7 @@ export default function Orcamentos() {
     setSeguro([]);
     setDadosClienteMinimizados(false);
     setPerfilViagemSelecionado([]);
+    setPromptPerfilViagemIA("");
     setPerfilViagemMinimizado(true);
     setDetalhesMinimizados(true);
     setSecoesOrcamentoMinimizadas(true);
@@ -708,6 +710,7 @@ export default function Orcamentos() {
     setSeguro(o.seguro || []);
     setDadosClienteMinimizados(false);
     setPerfilViagemSelecionado(Array.isArray(o.perfilViagem) ? o.perfilViagem.filter((item) => typeof item === "string") : []);
+    setPromptPerfilViagemIA(typeof o.promptPerfilViagemIA === "string" ? o.promptPerfilViagemIA : "");
     setPerfilViagemMinimizado(true);
     setDetalhesMinimizados(true);
     setSecoesOrcamentoMinimizadas(true);
@@ -768,6 +771,7 @@ export default function Orcamentos() {
       experiencias: experiencias.length > 0 ? experiencias : undefined,
       seguro: seguro.length > 0 ? seguro : undefined,
       perfilViagem: perfilViagemSelecionado,
+      promptPerfilViagemIA: promptPerfilViagemIA.trim(),
     };
     
     try {
@@ -839,6 +843,7 @@ export default function Orcamentos() {
       experiencias: usandoEstadoFormulario ? experiencias : orcParaAbrir.experiencias,
       seguro: usandoEstadoFormulario ? seguro : orcParaAbrir.seguro,
       perfilViagem: usandoEstadoFormulario ? perfilViagemSelecionado : orcParaAbrir.perfilViagem,
+      promptPerfilViagemIA: usandoEstadoFormulario ? promptPerfilViagemIA : (orcParaAbrir.promptPerfilViagemIA || ""),
     };
     
     // Store in localStorage to access from new tab
@@ -866,6 +871,7 @@ export default function Orcamentos() {
       experiencias: usandoEstadoFormulario ? experiencias : orcParaAbrir.experiencias,
       seguro: usandoEstadoFormulario ? seguro : orcParaAbrir.seguro,
       perfilViagem: usandoEstadoFormulario ? perfilViagemSelecionado : orcParaAbrir.perfilViagem,
+      promptPerfilViagemIA: usandoEstadoFormulario ? promptPerfilViagemIA : (orcParaAbrir.promptPerfilViagemIA || ""),
     };
 
     // Armazena no localStorage para acessar na nova aba
@@ -948,35 +954,24 @@ export default function Orcamentos() {
   async function gerarRoteiroComIA() {
     setGerandoRoteiro(true);
 
-    const destinoPrincipal = obterDestinoPrincipalOrcamento(undefined, true);
-    let opcoesDestinoTexto = "";
-    let opcoesDestinoLista: Array<{ name: string; address?: string | null }> = [];
-    let totalOpcoesDestino = 0;
+    const removerSecaoEvidenciasDosLugares = (texto: string): string => {
+      const linhas = String(texto || "").split(/\r?\n/);
+      const indiceSecao = linhas.findIndex((linha) => {
+        const normalizada = String(linha || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
+        return /(?:^|\s)(?:\d+[).]\s*)?evidencias\s+dos\s+lugares\b/.test(normalizada);
+      });
 
-    if (destinoPrincipal) {
-      try {
-        const places = await buscarOpcoesDestino(destinoPrincipal);
-        totalOpcoesDestino = places.totalPlaces;
-        opcoesDestinoLista = places.options
-          .map((item) => ({
-            name: String(item?.name || "").trim(),
-            address: typeof item?.address === "string" ? item.address.trim() : null,
-          }))
-          .filter((item) => Boolean(item.name));
-
-        if (opcoesDestinoLista.length > 0) {
-          opcoesDestinoTexto = [
-            `Evidências dos lugares no destino (${totalOpcoesDestino} opções):`,
-            ...opcoesDestinoLista.map((item, index) =>
-              `${index + 1}. ${item.name}${item.address ? ` — ${item.address}` : ""}`
-            ),
-          ].join("\n");
-        }
-      } catch {
-        opcoesDestinoTexto = "";
-        totalOpcoesDestino = 0;
+      if (indiceSecao === -1) {
+        return texto;
       }
-    }
+
+      return linhas.slice(0, indiceSecao).join("\n").replace(/\n{3,}/g, "\n\n").trimEnd();
+    };
+
+    const destinoPrincipal = obterDestinoPrincipalOrcamento(undefined, true);
 
     // Coleta dados de voo, hospedagem e perfil da viagem para enriquecer o contexto da IA.
     const voosResumo = voos
@@ -1025,6 +1020,8 @@ export default function Orcamentos() {
       .map((nome) => String(nome || "").trim())
       .filter(Boolean);
 
+    const promptPerfilViagemLimpo = promptPerfilViagemIA.trim();
+
     const destinosTexto = destinosDosVoos.length > 0
       ? destinosDosVoos.join(", ")
       : (destinoPrincipal || "Destino não informado");
@@ -1042,18 +1039,20 @@ export default function Orcamentos() {
   ${passageirosResumo.length > 0 ? passageirosResumo.join(", ") : "Nenhum passageiro adicional informado"}
   - Perfil da viagem selecionado:
   ${perfilViagemResumo.length > 0 ? perfilViagemResumo.join("\n") : "Nenhum perfil selecionado"}
+  - Diretrizes adicionais para personalizar o roteiro:
+  ${promptPerfilViagemLimpo || "Nenhuma diretriz adicional informada"}
 
   Formato obrigatório da resposta:
   1) Título elegante do roteiro.
   2) Resumo inspirador em 1 parágrafo.
-  3) Bloco "Dia a dia sugerido" com subtítulos por dia e atividades em bullets.
+  3) Bloco "Dia a dia sugerido" com subtítulos por dia (ex: "Dia 1 - ...") e atividades em bullets.
   4) Bloco "Destaques imperdíveis" com 5 a 8 itens.
   5) Bloco "Dicas práticas" (transporte, horários, segurança e clima).
-  6) Bloco final "Evidências dos lugares" listando os nomes dos locais sugeridos.
 
   Escreva em português do Brasil, com tom profissional, bonito e claro para apresentar ao cliente final.
+  Deixe os subtítulos de cada dia bem claros e organizados para fácil leitura.
   Nao utilize Markdown e nao use simbolos de formatacao como **, __, # ou listas com asterisco.
-  A sugestão deve respeitar explicitamente os dados de voo, hospedagem, passageiros e perfil da viagem fornecidos acima.${opcoesDestinoTexto ? `\n\nUse como base de evidências os lugares abaixo:\n${opcoesDestinoTexto}` : ""}`;
+  A sugestão deve respeitar explicitamente os dados de voo, hospedagem, passageiros e perfil da viagem fornecidos acima.`;
 
     try {
       const data = await enviarMensagemIA([
@@ -1062,22 +1061,9 @@ export default function Orcamentos() {
           content: prompt,
         },
       ]);
-      const roteiroGerado = data.reply;
+      const roteiroGerado = removerSecaoEvidenciasDosLugares(data.reply);
 
-      if (opcoesDestinoLista.length > 0) {
-        const blocoEvidencias = [
-          "",
-          "Evidências dos lugares",
-          ...opcoesDestinoLista.map((item, index) =>
-            `- ${index + 1}. ${item.name}${item.address ? ` (${item.address})` : ""}`
-          ),
-          `Total de opções encontradas: ${totalOpcoesDestino || opcoesDestinoLista.length}`,
-        ].join("\n");
-
-        setRoteiro(`${roteiroGerado}\n${blocoEvidencias}`);
-      } else {
-        setRoteiro(roteiroGerado);
-      }
+      setRoteiro(roteiroGerado);
 
     } catch (error) {
       console.error("Falha ao gerar roteiro com IA:", error);
@@ -1264,6 +1250,20 @@ export default function Orcamentos() {
                 </p>
               ) : (
                 <div className="space-y-5">
+                  <div>
+                    <Label htmlFor="prompt-perfil-viagem-ia">Prompt para ajudar a IA</Label>
+                    <textarea
+                      id="prompt-perfil-viagem-ia"
+                      value={promptPerfilViagemIA}
+                      onChange={(e) => setPromptPerfilViagemIA(e.target.value)}
+                      placeholder="Ex.: Priorize experiências gastronômicas locais, ritmo leve, atividades para crianças e deslocamentos curtos."
+                      className="mt-1 min-h-24 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Esse texto será enviado junto com os dados do perfil para orientar a geração do roteiro pela IA.
+                    </p>
+                  </div>
+
                   {categoriasPerfilViagem.map((categoria) => (
                     <div key={categoria.titulo}>
                       <h4 className="mb-2 text-sm font-semibold text-gray-700">{categoria.titulo}</h4>
@@ -1290,6 +1290,19 @@ export default function Orcamentos() {
                       </div>
                     </div>
                   ))}
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPerfilViagemMinimizado(true)}
+                      className="h-8 px-2 text-gray-600"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                      <span className="ml-1">Minimizar</span>
+                    </Button>
+                  </div>
                 </div>
               )}
             </Card>
