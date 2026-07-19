@@ -492,6 +492,7 @@ export default function RoteiroOrcamento() {
     ? funcionarios.find((funcionario) => funcionario.name === orc.agenteViagem)
     : null;
   const nomeAgente = agente?.name || orc.agenteViagem;
+  const saudacaoAgente = String(agente?.saudacoes || "").trim();
   const iniciaisAgente = nomeAgente
     ?.split(" ")
     .map((nome) => nome[0])
@@ -885,8 +886,8 @@ export default function RoteiroOrcamento() {
                 <p className="mt-1 text-sm font-medium text-purple-700">Especialista em viagens personalizadas</p>
               </div>
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-gray-600">
-              Planejo viagens personalizadas com atenção aos mínimos detalhes, unindo praticidade, conforto e segurança. Meu compromisso é transformar seus planos em experiências únicas, com suporte dedicado do início ao fim.
+            <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-600">
+              {saudacaoAgente || "Planejo viagens personalizadas com atenção aos mínimos detalhes, unindo praticidade, conforto e segurança. Meu compromisso é transformar seus planos em experiências únicas, com suporte dedicado do início ao fim."}
             </p>
           </div>
         )}
