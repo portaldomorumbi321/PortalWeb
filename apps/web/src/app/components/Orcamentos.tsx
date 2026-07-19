@@ -978,10 +978,70 @@ export default function Orcamentos() {
       }
     }
 
-    // 1. Coletar dados do formulário para enviar à IA
-    const hotelInfo = hospedagem[0] ? `em ${hospedagem[0].nomeHotel} (${hospedagem[0].cidade})` : '';
-    const vooInfo = voos[0] ? `com voo de ${voos[0].origem} para ${voos[0].destino} no dia ${fmtData(voos[0].dataIda)}` : '';
-    const prompt = `Crie uma sugestão de roteiro de viagem para ${form.cliente} ${vooInfo} ${hotelInfo}.${destinoPrincipal ? ` O destino principal é ${destinoPrincipal}.` : ""}
+    // Coleta dados de voo, hospedagem e perfil da viagem para enriquecer o contexto da IA.
+    const voosResumo = voos
+      .map((voo, index) => {
+        const origem = String(voo?.origem || "").trim();
+        const destino = String(voo?.destino || "").trim();
+        const data = String(voo?.data || voo?.dataIda || "").trim();
+        if (!origem && !destino && !data) return "";
+
+        return `${index + 1}) ${origem || "Origem não informada"} -> ${destino || "Destino não informado"}${data ? ` em ${fmtData(data)}` : ""}`;
+      })
+      .filter(Boolean);
+
+    const destinosDosVoos = voos
+      .map((voo) => String(voo?.destino || "").trim())
+      .filter(Boolean);
+
+    const hospedagemResumo = hospedagem
+      .map((item, index) => {
+        const nome = String(item?.nome || item?.nomeHotel || "").trim();
+        const local = String(item?.local || item?.cidade || item?.destino || "").trim();
+        const checkin = String(item?.checkin || "").trim();
+        const checkout = String(item?.checkout || "").trim();
+
+        if (!nome && !local && !checkin && !checkout) return "";
+
+        const periodo = checkin || checkout
+          ? ` (${checkin ? fmtData(checkin) : "data não informada"} a ${checkout ? fmtData(checkout) : "data não informada"})`
+          : "";
+
+        return `${index + 1}) ${nome || "Hospedagem sem nome"}${local ? ` - ${local}` : ""}${periodo}`;
+      })
+      .filter(Boolean);
+
+    const perfilViagemResumo = perfilViagemSelecionado
+      .map((item) => {
+        const partes = String(item || "").split("::");
+        if (partes.length === 2) {
+          return `${partes[0]}: ${partes[1]}`;
+        }
+        return String(item || "").trim();
+      })
+      .filter(Boolean);
+
+    const passageirosResumo = (form.passageiros || [])
+      .map((nome) => String(nome || "").trim())
+      .filter(Boolean);
+
+    const destinosTexto = destinosDosVoos.length > 0
+      ? destinosDosVoos.join(", ")
+      : (destinoPrincipal || "Destino não informado");
+
+    const prompt = `Crie uma sugestão de roteiro de viagem para ${form.cliente || "cliente"}.
+
+  Contexto obrigatório para usar na sugestão:
+  - Destino principal: ${destinoPrincipal || "não informado"}
+  - Destino(s) dos voos: ${destinosTexto}
+  - Voos informados:
+  ${voosResumo.length > 0 ? voosResumo.join("\n") : "Nenhum voo informado"}
+  - Hospedagem informada:
+  ${hospedagemResumo.length > 0 ? hospedagemResumo.join("\n") : "Nenhuma hospedagem informada"}
+  - Passageiros:
+  ${passageirosResumo.length > 0 ? passageirosResumo.join(", ") : "Nenhum passageiro adicional informado"}
+  - Perfil da viagem selecionado:
+  ${perfilViagemResumo.length > 0 ? perfilViagemResumo.join("\n") : "Nenhum perfil selecionado"}
 
   Formato obrigatório da resposta:
   1) Título elegante do roteiro.
@@ -992,7 +1052,8 @@ export default function Orcamentos() {
   6) Bloco final "Evidências dos lugares" listando os nomes dos locais sugeridos.
 
   Escreva em português do Brasil, com tom profissional, bonito e claro para apresentar ao cliente final.
-  Nao utilize Markdown e nao use simbolos de formatacao como **, __, # ou listas com asterisco.${opcoesDestinoTexto ? `\n\nUse como base de evidências os lugares abaixo:\n${opcoesDestinoTexto}` : ""}`;
+  Nao utilize Markdown e nao use simbolos de formatacao como **, __, # ou listas com asterisco.
+  A sugestão deve respeitar explicitamente os dados de voo, hospedagem, passageiros e perfil da viagem fornecidos acima.${opcoesDestinoTexto ? `\n\nUse como base de evidências os lugares abaixo:\n${opcoesDestinoTexto}` : ""}`;
 
     try {
       const data = await enviarMensagemIA([

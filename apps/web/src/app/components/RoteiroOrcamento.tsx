@@ -589,21 +589,23 @@ export default function RoteiroOrcamento() {
                 <p className="text-sm font-medium text-indigo-600 mt-1">{formatarPeriodo(h.checkin, h.checkout)}</p>
                 <p className="text-xs text-gray-600 mt-1">{h.tipoQuarto} • {h.noites} noite{h.noites !== 1 ? "s" : ""}</p>
                 {h.voucher && (
-                  <button
-                    onClick={() => {
-                      const win = window.open("");
-                      if (win && h.voucher) {
-                        win.document.write(
-                          h.voucherTipo === "pdf"
-                            ? `<iframe src="${h.voucher}" style="width:100%;height:100%;border:none;"></iframe>`
-                            : `<img src="${h.voucher}" style="max-width:100%;max-height:100vh;display:block;margin:auto;" />`
-                        );
-                      }
-                    }}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 underline mt-1 inline-block"
-                  >
-                    📎 Ver voucher
-                  </button>
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      onClick={() => {
+                        const win = window.open("");
+                        if (win && h.voucher) {
+                          win.document.write(
+                            h.voucherTipo === "pdf"
+                              ? `<iframe src="${h.voucher}" style="width:100%;height:100%;border:none;"></iframe>`
+                              : `<img src="${h.voucher}" style="max-width:100%;max-height:100vh;display:block;margin:auto;" />`
+                          );
+                        }
+                      }}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                    >
+                      Clique aqui para abrir o Voucher
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
