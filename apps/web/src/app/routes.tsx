@@ -60,6 +60,10 @@ export const router = createBrowserRouter([
     Component: RoteiroOrcamento,
   },
   {
+    path: "/roteiro/:numero",
+    Component: RoteiroOrcamento,
+  },
+  {
     path: "/financeiro/orcamentos/resumo/:numero",
     Component: ResumoOrcamento,
   },

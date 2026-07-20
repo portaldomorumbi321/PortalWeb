@@ -769,9 +769,10 @@ export default function RoteiroOrcamento() {
   }
 
   const handleShareWhatsApp = () => {
-    const urlRoteiro = "http://192.168.15.11:5173/cyntia-maria-da-silva";
+    const identificadorRoteiro = orc.publicToken || orc.numero;
+    const urlRoteiro = `${window.location.origin}/roteiro/${identificadorRoteiro}`;
     const destinoTexto = obterDestinoPrincipal(orc);
-    const message = `Olá! *${orc.cliente}*\nAqui está o roteiro da sua viagem: *${destinoTexto}*.\n\nVisite: http://192.168.15.11:5173/roteiro\n\nOrçamento: ${orc.numero}\nBoa Viagem!`;
+    const message = `Olá! *${orc.cliente}*\nAqui está o roteiro da sua viagem: *${destinoTexto}*.\n\nVisite:\n${urlRoteiro}\n\nOrçamento: ${orc.numero}\nBoa Viagem!`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, "_blank");
   };
