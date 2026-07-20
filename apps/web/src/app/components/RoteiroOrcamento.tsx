@@ -93,6 +93,16 @@ function TituloSecao({ titulo, Icone = RoteiroReferenceIcon }: { titulo: string;
   );
 }
 
+function gerarSlugCliente(nome: string): string {
+  return String(nome || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 interface Voo {
   id: number;
   companhia: string;
@@ -759,7 +769,9 @@ export default function RoteiroOrcamento() {
   }
 
   const handleShareWhatsApp = () => {
-    const message = `Olá! Aqui está o roteiro da sua viagem:\n\nCliente: ${orc.cliente}\nOrçamento: ${orc.numero}\n\nVisite: ${window.location.href}`;
+    const urlRoteiro = "http://192.168.15.11:5173/cyntia-maria-da-silva";
+    const destinoTexto = obterDestinoPrincipal(orc);
+    const message = `Olá! *${orc.cliente}*\nAqui está o roteiro da sua viagem: *${destinoTexto}*.\n\nVisite: http://192.168.15.11:5173/roteiro\n\nOrçamento: ${orc.numero}\nBoa Viagem!`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, "_blank");
   };
