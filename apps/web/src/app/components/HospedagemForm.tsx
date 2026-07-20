@@ -34,6 +34,7 @@ interface Hospedagem {
   noites: number;
   classificacao: number;
   amenidades: string[];
+  fotosHospedagem?: string[];
   fotoHospedagem: string | null;
   voucher: string | null;
   voucherTipo: "pdf" | "imagem" | null;
@@ -115,6 +116,7 @@ export default function HospedagemForm({
     nome: string;
   } | null>(null);
   const [fotoHospedagemLink, setFotoHospedagemLink] = useState("");
+  const [fotosHospedagem, setFotosHospedagem] = useState<string[]>([]);
   const [hospedagemEditandoId, setHospedagemEditandoId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -207,6 +209,42 @@ export default function HospedagemForm({
     }
   };
 
+  const normalizarFotosHospedagem = (hosp: Pick<Hospedagem, "fotosHospedagem" | "fotoHospedagem">) => {
+    const fotosNovas = Array.isArray(hosp.fotosHospedagem) ? hosp.fotosHospedagem : [];
+    const fotoAntiga = typeof hosp.fotoHospedagem === "string" && hosp.fotoHospedagem.trim()
+      ? [hosp.fotoHospedagem.trim()]
+      : [];
+
+    return Array.from(
+      new Set(
+        [...fotosNovas, ...fotoAntiga]
+          .map((foto) => foto.trim())
+          .filter(Boolean)
+      )
+    );
+  };
+
+  const adicionarFotoHospedagem = () => {
+    const foto = fotoHospedagemLink.trim();
+
+    if (!foto) {
+      return;
+    }
+
+    if (fotosHospedagem.includes(foto)) {
+      setErro("Essa foto já foi adicionada.");
+      return;
+    }
+
+    setFotosHospedagem([...fotosHospedagem, foto]);
+    setFotoHospedagemLink("");
+    setErro("");
+  };
+
+  const removerFotoHospedagem = (foto: string) => {
+    setFotosHospedagem(fotosHospedagem.filter((item) => item !== foto));
+  };
+
   const calcularNoites = (checkin: string, checkout: string) => {
     if (!checkin || !checkout) return 1;
     const inicio = new Date(checkin);
@@ -239,6 +277,7 @@ export default function HospedagemForm({
       preco: precoTotal,
       classificacao: selecionado.classificacao,
       amenidades: selecionado.amenidades || [],
+      fotosHospedagem,
       fotoHospedagem: fotoHospedagemLink.trim() || null,
       voucher: voucher?.base64 || null,
       voucherTipo: voucher?.tipo || null,
@@ -253,6 +292,7 @@ export default function HospedagemForm({
     setResultados([]);
     setBusca("");
     setFotoHospedagemLink("");
+    setFotosHospedagem([]);
     setVoucher(null);
     setBuscou(false);
     if (fileInputRef.current) {
@@ -289,6 +329,7 @@ export default function HospedagemForm({
         preco: precoTotal,
         classificacao: formManual.classificacao,
         amenidades: hospedagemAtual?.amenidades || [],
+        fotosHospedagem,
         fotoHospedagem: fotoHospedagemLink.trim() || null,
         voucher: voucher?.base64 || null,
         voucherTipo: voucher?.tipo || null,
@@ -310,6 +351,7 @@ export default function HospedagemForm({
       });
       setFormQuarto({ tipoQuarto: "", checkin: "", checkout: "", noites: 1 });
       setFotoHospedagemLink("");
+      setFotosHospedagem([]);
       setVoucher(null);
       setHospedagemEditandoId(null);
       setMostrarManual(false);
@@ -333,6 +375,7 @@ export default function HospedagemForm({
       preco: precoTotal,
       classificacao: formManual.classificacao,
       amenidades: [],
+      fotosHospedagem,
       fotoHospedagem: fotoHospedagemLink.trim() || null,
       voucher: voucher?.base64 || null,
       voucherTipo: voucher?.tipo || null,
@@ -353,6 +396,7 @@ export default function HospedagemForm({
     });
     setFormQuarto({ tipoQuarto: "", checkin: "", checkout: "", noites: 1 });
     setFotoHospedagemLink("");
+    setFotosHospedagem([]);
     setVoucher(null);
     setMostrarManual(false);
     setErro("");
@@ -384,6 +428,7 @@ export default function HospedagemForm({
     });
     setFormQuarto({ tipoQuarto: "", checkin: "", checkout: "", noites: 1 });
     setFotoHospedagemLink("");
+    setFotosHospedagem([]);
     setVoucher(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -423,7 +468,8 @@ export default function HospedagemForm({
           }
         : null
     );
-    setFotoHospedagemLink(hosp.fotoHospedagem || "");
+      setFotosHospedagem(normalizarFotosHospedagem(hosp));
+      setFotoHospedagemLink("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -612,7 +658,7 @@ export default function HospedagemForm({
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-1 gap-3 mb-3 sm:grid-cols-2">
             <div>
               <Label className="text-xs">Tipo de Quarto</Label>
               <select
@@ -648,7 +694,7 @@ export default function HospedagemForm({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-1 gap-3 mb-3 sm:grid-cols-2">
             <div>
               <Label className="text-xs">Check-in</Label>
               <Input
@@ -688,7 +734,7 @@ export default function HospedagemForm({
           </div>
 
           <div className="mb-3">
-            <Label className="text-xs">Link da Operadora</Label>
+            <Label className="text-xs">Link do Hotel</Label>
             <Input
               type="url"
               placeholder="https://..."
@@ -703,37 +749,45 @@ export default function HospedagemForm({
             />
           </div>
 
-          {formQuarto.checkin && formQuarto.checkout && (
-            <div className="text-sm text-gray-600 mb-3 p-2 bg-white rounded">
-              <p className="font-medium">
-                {formQuarto.noites} noite{formQuarto.noites !== 1 ? "s" : ""} ={" "}
-                R${" "}
-                {(
-                  (selecionado.precoBase || 0) * formQuarto.noites
-                ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-          )}
-
           <div className="mb-3">
             <Label className="text-xs">Link da Foto da Hospedagem</Label>
-            <Input
-              type="url"
-              placeholder="https://..."
-              value={fotoHospedagemLink}
-              onChange={(e) => setFotoHospedagemLink(e.target.value)}
-              className="mt-1"
-            />
-            {fotoHospedagemLink.trim() && (
-              <a
-                href={fotoHospedagemLink}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 underline"
-              >
-                <Image className="w-3.5 h-3.5" />
-                Visualizar foto da hospedagem
-              </a>
+            <div className="mt-1 flex gap-2">
+              <Input
+                type="url"
+                placeholder="https://..."
+                value={fotoHospedagemLink}
+                onChange={(e) => setFotoHospedagemLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    adicionarFotoHospedagem();
+                  }
+                }}
+                className="flex-1"
+              />
+              <Button type="button" variant="outline" onClick={adicionarFotoHospedagem} className="shrink-0 gap-2">
+                <Plus className="w-4 h-4" />
+                Adicionar
+              </Button>
+            </div>
+            {fotosHospedagem.length > 0 && (
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {fotosHospedagem.map((foto) => (
+                  <div key={foto} className="relative overflow-hidden rounded-lg border border-gray-200 bg-white">
+                    <a href={foto} target="_blank" rel="noreferrer" title="Abrir foto da hospedagem">
+                      <img src={foto} alt="Foto da hospedagem" className="h-24 w-full object-cover" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => removerFotoHospedagem(foto)}
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                      title="Remover foto"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
@@ -959,7 +1013,7 @@ export default function HospedagemForm({
           </div>
 
           <div className="mb-3">
-            <Label className="text-xs">Link da Operadora</Label>
+            <Label className="text-xs">Site do Hotel</Label>
             <Input
               type="url"
               placeholder="https://..."
@@ -971,38 +1025,45 @@ export default function HospedagemForm({
             />
           </div>
 
-          {formQuarto.checkin && formQuarto.checkout && (
-            <div className="text-sm text-gray-600 mb-3 p-2 bg-white rounded">
-              <p className="font-medium">
-                {formQuarto.noites} noite{formQuarto.noites !== 1 ? "s" : ""} ={" "}
-                R${" "}
-                {(formManual.precoNoite * formQuarto.noites).toLocaleString(
-                  "pt-BR",
-                  { minimumFractionDigits: 2 }
-                )}
-              </p>
-            </div>
-          )}
-
           <div className="mb-3">
             <Label className="text-xs">Link da Foto da Hospedagem</Label>
-            <Input
-              type="url"
-              placeholder="https://..."
-              value={fotoHospedagemLink}
-              onChange={(e) => setFotoHospedagemLink(e.target.value)}
-              className="mt-1"
-            />
-            {fotoHospedagemLink.trim() && (
-              <a
-                href={fotoHospedagemLink}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 underline"
-              >
-                <Image className="w-3.5 h-3.5" />
-                Visualizar foto da hospedagem
-              </a>
+            <div className="mt-1 flex gap-2">
+              <Input
+                type="url"
+                placeholder="https://..."
+                value={fotoHospedagemLink}
+                onChange={(e) => setFotoHospedagemLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    adicionarFotoHospedagem();
+                  }
+                }}
+                className="flex-1"
+              />
+              <Button type="button" variant="outline" onClick={adicionarFotoHospedagem} className="shrink-0 gap-2">
+                <Plus className="w-4 h-4" />
+                Adicionar
+              </Button>
+            </div>
+            {fotosHospedagem.length > 0 && (
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {fotosHospedagem.map((foto) => (
+                  <div key={foto} className="relative overflow-hidden rounded-lg border border-gray-200 bg-white">
+                    <a href={foto} target="_blank" rel="noreferrer" title="Abrir foto da hospedagem">
+                      <img src={foto} alt="Foto da hospedagem" className="h-24 w-full object-cover" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => removerFotoHospedagem(foto)}
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                      title="Remover foto"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
@@ -1130,7 +1191,7 @@ export default function HospedagemForm({
                       className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 underline"
                     >
                       <Globe className="w-3.5 h-3.5" />
-                      Link da operadora
+                      Site do hotel
                     </a>
                   )}
                   {hosp.amenidades && hosp.amenidades.length > 0 && (
@@ -1138,17 +1199,20 @@ export default function HospedagemForm({
                       {hosp.amenidades.join(" • ")}
                     </p>
                   )}
-                  {hosp.fotoHospedagem && (
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Image className="w-3.5 h-3.5 text-indigo-500" />
-                      <a
-                        href={hosp.fotoHospedagem}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-indigo-600 hover:text-indigo-800 underline"
-                      >
-                        Visualizar foto
-                      </a>
+                  {normalizarFotosHospedagem(hosp).length > 0 && (
+                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {normalizarFotosHospedagem(hosp).map((foto) => (
+                        <a
+                          key={foto}
+                          href={foto}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block overflow-hidden rounded-md border border-gray-200 bg-white"
+                          title="Abrir foto"
+                        >
+                          <img src={foto} alt={`Foto da hospedagem ${hosp.nome}`} className="h-20 w-full object-cover" />
+                        </a>
+                      ))}
                     </div>
                   )}
                   {hosp.voucher && (

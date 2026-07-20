@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import {
   Share2, X, Instagram, Mail, MessageCircle
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
 import { buscarOrcamentoPublico } from "../data/orcamentosApi";
 
@@ -215,6 +215,21 @@ function normalizarTextoRoteiro(texto: string): string {
     .replace(/\s+(Dia a dia sugerido|Resumo inspirador)/gi, '\n\n$1')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+function normalizarFotosHospedagem(hosp: any): string[] {
+  const fotosNovas = Array.isArray(hosp?.fotosHospedagem) ? hosp.fotosHospedagem : [];
+  const fotoAntiga = typeof hosp?.fotoHospedagem === 'string' && hosp.fotoHospedagem.trim()
+    ? [hosp.fotoHospedagem.trim()]
+    : [];
+
+  return Array.from(
+    new Set(
+      [...fotosNovas, ...fotoAntiga]
+        .map((foto) => String(foto || '').trim())
+        .filter(Boolean)
+    )
+  );
 }
 
 function isTituloNumerado(linha: string): boolean {
@@ -638,9 +653,11 @@ export default function RoteiroOrcamento() {
   const [orc, setOrc] = useState<Orcamento | null>(null);
   const [itemAtivo, setItemAtivo] = useState<string>("pacotes");
   const [diaAtivoId, setDiaAtivoId] = useState<number | null>(null);
+  const [carrosselHospedagemAtivo, setCarrosselHospedagemAtivo] = useState<Record<number, number>>({});
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
+  const carrosselHospedagemRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   useEffect(() => {
     let active = true;
@@ -767,6 +784,27 @@ export default function RoteiroOrcamento() {
       </div>
     );
   }
+
+    const moverCarrosselHospedagem = (idx: number, direcao: -1 | 1) => {
+      const hospedagem = orc?.hospedagem?.[idx];
+      const fotos = normalizarFotosHospedagem(hospedagem);
+
+      if (!fotos.length) {
+        return;
+      }
+
+      const indiceAtual = carrosselHospedagemAtivo[idx] ?? 0;
+      const proximoIndice = Math.max(0, Math.min(fotos.length - 1, indiceAtual + direcao));
+      const container = carrosselHospedagemRefs.current[idx];
+      const slide = container?.querySelectorAll<HTMLElement>("[data-hospedagem-foto]")[proximoIndice];
+
+      setCarrosselHospedagemAtivo((current) => ({
+        ...current,
+        [idx]: proximoIndice,
+      }));
+
+      slide?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
+    };
 
   const handleShareWhatsApp = () => {
     const identificadorRoteiro = orc.publicToken || orc.numero;
@@ -1037,21 +1075,70 @@ export default function RoteiroOrcamento() {
           <div className="p-4 space-y-3">
             {orc.hospedagem.map((h: any, idx: number) => (
               <div key={idx} className="p-3 bg-gray-50 rounded-lg" style={{ fontFamily: "Montserrat, sans-serif" }}>
-                {typeof h.fotoHospedagem === "string" && h.fotoHospedagem.trim() && (
-                  <a
-                    href={h.fotoHospedagem}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mb-3 block overflow-hidden rounded-lg border border-gray-200"
-                    title="Abrir foto da hospedagem"
-                  >
-                    <img
-                      src={h.fotoHospedagem}
-                      alt={`Foto da hospedagem ${h.nome || ""}`.trim() || "Foto da hospedagem"}
-                      className="h-44 w-full object-cover"
-                      loading="lazy"
-                    />
-                  </a>
+                {normalizarFotosHospedagem(h).length > 0 && (
+                  <div className="mb-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        Fotos da hospedagem
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {normalizarFotosHospedagem(h).length} foto{normalizarFotosHospedagem(h).length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <div
+                      className="relative"
+                      ref={(element) => {
+                        carrosselHospedagemRefs.current[idx] = element;
+                      }}
+                    >
+                      {normalizarFotosHospedagem(h).length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => moverCarrosselHospedagem(idx, -1)}
+                            disabled={(carrosselHospedagemAtivo[idx] ?? 0) === 0}
+                            aria-label="Foto anterior"
+                            className="absolute left-3 top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white shadow-lg backdrop-blur-sm transition hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-40 sm:h-16 sm:w-16"
+                          >
+                            <span className="text-3xl leading-none sm:text-4xl">‹</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moverCarrosselHospedagem(idx, 1)}
+                            disabled={(carrosselHospedagemAtivo[idx] ?? 0) >= normalizarFotosHospedagem(h).length - 1}
+                            aria-label="Próxima foto"
+                            className="absolute right-3 top-1/2 z-10 flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white shadow-lg backdrop-blur-sm transition hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-40 sm:h-16 sm:w-16"
+                          >
+                            <span className="text-3xl leading-none sm:text-4xl">›</span>
+                          </button>
+                        </>
+                      )}
+
+                    <div className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {normalizarFotosHospedagem(h).map((foto: string, fotoIndex: number) => (
+                        <a
+                          key={foto}
+                          data-hospedagem-foto
+                          href={foto}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="group relative w-full flex-none snap-start snap-always overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                          title="Abrir foto da hospedagem"
+                        >
+                          <img
+                            src={foto}
+                            alt={`Foto ${fotoIndex + 1} da hospedagem ${h.nome || ""}`.trim() || "Foto da hospedagem"}
+                            className="h-56 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02] sm:h-72"
+                            loading="lazy"
+                          />
+                          <div className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
+                            {fotoIndex + 1} / {normalizarFotosHospedagem(h).length}
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                    </div>
+                  </div>
                 )}
                 <p className="text-[16px] font-semibold leading-8 text-slate-700">{h.nome}</p>
                 <p className="text-[14px] leading-7 text-slate-600">{h.local}</p>
