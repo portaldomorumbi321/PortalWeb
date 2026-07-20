@@ -440,6 +440,7 @@ export default function Orcamentos() {
   const [passageiroSelecionado, setPassageiroSelecionado] = useState("");
   const [detalhesMinimizados, setDetalhesMinimizados] = useState(true);
   const [secoesOrcamentoMinimizadas, setSecoesOrcamentoMinimizadas] = useState(true);
+  const [vendasMinimizadas, setVendasMinimizadas] = useState(true);
   const [resumoMinimizado, setResumoMinimizado] = useState(false);
 
   function obterDestinoPrincipalOrcamento(orcBase?: Partial<Orcamento>, preferirEstadoFormulario = false) {
@@ -687,6 +688,7 @@ export default function Orcamentos() {
     setPerfilViagemMinimizado(true);
     setDetalhesMinimizados(true);
     setSecoesOrcamentoMinimizadas(true);
+    setVendasMinimizadas(true);
     setResumoMinimizado(false);
     setPassageiroSelecionado("");
     setStatusBloqueado(false);
@@ -714,6 +716,7 @@ export default function Orcamentos() {
     setPerfilViagemMinimizado(true);
     setDetalhesMinimizados(true);
     setSecoesOrcamentoMinimizadas(true);
+    setVendasMinimizadas(true);
     setResumoMinimizado(false);
     setPassageiroSelecionado("");
     setSection("Pacotes");
@@ -1399,99 +1402,116 @@ export default function Orcamentos() {
 
                 {section === 'Vendas' && (
                   <div>
-                    <p className="text-sm text-gray-600 mb-2">Itens relacionados à venda (produtos/serviços). Se quiser, digite um item manualmente.</p>
-                    <div className="space-y-3">
-                      {form.itens.map((item, idx) => (
-                        <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-gray-400">Item {idx + 1}</span>
-                            {form.itens.length > 1 && (
-                              <button onClick={() => removeItem(item.id)} className="p-1 rounded text-red-400 hover:bg-red-50"><X className="w-3.5 h-3.5" /></button>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-6 gap-2">
-                            <div className="col-span-6">
-                              <Input
-                                value={item.descricao}
-                                onChange={(e) => selecionarProdutoItem(item.id, e.target.value)}
-                                placeholder="Selecione da lista ou digite outro produto/serviço"
-                                list={`produtos-vendas-${item.id}`}
-                              />
-                              <datalist id={`produtos-vendas-${item.id}`}>
-                                {produtosAtivos.map((produto) => (
-                                  <option key={produto.id} value={produto.nome} />
-                                ))}
-                              </datalist>
-                            </div>
-                            <div className="col-span-2">
-                              <Input type="number" min="1" value={item.quantidade} onChange={(e) => updateItem(item.id, "quantidade", parseFloat(e.target.value) || 1)} placeholder="Qtd" />
-                            </div>
-                            <div className="col-span-1">
-                              <Input value={item.unidade} onChange={(e) => updateItem(item.id, "unidade", e.target.value)} placeholder="Un" />
-                            </div>
-                            <div className="col-span-2">
-                              <Input type="number" min="0" step="0.01" value={item.valorUnitario} onChange={(e) => updateItem(item.id, "valorUnitario", parseFloat(e.target.value) || 0)} placeholder="Valor unit." />
-                            </div>
-                            <div className="col-span-1">
-                              <Input type="number" min="0" max="100" value={item.desconto} onChange={(e) => updateItem(item.id, "desconto", parseFloat(e.target.value) || 0)} placeholder="% desc" />
-                            </div>
-                            <div className="col-span-6 sm:col-span-3">
-                              <Label htmlFor={`item-link-${item.id}`} className="text-xs text-gray-500">Link</Label>
-                              <div className="relative mt-1">
-                                <Link2 className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                <Input
-                                  id={`item-link-${item.id}`}
-                                  value={item.link || ""}
-                                  onChange={(e) => updateItem(item.id, "link", e.target.value)}
-                                  placeholder="https://..."
-                                  className="pl-8"
-                                />
-                              </div>
-                            </div>
-                            <div className="col-span-6 sm:col-span-3">
-                              <Label htmlFor={`item-documentos-${item.id}`} className="text-xs text-gray-500">Downloads de documentos</Label>
-                              <Input
-                                id={`item-documentos-${item.id}`}
-                                type="file"
-                                multiple
-                                onChange={(e) => uploadDocumentosVenda(item.id, e)}
-                                className="mt-1"
-                              />
-                            </div>
-                          </div>
-                          {(item.documentos || []).length > 0 && (
-                            <div className="mt-3 space-y-1.5">
-                              {(item.documentos || []).map((doc) => (
-                                <div key={doc.id} className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs">
-                                  <a
-                                    href={doc.arquivo}
-                                    download={doc.nome}
-                                    className="truncate text-indigo-600 hover:text-indigo-700"
-                                  >
-                                    {doc.nome}
-                                  </a>
-                                  <button
-                                    type="button"
-                                    onClick={() => removerDocumentoVenda(item.id, doc.id)}
-                                    className="ml-2 rounded p-1 text-red-500 hover:bg-red-50"
-                                    title="Remover documento"
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <div className="text-right text-sm font-semibold text-indigo-700 mt-2">
-                            {moeda(calcItem(item))}
-                          </div>
-                        </div>
-                      ))}
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <p className="text-sm text-gray-600">Itens relacionados à venda (produtos/serviços). Se quiser, digite um item manualmente.</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setVendasMinimizadas((prev) => !prev)}
+                        className="gap-2 text-gray-600 hover:text-gray-900"
+                      >
+                        {vendasMinimizadas ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                        {vendasMinimizadas ? "Maximizar" : "Minimizar"}
+                      </Button>
                     </div>
 
-                    <button onClick={addItem} className="mt-3 w-full border-2 border-dashed border-indigo-200 rounded-lg py-2.5 text-sm text-indigo-600 font-medium hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2">
-                      <Plus className="w-4 h-4" /> Adicionar item
-                    </button>
+                    {!vendasMinimizadas && (
+                      <>
+                        <div className="space-y-3">
+                          {form.itens.map((item, idx) => (
+                            <div key={item.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-gray-400">Item {idx + 1}</span>
+                                {form.itens.length > 1 && (
+                                  <button onClick={() => removeItem(item.id)} className="p-1 rounded text-red-400 hover:bg-red-50"><X className="w-3.5 h-3.5" /></button>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-6 gap-2">
+                                <div className="col-span-6">
+                                  <Input
+                                    value={item.descricao}
+                                    onChange={(e) => selecionarProdutoItem(item.id, e.target.value)}
+                                    placeholder="Selecione da lista ou digite outro produto/serviço"
+                                    list={`produtos-vendas-${item.id}`}
+                                  />
+                                  <datalist id={`produtos-vendas-${item.id}`}>
+                                    {produtosAtivos.map((produto) => (
+                                      <option key={produto.id} value={produto.nome} />
+                                    ))}
+                                  </datalist>
+                                </div>
+                                <div className="col-span-2">
+                                  <Input type="number" min="1" value={item.quantidade} onChange={(e) => updateItem(item.id, "quantidade", parseFloat(e.target.value) || 1)} placeholder="Qtd" />
+                                </div>
+                                <div className="col-span-1">
+                                  <Input value={item.unidade} onChange={(e) => updateItem(item.id, "unidade", e.target.value)} placeholder="Un" />
+                                </div>
+                                <div className="col-span-2">
+                                  <Input type="number" min="0" step="0.01" value={item.valorUnitario} onChange={(e) => updateItem(item.id, "valorUnitario", parseFloat(e.target.value) || 0)} placeholder="Valor unit." />
+                                </div>
+                                <div className="col-span-1">
+                                  <Input type="number" min="0" max="100" value={item.desconto} onChange={(e) => updateItem(item.id, "desconto", parseFloat(e.target.value) || 0)} placeholder="% desc" />
+                                </div>
+                                <div className="col-span-6 sm:col-span-3">
+                                  <Label htmlFor={`item-link-${item.id}`} className="text-xs text-gray-500">Link</Label>
+                                  <div className="relative mt-1">
+                                    <Link2 className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                    <Input
+                                      id={`item-link-${item.id}`}
+                                      value={item.link || ""}
+                                      onChange={(e) => updateItem(item.id, "link", e.target.value)}
+                                      placeholder="https://..."
+                                      className="pl-8"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="col-span-6 sm:col-span-3">
+                                  <Label htmlFor={`item-documentos-${item.id}`} className="text-xs text-gray-500">Downloads de documentos</Label>
+                                  <Input
+                                    id={`item-documentos-${item.id}`}
+                                    type="file"
+                                    multiple
+                                    onChange={(e) => uploadDocumentosVenda(item.id, e)}
+                                    className="mt-1"
+                                  />
+                                </div>
+                              </div>
+                              {(item.documentos || []).length > 0 && (
+                                <div className="mt-3 space-y-1.5">
+                                  {(item.documentos || []).map((doc) => (
+                                    <div key={doc.id} className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs">
+                                      <a
+                                        href={doc.arquivo}
+                                        download={doc.nome}
+                                        className="truncate text-indigo-600 hover:text-indigo-700"
+                                      >
+                                        {doc.nome}
+                                      </a>
+                                      <button
+                                        type="button"
+                                        onClick={() => removerDocumentoVenda(item.id, doc.id)}
+                                        className="ml-2 rounded p-1 text-red-500 hover:bg-red-50"
+                                        title="Remover documento"
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="text-right text-sm font-semibold text-indigo-700 mt-2">
+                                {moeda(calcItem(item))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <button onClick={addItem} className="mt-3 w-full border-2 border-dashed border-indigo-200 rounded-lg py-2.5 text-sm text-indigo-600 font-medium hover:border-indigo-400 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2">
+                          <Plus className="w-4 h-4" /> Adicionar item
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

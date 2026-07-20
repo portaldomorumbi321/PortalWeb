@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card } from "./ui/card";
-import { Plus, Trash2, Upload, FileText, Image, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2, Upload, FileText, Image, X } from "lucide-react";
 
 interface Transporte {
   id: number;
@@ -58,6 +58,7 @@ export default function TransporteForm({ transportes, onTransportesChange }: Tra
     voucherNome: "",
   });
   const [erro, setErro] = useState("");
+  const [formMinimizado, setFormMinimizado] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,196 +145,212 @@ export default function TransporteForm({ transportes, onTransportesChange }: Tra
     <div className="space-y-4">
       {/* Formulário de cadastro */}
       <Card className="p-4">
-        <h4 className="font-semibold text-gray-900 mb-4">Adicionar Transporte</h4>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-          <div>
-            <Label className="text-xs">
-              Tipo <span className="text-red-500">*</span>
-            </Label>
-            <select
-              value={form.tipo}
-              onChange={(e) => setForm({ ...form, tipo: e.target.value })}
-              className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-            >
-              <option value="">Selecione o tipo</option>
-              {tiposTransporte.map((tipo) => (
-                <option key={tipo} value={tipo}>
-                  {tipo}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <Label className="text-xs">
-              Empresa <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              placeholder="Ex: Localiza, Uber, etc."
-              value={form.empresa}
-              onChange={(e) => setForm({ ...form, empresa: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">Dia do Roteiro</Label>
-            <Input
-              type="number"
-              min="1"
-              placeholder="Ex: 1, 2, 3..."
-              value={form.diaRoteiro}
-              onChange={(e) => setForm({ ...form, diaRoteiro: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">
-              Origem <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              placeholder="Ex: Aeroporto de Guarulhos"
-              value={form.origem}
-              onChange={(e) => setForm({ ...form, origem: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">
-              Destino <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              placeholder="Ex: Hotel Copacabana Palace"
-              value={form.destino}
-              onChange={(e) => setForm({ ...form, destino: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">Data / Hora Saída</Label>
-            <Input
-              type="datetime-local"
-              value={form.dataHoraSaida}
-              onChange={(e) => setForm({ ...form, dataHoraSaida: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">Data / Hora Chegada / Devolução</Label>
-            <Input
-              type="datetime-local"
-              value={form.dataHoraChegada}
-              onChange={(e) => setForm({ ...form, dataHoraChegada: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">Valor R$</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0,00"
-              value={form.valor || ""}
-              onChange={(e) => setForm({ ...form, valor: parseFloat(e.target.value) || 0 })}
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs">Código de Reserva</Label>
-            <Input
-              placeholder="Ex: ABC123"
-              value={form.codigoReserva}
-              onChange={(e) => setForm({ ...form, codigoReserva: e.target.value })}
-              className="mt-1"
-            />
-          </div>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h4 className="font-semibold text-gray-900">Adicionar Transporte</h4>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setFormMinimizado((prev) => !prev)}
+            className="gap-2 text-gray-600 hover:text-gray-900"
+          >
+            {formMinimizado ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            {formMinimizado ? "Maximizar" : "Minimizar"}
+          </Button>
         </div>
 
-        {/* Descrição */}
-        <div className="mb-3">
-          <Label className="text-xs">Descrição</Label>
-          <textarea
-            value={form.descricao}
-            onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-            placeholder="Informações adicionais sobre o transporte..."
-            rows={2}
-            className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring resize-none"
-          />
-        </div>
+        {!formMinimizado && (
+          <>
+            <div className="grid grid-cols-1 gap-3 mb-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <Label className="text-xs">
+                  Tipo <span className="text-red-500">*</span>
+                </Label>
+                <select
+                  value={form.tipo}
+                  onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+                  className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                >
+                  <option value="">Selecione o tipo</option>
+                  {tiposTransporte.map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {tipo}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-        {/* Voucher */}
-        <div className="mb-3">
-          <Label className="text-xs">Voucher (PDF ou Imagem)</Label>
-          <div className="mt-1">
-            {form.voucher ? (
-              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                {form.voucherTipo === "pdf" ? (
-                  <FileText className="w-8 h-8 text-red-500 flex-shrink-0" />
+              <div>
+                <Label className="text-xs">
+                  Empresa <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="Ex: Localiza, Uber, etc."
+                  value={form.empresa}
+                  onChange={(e) => setForm({ ...form, empresa: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">Dia do Roteiro</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Ex: 1, 2, 3..."
+                  value={form.diaRoteiro}
+                  onChange={(e) => setForm({ ...form, diaRoteiro: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">
+                  Origem <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="Ex: Aeroporto de Guarulhos"
+                  value={form.origem}
+                  onChange={(e) => setForm({ ...form, origem: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">
+                  Destino <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  placeholder="Ex: Hotel Copacabana Palace"
+                  value={form.destino}
+                  onChange={(e) => setForm({ ...form, destino: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">Data / Hora Saída</Label>
+                <Input
+                  type="datetime-local"
+                  value={form.dataHoraSaida}
+                  onChange={(e) => setForm({ ...form, dataHoraSaida: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">Data / Hora Chegada / Devolução</Label>
+                <Input
+                  type="datetime-local"
+                  value={form.dataHoraChegada}
+                  onChange={(e) => setForm({ ...form, dataHoraChegada: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">Valor R$</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={form.valor || ""}
+                  onChange={(e) => setForm({ ...form, valor: parseFloat(e.target.value) || 0 })}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">Código de Reserva</Label>
+                <Input
+                  placeholder="Ex: ABC123"
+                  value={form.codigoReserva}
+                  onChange={(e) => setForm({ ...form, codigoReserva: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Descrição */}
+            <div className="mb-3">
+              <Label className="text-xs">Descrição</Label>
+              <textarea
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                placeholder="Informações adicionais sobre o transporte..."
+                rows={2}
+                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring resize-none"
+              />
+            </div>
+
+            {/* Voucher */}
+            <div className="mb-3">
+              <Label className="text-xs">Voucher (PDF ou Imagem)</Label>
+              <div className="mt-1">
+                {form.voucher ? (
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    {form.voucherTipo === "pdf" ? (
+                      <FileText className="w-8 h-8 text-red-500 flex-shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0">
+                        <img
+                          src={form.voucher}
+                          alt="Voucher"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {form.voucherNome}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {form.voucherTipo === "pdf" ? "Documento PDF" : "Imagem"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={removerVoucher}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 ) : (
-                  <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0">
-                    <img
-                      src={form.voucher}
-                      alt="Voucher"
-                      className="w-full h-full object-cover"
-                    />
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                  >
+                    <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                    <p className="text-xs text-gray-500">
+                      Clique para fazer upload do voucher
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      PDF ou imagem (JPG, PNG)
+                    </p>
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {form.voucherNome}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {form.voucherTipo === "pdf" ? "Documento PDF" : "Imagem"}
-                  </p>
-                </div>
-                <button
-                  onClick={removerVoucher}
-                  className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
               </div>
-            ) : (
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
-              >
-                <Upload className="w-6 h-6 mx-auto mb-1 text-gray-400" />
-                <p className="text-xs text-gray-500">
-                  Clique para fazer upload do voucher
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  PDF ou imagem (JPG, PNG)
-                </p>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,image/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-          </div>
-        </div>
+            </div>
 
-        {erro && <p className="text-xs text-red-500 mb-3">{erro}</p>}
+            {erro && <p className="text-xs text-red-500 mb-3">{erro}</p>}
 
-        <Button
-          onClick={adicionarTransporte}
-          className="w-full gap-2 bg-green-600 hover:bg-green-700"
-        >
-          <Plus className="w-4 h-4" />
-          Adicionar Transporte
-        </Button>
+            <Button
+              onClick={adicionarTransporte}
+              className="w-full gap-2 bg-green-600 hover:bg-green-700"
+            >
+              <Plus className="w-4 h-4" />
+              Adicionar Transporte
+            </Button>
+          </>
+        )}
       </Card>
 
       {/* Lista de transportes adicionados */}
