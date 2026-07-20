@@ -152,6 +152,41 @@ interface Orcamento {
   seguro?: any[];
 }
 
+interface DiaRoteiro {
+  id: number;
+  titulo?: string;
+  data?: string;
+  atividades?: Array<{
+    id: number;
+    hora?: string;
+    descricao?: string;
+    tipo?: string;
+  }>;
+}
+
+interface DiaRoteiroExibicao {
+  id: number;
+  titulo: string;
+  data?: string;
+  atividades: Array<{
+    id: number;
+    hora?: string;
+    descricao: string;
+    tipo?: string;
+  }>;
+}
+
+interface BlocoRoteiro {
+  id: number;
+  titulo: string;
+  linhas: string[];
+}
+
+interface SecaoRoteiroFinal {
+  titulo: string;
+  linhas: string[];
+}
+
 function limparLinhaRoteiro(linha: string): string {
   return String(linha || '')
     .replace(/\*\*/g, '')
@@ -167,7 +202,7 @@ function normalizarTextoRoteiro(texto: string): string {
     .replace(/__/g, '')
     .replace(/(\d+\))\s+/g, '\n$1 ')
     .replace(/\s+(Dia\s+\d+[:\-])/gi, '\n$1')
-    .replace(/\s+(Dia a dia sugerido|Destaques imperdíveis|Dicas práticas|Resumo inspirador)/gi, '\n\n$1')
+    .replace(/\s+(Dia a dia sugerido|Resumo inspirador)/gi, '\n\n$1')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -211,51 +246,257 @@ function getSubtituloClass(linha: string): string {
   return 'text-[#0a0534]';
 }
 
+function extrairDiasDoRoteiro(texto: string): DiaRoteiroExibicao[] {
+  const linhas = normalizarTextoRoteiro(texto)
+    .split('\n')
+    .map((linha) => String(linha || '').trim());
+
+  const dias: DiaRoteiroExibicao[] = [];
+  let diaAtual: DiaRoteiroExibicao | null = null;
+
+  const criarDia = (titulo: string) => {
+    diaAtual = {
+      id: dias.length + 1,
+      titulo,
+      atividades: [],
+    };
+
+    dias.push(diaAtual);
+  };
+
+  const deveIgnorarLinha = (linha: string) => {
+    const texto = limparLinhaRoteiro(linha).toLowerCase();
+    return texto === 'destaques imperdíveis' || texto === 'dicas práticas';
+  };
+
+  const iniciarIgnorandoSecao = (linha: string) => {
+    const texto = limparLinhaRoteiro(linha).toLowerCase();
+    return texto === 'destaques imperdíveis' || texto === 'dicas práticas';
+  };
+
+  let ignorandoSecao = false;
+
+  for (const linha of linhas) {
+    const textoLimpo = limparLinhaRoteiro(linha);
+    if (!textoLimpo) {
+      ignorandoSecao = false;
+      continue;
+    }
+
+    if (deveIgnorarLinha(textoLimpo)) {
+      ignorandoSecao = true;
+      continue;
+    }
+
+    if (ignorandoSecao) {
+      const ehNovoDia = /^dia\s+\d+\b/i.test(textoLimpo) || /^(\d+)\)\s*(.+)$/i.test(textoLimpo);
+      const ehNovaSecaoPrincipal = /^(roteiro de |dia a dia sugerido|resumo inspirador)/i.test(textoLimpo);
+
+      if (!ehNovoDia && !ehNovaSecaoPrincipal) {
+        continue;
+      }
+
+      ignorandoSecao = false;
+    }
+
+    if (iniciarIgnorandoSecao(textoLimpo)) {
+      ignorandoSecao = true;
+      continue;
+    }
+
+    const matchDia = textoLimpo.match(/^(dia\s+\d+)(?:\s*[-:–—]\s*(.+))?/i);
+    if (matchDia) {
+      const titulo = matchDia[2]?.trim()
+        ? `${matchDia[1].replace(/\s+/g, ' ').replace(/^dia/i, 'Dia')} - ${matchDia[2].trim()}`
+        : matchDia[1].replace(/\s+/g, ' ').replace(/^dia/i, 'Dia');
+      criarDia(titulo);
+      continue;
+    }
+
+    const matchNumerado = textoLimpo.match(/^(\d+)\)\s*(.+)$/);
+    if (matchNumerado && /(dia|roteiro|itiner|programa)/i.test(matchNumerado[2])) {
+      criarDia(`Dia ${matchNumerado[1]} - ${matchNumerado[2].trim()}`);
+      continue;
+    }
+
+    if (diaAtual) {
+      const descricao = textoLimpo.replace(/^[-*•]\s+/, '').trim();
+      if (descricao) {
+        diaAtual.atividades.push({
+          id: Date.now() + diaAtual.atividades.length,
+          descricao,
+        });
+      }
+    }
+  }
+
+  return dias;
+}
+
+function extrairBlocosRoteiro(texto: string): { cabecalho: string; blocos: BlocoRoteiro[] } {
+  const linhas = normalizarTextoRoteiro(texto)
+    .split('\n')
+    .map((linha) => String(linha || '').trim())
+    .filter(Boolean);
+
+  const cabecalho = linhas.find((linha) => !/^dia\s+\d+\b/i.test(linha)) || '';
+  const blocos: BlocoRoteiro[] = [];
+  let blocoAtual: BlocoRoteiro | null = null;
+
+  for (const linha of linhas) {
+    const textoLimpo = limparLinhaRoteiro(linha);
+    if (!textoLimpo) continue;
+
+    if (textoLimpo === cabecalho) {
+      continue;
+    }
+
+    const matchDia = textoLimpo.match(/^(dia\s+\d+)(?:\s*[-:–—]\s*(.+))?/i);
+    if (matchDia) {
+      const titulo = matchDia[2]?.trim()
+        ? `${matchDia[1].replace(/\s+/g, ' ').replace(/^dia/i, 'Dia')} - ${matchDia[2].trim()}`
+        : matchDia[1].replace(/\s+/g, ' ').replace(/^dia/i, 'Dia');
+
+      blocoAtual = {
+        id: blocos.length + 1,
+        titulo,
+        linhas: [],
+      };
+
+      blocos.push(blocoAtual);
+      continue;
+    }
+
+    if (!blocoAtual) {
+      continue;
+    }
+
+    const linhaConteudo = textoLimpo.replace(/^[-*•]\s+/, '').trim();
+    if (linhaConteudo) {
+      blocoAtual.linhas.push(linhaConteudo);
+    }
+  }
+
+  return { cabecalho, blocos };
+}
+
+function separarSecoesUltimoDia(linhas: string[]): {
+  linhasPrincipais: string[];
+  secoesFinais: SecaoRoteiroFinal[];
+} {
+  const linhasPrincipais: string[] = [];
+  const secoesFinais: SecaoRoteiroFinal[] = [];
+  let secaoAtual: SecaoRoteiroFinal | null = null;
+
+  for (const linhaOriginal of linhas) {
+    const linha = limparLinhaRoteiro(linhaOriginal);
+    const titulo = linha.toLowerCase();
+
+    if (!linha) {
+      continue;
+    }
+
+    if (titulo === 'destaques imperdíveis') {
+      secaoAtual = { titulo: 'Destaques imperdíveis', linhas: [] };
+      secoesFinais.push(secaoAtual);
+      continue;
+    }
+
+    if (titulo === 'dicas práticas') {
+      secaoAtual = secoesFinais.find((secao) => secao.titulo === 'Dicas práticas') || { titulo: 'Dicas práticas', linhas: [] };
+      if (!secoesFinais.includes(secaoAtual)) {
+        secoesFinais.push(secaoAtual);
+      }
+      continue;
+    }
+
+    if (secaoAtual) {
+      secaoAtual.linhas.push(linha);
+      continue;
+    }
+
+    linhasPrincipais.push(linha);
+  }
+
+  return { linhasPrincipais, secoesFinais };
+}
+
 function RenderRoteiroTexto({ texto }: { texto: string }) {
-  const linhas = normalizarTextoRoteiro(texto).split('\n');
-  const primeiraLinhaComTexto = linhas.findIndex((linha) => limparLinhaRoteiro(linha).length > 0);
+  const { cabecalho, blocos } = extrairBlocosRoteiro(texto);
+  const linhasSoltas = normalizarTextoRoteiro(texto)
+    .split('\n')
+    .map((linha) => String(linha || '').trim())
+    .filter(Boolean);
 
   return (
-    <div className="space-y-2 text-[16px] leading-8 text-slate-700" style={{ fontFamily: "Montserrat, sans-serif" }}>
-      {linhas.map((linha, index) => {
-        const textoLimpo = limparLinhaRoteiro(linha);
-        const linhaOriginal = String(linha || '').trim();
+    <div className="rounded-[28px] bg-[#0b0635] px-4 py-4 text-white shadow-[0_14px_36px_rgba(5,2,24,0.35)] sm:px-5 sm:py-5" style={{ fontFamily: "Montserrat, sans-serif" }}>
+      {cabecalho && (
+        <p className="mb-4 text-[13px] font-extrabold uppercase tracking-[0.18em] text-[#e07b20]">
+          {cabecalho}
+        </p>
+      )}
 
-        if (!textoLimpo) {
-          return <div key={`space-${index}`} className="h-2" />;
-        }
+      {blocos.length > 0 ? (
+        <div className="relative pl-5">
+          <div className="absolute left-2.5 top-1 bottom-1 w-px bg-white/15" aria-hidden="true" />
 
-        if (index === primeiraLinhaComTexto) {
-          return (
-            <h3 key={`title-${index}`} className="text-2xl font-bold tracking-tight" style={{ color: COR_PRINCIPAL }}>
-              {textoLimpo}
-            </h3>
-          );
-        }
+          <div className="space-y-5">
+            {blocos.map((bloco, index) => {
+              const ultimoDia = index === blocos.length - 1;
+              const { linhasPrincipais, secoesFinais } = ultimoDia
+                ? separarSecoesUltimoDia(bloco.linhas)
+                : { linhasPrincipais: bloco.linhas, secoesFinais: [] as SecaoRoteiroFinal[] };
 
-        if (isTituloNumerado(linhaOriginal) || isSubtituloRoteiro(linhaOriginal)) {
-          const destaqueDia = isLinhaDiaRoteiro(linhaOriginal) ? 'text-xl font-extrabold' : 'text-lg font-bold';
-          return (
-            <h4 key={`subtitle-${index}`} className={`pt-2 ${destaqueDia} ${getSubtituloClass(linhaOriginal)}`}>
-              {textoLimpo}
-            </h4>
-          );
-        }
+              return (
+                <div key={bloco.id} className="relative">
+                  <span className="absolute -left-[2px] top-6 inline-flex h-4 w-4 items-center justify-center rounded-full border-2 border-[#ff8b1f] bg-[#0b0635] shadow-[0_0_0_4px_rgba(255,139,31,0.15)]" aria-hidden="true" />
 
-        if (/^\d+[.)]\s+/.test(linhaOriginal) || /^[-*•]\s+/.test(linhaOriginal)) {
-          return (
-            <p key={`bullet-${index}`} className="pl-5 text-slate-700">
-              • {textoLimpo.replace(/^\d+[.)]\s+/, '').replace(/^[-*•]\s+/, '')}
+                  <div className="rounded-[22px] bg-[#1c1848] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-5 sm:py-5">
+                    <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-[#ff8b1f]">
+                      {bloco.titulo}
+                    </p>
+
+                    <div className="mt-2 space-y-2">
+                      {linhasPrincipais.map((linha, idx) => (
+                        <p key={`${bloco.id}-${idx}`} className={`text-[14px] leading-7 text-white/82 ${idx === 0 ? 'font-semibold text-white' : ''}`}>
+                          {linha}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+
+                  {ultimoDia && secoesFinais.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {secoesFinais.map((secao) => (
+                        <div key={`${bloco.id}-${secao.titulo}`} className="rounded-[22px] bg-[#1c1848] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-5 sm:py-5">
+                          <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-[#ff8b1f]">
+                            {secao.titulo}
+                          </p>
+                          <div className="mt-2 space-y-2">
+                            {secao.linhas.map((linha, idx) => (
+                              <p key={`${secao.titulo}-${idx}`} className={`text-[14px] leading-7 text-white/82 ${idx === 0 ? 'font-semibold text-white' : ''}`}>
+                                {linha}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-[22px] bg-[#1c1848] px-4 py-5 text-white/80">
+          {linhasSoltas.map((linha, index) => (
+            <p key={`roteiro-line-${index}`} className={index === 0 ? 'text-[14px] font-semibold uppercase tracking-[0.18em] text-[#ff8b1f]' : 'mt-2 text-[14px] leading-7 text-white/82'}>
+              {linha}
             </p>
-          );
-        }
-
-        return (
-          <p key={`line-${index}`} className="text-slate-700">
-            {textoLimpo}
-          </p>
-        );
-      })}
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -328,6 +569,19 @@ function formatarDataCurta(data?: string | null) {
   return date.toLocaleDateString("pt-BR");
 }
 
+function formatarDataVooCurta(data?: string | null) {
+  if (!data) return "Nao informado";
+
+  const date = new Date(`${data}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "Nao informado";
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  }).format(date);
+}
+
 function Countdown({ targetDate }: { targetDate: string }) {
   const calculateTimeLeft = () => {
     const difference = +new Date(targetDate + 'T00:00:00') - +new Date();
@@ -373,6 +627,7 @@ export default function RoteiroOrcamento() {
   const { numero } = useParams<{ numero: string }>();
   const [orc, setOrc] = useState<Orcamento | null>(null);
   const [itemAtivo, setItemAtivo] = useState<string>("pacotes");
+  const [diaAtivoId, setDiaAtivoId] = useState<number | null>(null);
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
@@ -454,6 +709,35 @@ export default function RoteiroOrcamento() {
     };
   }, []);
 
+  useEffect(() => {
+    if (itemAtivo !== "dia-a-dia") {
+      return;
+    }
+
+    const dias = (orc?.dayByDay && orc.dayByDay.length > 0)
+      ? orc.dayByDay.map((dia: any, idx: number) => ({
+          id: dia.id ?? idx + 1,
+          titulo: String(dia.titulo || `Dia ${idx + 1}`).trim(),
+          data: dia.data,
+          atividades: Array.isArray(dia.atividades)
+            ? dia.atividades.map((atividade: any, atividadeIdx: number) => ({
+                id: atividade.id ?? atividadeIdx + 1,
+                hora: atividade.hora,
+                descricao: String(atividade.descricao || atividade.atividade || '').trim(),
+                tipo: atividade.tipo,
+              }))
+            : [],
+        }))
+      : extrairDiasDoRoteiro(orc?.roteiro || '');
+
+    if (dias.length === 0) {
+      setDiaAtivoId(null);
+      return;
+    }
+
+    setDiaAtivoId((current) => (current && dias.some((dia) => dia.id === current) ? current : dias[0].id));
+  }, [itemAtivo, orc?.dayByDay, orc?.roteiro]);
+
   if (carregando) {
     return (
       <div className="px-4 py-8 max-w-lg mx-auto">
@@ -504,12 +788,28 @@ export default function RoteiroOrcamento() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+  const diasRoteiroExibicao: DiaRoteiroExibicao[] = (orc.dayByDay && orc.dayByDay.length > 0)
+    ? orc.dayByDay.map((dia: any, idx: number) => ({
+        id: idx + 1,
+        titulo: String(dia.titulo || `Dia ${idx + 1}`).trim(),
+        data: dia.data,
+        atividades: Array.isArray(dia.atividades)
+          ? dia.atividades.map((atividade: any, atividadeIdx: number) => ({
+              id: atividadeIdx + 1,
+              hora: atividade.hora,
+              descricao: String(atividade.descricao || atividade.atividade || '').trim(),
+              tipo: atividade.tipo,
+            }))
+          : [],
+      }))
+    : extrairDiasDoRoteiro(orc.roteiro || '');
+  const diaSelecionado = diasRoteiroExibicao.find((dia) => dia.id === diaAtivoId) || diasRoteiroExibicao[0] || null;
   const itensRoteiro = [
     { id: "pacotes", titulo: "Pacotes", icone: OrcamentoReferenceIcon, classe: "bg-[#0a0534] text-white hover:bg-[#140a4d]", disponivel: Boolean(orc.pacotes?.length) },
     { id: "voos", titulo: "Voos", icone: VooReferenceIcon, classe: "bg-[#0a0534] text-white hover:bg-[#140a4d]", disponivel: Boolean(orc.voos?.length) },
     { id: "hospedagem", titulo: "Hospedagens", icone: HospedagemReferenceIcon, classe: "bg-[#0a0534] text-white hover:bg-[#140a4d]", disponivel: Boolean(orc.hospedagem?.length) },
     { id: "roteiro", titulo: "Roteiro", icone: RoteiroReferenceIcon, classe: "bg-[#0a0534] text-white hover:bg-[#140a4d]", disponivel: Boolean(orc.roteiro) },
-    { id: "dia-a-dia", titulo: "Day by Day", icone: DayByDayReferenceIcon, classe: "bg-[#0a0534] text-white hover:bg-[#140a4d]", disponivel: Boolean(orc.dayByDay?.length) },
+    { id: "dia-a-dia", titulo: "Day by Day", icone: DayByDayReferenceIcon, classe: "bg-[#0a0534] text-white hover:bg-[#140a4d]", disponivel: true },
     { id: "transporte", titulo: "Transportes", icone: TransportesReferenceIcon, classe: "bg-[#0a0534] text-white hover:bg-[#140a4d]", disponivel: Boolean(orc.transporte?.length) },
     { id: "restaurantes", titulo: "Restaurantes", icone: RestaurantesReferenceIcon, classe: "bg-[#0a0534] text-white hover:bg-[#140a4d]", disponivel: Boolean(orc.restaurante?.length) },
     { id: "experiencias", titulo: "Experiencias", icone: ExperienciasReferenceIcon, classe: "bg-[#0a0534] text-white hover:bg-[#140a4d]", disponivel: Boolean(orc.experiencias?.length) },
@@ -559,7 +859,7 @@ export default function RoteiroOrcamento() {
             className="text-lg sm:text-xl mt-2 font-medium"
             style={{ color: COR_DESTAQUE }}
           >
-            {possuiPlanejamentoBase ? `Preparado para ${destinoPrincipal}` : "Ainda não tem voo definido."}
+            {possuiPlanejamentoBase ? `Para ${destinoPrincipal}` : "Ainda não tem voo definido."}
           </p>
           <p className="mt-1 text-sm sm:text-base text-gray-500">
             Check-in: {formatarDataCurta(dataCheckinPrincipal)} | Check-out: {formatarDataCurta(dataCheckoutPrincipal)}
@@ -612,14 +912,14 @@ export default function RoteiroOrcamento() {
 
       {/* PACOTES */}
       {orc.pacotes && orc.pacotes.length > 0 && itemAtivo === "pacotes" && (
-        <Card id="pacotes" className="overflow-hidden mb-6 scroll-mt-4">
+        <Card id="pacotes" className="overflow-hidden mb-6 scroll-mt-4" style={{ fontFamily: "Montserrat, sans-serif" }}>
           <div className="p-3" style={{ backgroundColor: COR_PRINCIPAL }}>
             <TituloSecao titulo="Pacotes" Icone={OrcamentoReferenceIcon} />
           </div>
           <div className="p-4 space-y-3">
             {orc.pacotes.map((pacote: any, idx: number) => (
-              <div key={pacote.id || idx} className="rounded-lg bg-gray-50 p-3">
-                {pacote.descricao && <p className="text-sm text-gray-600">{pacote.descricao}</p>}
+              <div key={pacote.id || idx} className="rounded-lg bg-gray-50 p-3" style={{ fontFamily: "Montserrat, sans-serif" }}>
+                {pacote.descricao && <p className="text-[16px] leading-8 text-slate-700">{pacote.descricao}</p>}
               </div>
             ))}
           </div>
@@ -632,45 +932,98 @@ export default function RoteiroOrcamento() {
           <div className="p-3" style={{ backgroundColor: COR_PRINCIPAL }}>
             <TituloSecao titulo="Voos" Icone={VooReferenceIcon} />
           </div>
-          <div className="p-4 space-y-3">
-            {orc.voos.map((voo: any) => (
-              <div key={voo.id} className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-gray-900">
-                    {voo.numero} - {voo.companhia}
-                  </p>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                    {voo.tipoTrecho || "IDA"}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1.5">{voo.origem} → {voo.destino}</p>
-                <p className="text-xs text-gray-500 mt-1.5">{voo.data} | {voo.partida} - {voo.chegada} ({voo.duracao})</p>
-                {voo.documento && voo.documentoTipo === "pdf" && (
-                  <div className="mt-3 border-t border-gray-200 pt-2 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => void abrirVoucherPdf(String(voo.documento))}
-                      className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
-                    >
-                      Clique aqui para abrir o Voucher
-                    </button>
+          <div className="p-4 space-y-4">
+            {orc.voos.map((voo: any) => {
+              const vooEhVolta = String(voo.tipoTrecho || '').toUpperCase() === 'VOLTA';
+
+              return (
+                <div key={voo.id} className="overflow-hidden rounded-[26px] bg-white shadow-[0_10px_30px_rgba(10,5,52,0.12)]">
+                  <div className="flex items-center gap-2 rounded-t-[26px] px-4 py-4" style={{ backgroundColor: COR_PRINCIPAL }}>
+                    <VooReferenceIcon className="h-6 w-6 text-[#e07b20]" />
+                    <span className="text-sm font-extrabold uppercase tracking-[0.18em] text-[#e07b20]">
+                      {voo.tipoTrecho || "IDA"}
+                    </span>
                   </div>
-                )}
-              </div>
-            ))}
+
+                  <div className="px-4 py-4 sm:px-5 sm:py-5">
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-base font-extrabold tracking-tight text-[#0a0534] sm:text-lg">
+                          {voo.numero}
+                        </p>
+                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                          {voo.companhia}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-4">
+                      <div className="min-w-0">
+                        <p className="text-lg font-extrabold leading-none tracking-tight text-[#0a0534] sm:text-xl">
+                          {String(voo.origem || '').toUpperCase()}
+                        </p>
+                        <p className="mt-1 text-[11px] leading-4 text-slate-500 sm:text-xs">
+                          {voo.origem}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-center">
+                        <VooReferenceIcon className={`h-7 w-7 ${vooEhVolta ? '-rotate-90' : 'rotate-90'} text-[#e07b20] sm:h-8 sm:w-8`} />
+                      </div>
+
+                      <div className="min-w-0 text-right">
+                        <p className="text-lg font-extrabold leading-none tracking-tight text-[#0a0534] sm:text-xl">
+                          {String(voo.destino || '').toUpperCase()}
+                        </p>
+                        <p className="mt-1 text-[11px] leading-4 text-slate-500 sm:text-xs">
+                          {voo.destino}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4 sm:gap-4">
+                      <div>
+                        <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Partida</p>
+                        <p className="mt-1 text-sm font-extrabold text-[#0a0534] sm:text-base">{formatarDataVooCurta(voo.data)} {voo.partida}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Chegada</p>
+                        <p className="mt-1 text-sm font-extrabold text-[#0a0534] sm:text-base">{formatarDataVooCurta(voo.data)} {voo.chegada}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Duração</p>
+                        <p className="mt-1 text-sm font-extrabold text-[#0a0534] sm:text-base">{voo.duracao}</p>
+                      </div>
+                    </div>
+
+                    {voo.documento && voo.documentoTipo === "pdf" && (
+                      <div className="mt-3 border-t border-gray-200 pt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => void abrirVoucherPdf(String(voo.documento))}
+                          className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                        >
+                          Clique aqui para abrir o Voucher
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}
 
       {/* HOSPEDAGEM */}
       {orc.hospedagem && orc.hospedagem.length > 0 && itemAtivo === "hospedagem" && (
-        <Card id="hospedagem" className="overflow-hidden mb-6 scroll-mt-4">
+        <Card id="hospedagem" className="overflow-hidden mb-6 scroll-mt-4" style={{ fontFamily: "Montserrat, sans-serif" }}>
           <div className="p-3" style={{ backgroundColor: COR_PRINCIPAL }}>
             <TituloSecao titulo="Hospedagens" Icone={HospedagemReferenceIcon} />
           </div>
           <div className="p-4 space-y-3">
             {orc.hospedagem.map((h: any, idx: number) => (
-              <div key={idx} className="p-3 bg-gray-50 rounded-lg">
+              <div key={idx} className="p-3 bg-gray-50 rounded-lg" style={{ fontFamily: "Montserrat, sans-serif" }}>
                 {typeof h.fotoHospedagem === "string" && h.fotoHospedagem.trim() && (
                   <a
                     href={h.fotoHospedagem}
@@ -687,11 +1040,11 @@ export default function RoteiroOrcamento() {
                     />
                   </a>
                 )}
-                <p className="font-medium text-gray-900">{h.nome}</p>
-                <p className="text-xs text-gray-500">{h.local}</p>
-                {h.endereco && <p className="text-xs text-gray-400">{h.endereco}</p>}
-                <p className="text-sm font-medium text-indigo-600 mt-1">{formatarPeriodo(h.checkin, h.checkout)}</p>
-                <p className="text-xs text-gray-600 mt-1">{h.tipoQuarto} • {h.noites} noite{h.noites !== 1 ? "s" : ""}</p>
+                <p className="text-[16px] font-semibold leading-8 text-slate-700">{h.nome}</p>
+                <p className="text-[14px] leading-7 text-slate-600">{h.local}</p>
+                {h.endereco && <p className="text-[14px] leading-7 text-slate-500">{h.endereco}</p>}
+                <p className="mt-1 text-[14px] font-medium text-indigo-600 leading-7">{formatarPeriodo(h.checkin, h.checkout)}</p>
+                <p className="mt-1 text-[14px] leading-7 text-slate-700">{h.tipoQuarto} • {h.noites} noite{h.noites !== 1 ? "s" : ""}</p>
                 {h.voucher && (
                   <div className="mt-2 flex justify-end">
                     <button
@@ -719,29 +1072,103 @@ export default function RoteiroOrcamento() {
 
       {/* ROTEIRO */}
       {orc.roteiro && itemAtivo === "roteiro" && (
-        <Card id="roteiro" className="overflow-hidden mb-6 scroll-mt-4">
-          <div className="p-3" style={{ backgroundColor: COR_PRINCIPAL }}>
-            <TituloSecao titulo="Roteiro" />
+        <Card id="roteiro" className="overflow-hidden mb-6 scroll-mt-4 bg-transparent border-0 shadow-none">
+          <div className="flex items-center justify-between rounded-t-[24px] bg-white px-4 py-3 shadow-sm">
+            <h2 className="text-xl font-extrabold tracking-tight text-[#0a0534] sm:text-2xl">
+              Roteiro
+            </h2>
+            <RoteiroReferenceIcon className="h-8 w-8 text-[#0a0534]" />
           </div>
-          <div className="p-4">
+          <div className="bg-[#0b0635] p-4 sm:p-5">
             <RenderRoteiroTexto texto={orc.roteiro} />
           </div>
         </Card>
       )}
 
       {/* DAY BY DAY */}
-      {orc.dayByDay && orc.dayByDay.length > 0 && itemAtivo === "dia-a-dia" && (
+      {itemAtivo === "dia-a-dia" && (
         <Card id="dia-a-dia" className="overflow-hidden mb-6 scroll-mt-4">
           <div className="p-3" style={{ backgroundColor: COR_PRINCIPAL }}>
             <TituloSecao titulo="Day by Day" Icone={DayByDayReferenceIcon} />
           </div>
-          <div className="p-4 space-y-3">
-            {orc.dayByDay.map((day: any, idx: number) => (
-              <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium text-gray-900">Dia {idx + 1}</p>
-                <p className="text-sm text-gray-600">{day.atividade}</p>
-              </div>
-            ))}
+          <div className="p-4 space-y-4">
+            {diasRoteiroExibicao.length > 0 ? (
+              <>
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {diasRoteiroExibicao.map((dia, idx) => {
+                    const ativo = diaSelecionado?.id === dia.id;
+                    const tituloDia = `Dia ${idx + 1}`;
+
+                    return (
+                      <button
+                        key={dia.id}
+                        type="button"
+                        onClick={() => setDiaAtivoId(dia.id)}
+                        aria-pressed={ativo}
+                        className={`min-w-[92px] shrink-0 rounded-2xl border px-3 py-3 text-left transition-all ${ativo ? "border-[#e07b20] bg-[#0a0534] text-white shadow-md" : "border-slate-200 bg-white text-slate-700 hover:border-[#e07b20] hover:text-[#0a0534]"}`}
+                      >
+                        <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] opacity-80">
+                          Dia {idx + 1}
+                        </span>
+                        <span className="mt-1 block text-sm font-bold leading-tight">
+                          {tituloDia}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {diaSelecionado && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <h3 className="text-lg font-semibold text-[#0a0534]">
+                        {diaSelecionado.titulo || `Dia ${diasRoteiroExibicao.findIndex((dia) => dia.id === diaSelecionado.id) + 1}`}
+                      </h3>
+                      {diaSelecionado.data && (
+                        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm">
+                          {new Date(`${diaSelecionado.data}T00:00:00`).toLocaleDateString("pt-BR")}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      {(diaSelecionado.atividades || []).map((atividade) => (
+                        <div key={atividade.id} className="rounded-xl border border-white bg-white p-3 shadow-sm">
+                          <div className="flex items-start gap-2">
+                            <span className="mt-2 inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-[#e07b20]" aria-hidden="true" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm leading-6 text-slate-700">
+                                {atividade.descricao || "Atividade sem descrição."}
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                {atividade.hora && (
+                                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#e07b20]">
+                                    {atividade.hora}
+                                  </span>
+                                )}
+                                {atividade.tipo && (
+                                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+                                    {atividade.tipo}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {(diaSelecionado.atividades || []).length === 0 && (
+                        <p className="text-sm text-slate-600">
+                          Nenhuma atividade cadastrada para este dia.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-gray-600">Nenhum dia encontrado no roteiro deste orçamento.</p>
+            )}
           </div>
         </Card>
       )}
@@ -849,12 +1276,25 @@ export default function RoteiroOrcamento() {
       )}
 
       {listaPassageiros.length > 0 && itemAtivo === "passageiros" && (
-        <Card id="passageiros" className="overflow-hidden mb-6 scroll-mt-4">
+        <Card id="passageiros" className="overflow-hidden mb-6 scroll-mt-4" style={{ fontFamily: "Montserrat, sans-serif" }}>
           <div className="p-3" style={{ backgroundColor: COR_PRINCIPAL }}>
             <TituloSecao titulo="Passageiros" />
           </div>
-          <div className="p-4">
-            <p className="text-sm text-gray-700 leading-6">{passageirosTexto}</p>
+          <div className="bg-[#0b0635] p-4 sm:p-5">
+            <div className="rounded-[22px] bg-[#1c1848] px-4 py-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-5 sm:py-5">
+              <p className="text-[13px] font-extrabold uppercase tracking-[0.18em] text-[#ff8b1f]">
+                Passageiros
+              </p>
+
+              <div className="mt-3 space-y-2 text-[14px] leading-7 text-white/82">
+                {listaPassageiros.map((passageiro, index) => (
+                  <div key={`${passageiro}-${index}`} className="flex items-start gap-2">
+                    <span className="mt-2 inline-flex h-2 w-2 shrink-0 rounded-full bg-[#ff8b1f]" aria-hidden="true" />
+                    <span className="font-semibold text-white">{passageiro}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </Card>
       )}
