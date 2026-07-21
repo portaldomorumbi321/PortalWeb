@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import {
   Share2, X, Instagram, Mail, MessageCircle
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {JSX, useEffect, useRef, useState } from "react";
 import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
 import { buscarOrcamentoPublico } from "../data/orcamentosApi";
 
@@ -139,6 +139,7 @@ interface Pacote {
 }
 
 interface Orcamento {
+  publicToken: string;
   id: number;
   numero: string;
   cliente: string;
@@ -678,6 +679,7 @@ export default function RoteiroOrcamento() {
       try {
         const orcamentoApi = await buscarOrcamentoPublico(numero);
         if (active) {
+          // @ts-ignore
           setOrc(orcamentoApi);
           setCarregando(false);
         }
@@ -810,7 +812,7 @@ export default function RoteiroOrcamento() {
     const identificadorRoteiro = orc.publicToken || orc.numero;
     const urlRoteiro = `${window.location.origin}/roteiro/${identificadorRoteiro}`;
     const destinoTexto = obterDestinoPrincipal(orc);
-    const message = `Olá! *${orc.cliente}*\nAqui está o roteiro da sua viagem: *${destinoTexto}*.\n\nVisite:\n${urlRoteiro}\n\nOrçamento: ${orc.numero}\nBoa Viagem!`;
+    const message = `Olá! *${orc.cliente}*\nAqui está o *Roteiro* da sua viagem para *${destinoTexto}*.\n\n${urlRoteiro}\n\nDesejamos uma Ótima Viagem!`;
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encodedMessage}`, "_blank");
   };
