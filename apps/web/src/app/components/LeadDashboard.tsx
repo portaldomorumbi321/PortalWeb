@@ -14,9 +14,10 @@ import {
   PhoneOff,
   CheckCircle2,
 } from "lucide-react";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./ui/table";
 import { listarLeads, type Lead } from "../data/leadsApi";
 import { listarLancamentosFinanceiros, type LancamentoFinanceiro } from "../data/financeiroApi";
-import { listarEventos, type Evento } from "../data/eventosApi";
+import { listarOrcamentos, type Orcamento } from "../data/orcamentosApi";
 
 const periodFilters = ["Mês", "3m", "6m", "12m", "Tudo"];
 
@@ -179,7 +180,7 @@ export default function LeadDashboard() {
   const [activeCard, setActiveCard] = useState<CardKey>("totalLeads");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [lancamentos, setLancamentos] = useState<LancamentoFinanceiro[]>([]);
-  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -187,15 +188,15 @@ export default function LeadDashboard() {
     async function carregarDashboard() {
       setError(null);
       try {
-        const [listaLeads, listaLancamentos, listaEventos] = await Promise.all([
+        const [listaLeads, listaLancamentos, listaOrcamentos] = await Promise.all([
           listarLeads(),
           listarLancamentosFinanceiros(),
-          listarEventos(),
+          listarOrcamentos(),
         ]);
 
         setLeads(listaLeads);
         setLancamentos(listaLancamentos);
-        setEventos(listaEventos);
+        setOrcamentos(listaOrcamentos);
       } catch (erroCarregamento) {
         setError(erroCarregamento instanceof Error ? erroCarregamento.message : "Erro ao carregar dados da visão geral.");
       } finally {
@@ -253,12 +254,14 @@ export default function LeadDashboard() {
       }))
       .filter((item): item is LancamentoFinanceiro & { dataDate: Date } => item.dataDate !== null);
 
-    const eventosValidos = eventos
-      .map((evento) => ({
-        ...evento,
-        dataDate: parseDate(evento.data),
+    const orcamentosValidos = orcamentos
+      .map((orc) => ({
+        ...orc,
+        dataCriacaoDate: parseDate(orc.dataCriacao),
       }))
-      .filter((evento): evento is Evento & { dataDate: Date } => evento.dataDate !== null);
+      .filter((orc): orc is Orcamento & { dataCriacaoDate: Date } => orc.dataCriacaoDate !== null);
+
+    const orcamentosAprovadosValidos = orcamentosValidos.filter((orc) => orc.status === "Aprovado");
 
     const statusLeadsMap = new Map<string, number>();
     leads.forEach((lead) => {
@@ -270,19 +273,19 @@ export default function LeadDashboard() {
     const fechamentos = leads.filter((lead) => lead.status === "Vendido").length;
     const churnInativos = leads.filter((lead) => lead.status === "Perdido").length;
     const semFollowUp = leads.filter((lead) => lead.status === "Novo").length;
+    const followUpsCrm = leads.filter((lead) => lead.statusCrm === "Follow-ups").length;
+    const taxaChurn = leads.length > 0 ? ((churnInativos / leads.length) * 100).toFixed(1) : "0";
 
     const receitaRoteiros = lancamentos
       .filter((item) => item.tipo === "receita" && !item.oculto)
       .reduce((acc, item) => acc + Number(item.valor || 0), 0);
 
-    const viagens = eventos.filter((evento) => evento.tipo === "Viagem");
+    const orcamentosAprovados = orcamentos.filter((orc) => orc.status === "Aprovado");
     const hojeInicio = new Date();
     hojeInicio.setHours(0, 0, 0, 0);
-    const viagensEmAndamento = viagens.filter((evento) => {
-      const dataEvento = parseDate(evento.data);
-      return !!dataEvento && dataEvento >= hojeInicio;
-    }).length;
-    const viagensFinalizadas = viagens.length - viagensEmAndamento;
+    
+    const viagensEmAndamento = orcamentosAprovados.length;
+    const viagensFinalizadas = 0;
 
     const statusNoPeriodoMap = new Map<string, number>();
     leadsNoPeriodo.forEach((lead) => {
@@ -296,9 +299,11 @@ export default function LeadDashboard() {
     const receitasVisiveis = lancamentosValidos.filter((item) => item.tipo === "receita" && !item.oculto);
     const despesasVisiveis = lancamentosValidos.filter((item) => item.tipo === "despesa" && !item.oculto);
 
-    const viagensEventos = eventosValidos.filter((evento) => evento.tipo === "Viagem");
-    const viagensFuturas = viagensEventos.filter((evento) => evento.dataDate >= hojeInicio);
-    const viagensPassadas = viagensEventos.filter((evento) => evento.dataDate < hojeInicio);
+    const viagensAndamentoData = montarSerieMesesContagem(
+      inicioGrafico,
+      hoje,
+      orcamentosAprovadosValidos.map((orc) => orc.dataCriacaoDate)
+    );
 
     const chartByCard: Record<CardKey, Omit<CardChartConfig, "key" | "title" | "value" | "icon">> = {
       totalLeads: {
@@ -378,17 +383,13 @@ export default function LeadDashboard() {
         ],
       },
       viagensAndamento: {
-        barTitle: "Viagens em Andamento por Mês",
-        pieTitle: "Situação das Viagens",
-        barData: montarSerieMesesContagem(
-          inicioGrafico,
-          hoje,
-          viagensFuturas.map((evento) => evento.dataDate)
-        ),
-        barName: "Em andamento",
+        barTitle: "Viagens em Andamento (Orçamentos Aprovados) por Mês",
+        pieTitle: "Status das Vendas",
+        barData: viagensAndamentoData,
+        barName: "Vendas aprovadas",
         pieData: [
-          { name: "Em andamento", value: viagensFuturas.length },
-          { name: "Finalizadas", value: viagensPassadas.length },
+          { name: "Vendas aprovadas", value: orcamentosAprovadosValidos.length },
+          { name: "Outras vendas", value: Math.max(orcamentosValidos.length - orcamentosAprovadosValidos.length, 0) },
         ],
       },
       semFollowUp: {
@@ -407,16 +408,16 @@ export default function LeadDashboard() {
       },
       viagensFinalizadas: {
         barTitle: "Viagens Finalizadas por Mês",
-        pieTitle: "Situação das Viagens",
+        pieTitle: "Situação das Vendas",
         barData: montarSerieMesesContagem(
           inicioGrafico,
           hoje,
-          viagensPassadas.map((evento) => evento.dataDate)
+          []
         ),
         barName: "Finalizadas",
         pieData: [
-          { name: "Finalizadas", value: viagensPassadas.length },
-          { name: "Em andamento", value: viagensFuturas.length },
+          { name: "Finalizadas", value: 0 },
+          { name: "Em andamento", value: orcamentosAprovadosValidos.length },
         ],
       },
     };
@@ -425,20 +426,137 @@ export default function LeadDashboard() {
       cardData: [
         { key: "totalLeads" as const, title: "Total de Leads", value: String(leads.length), icon: <Users className="h-4 w-4 text-blue-500" /> },
         { key: "leadsPeriodo" as const, title: "Lead no Período", value: String(leadsNoPeriodo.length), icon: <UserPlus className="h-4 w-4 text-green-500" /> },
-        { key: "fechamentos" as const, title: "Fechamentos", value: String(fechamentos), icon: <DollarSign className="h-4 w-4 text-emerald-500" /> },
-        { key: "churnInativos" as const, title: "Churn Inativos", value: String(churnInativos), icon: <UserX className="h-4 w-4 text-red-500" /> },
+        { key: "fechamentos" as const, title: "Fechamentos", value: `${fechamentos} • R: ${receitasVisiveis.length} D: ${despesasVisiveis.length}`, icon: <DollarSign className="h-4 w-4 text-emerald-500" /> },
+        { key: "churnInativos" as const, title: "Churn Inativos", value: `${churnInativos} (${taxaChurn}%)`, icon: <UserX className="h-4 w-4 text-red-500" /> },
         { key: "receitaRoteiros" as const, title: "Receita Roteiros", value: formatarMoeda(receitaRoteiros), icon: <ClipboardList className="h-4 w-4 text-purple-500" /> },
         { key: "viagensAndamento" as const, title: "Viagens em Andamento", value: String(viagensEmAndamento), icon: <Plane className="h-4 w-4 text-sky-500" /> },
-        { key: "semFollowUp" as const, title: "Sem Follow-up", value: String(semFollowUp), icon: <PhoneOff className="h-4 w-4 text-orange-500" /> },
+        { key: "semFollowUp" as const, title: "Sem Follow-up", value: `${semFollowUp} • CRM: ${followUpsCrm}`, icon: <PhoneOff className="h-4 w-4 text-orange-500" /> },
         { key: "viagensFinalizadas" as const, title: "Viagens Finalizadas", value: String(viagensFinalizadas), icon: <CheckCircle2 className="h-4 w-4 text-teal-500" /> },
       ],
       chartByCard,
     };
-  }, [activeFilter, leads, lancamentos, eventos]);
+  }, [activeFilter, leads, lancamentos, orcamentos]);
 
   const activeChart = useMemo(() => {
     return dadosDashboard.chartByCard[activeCard];
   }, [dadosDashboard.chartByCard, activeCard]);
+
+  const tableData = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(23, 59, 59, 999);
+    const inicioFiltro = resolverDataInicialPorFiltro(activeFilter, hoje);
+
+    switch (activeCard) {
+      case "totalLeads":
+        return {
+          columns: ["ID", "Cliente", "Status", "Atendente", "Data Criação"],
+          rows: leads.map((lead) => [
+            lead.id.toString(),
+            lead.cliente,
+            lead.status,
+            lead.atendente || "-",
+            new Date(lead.criadoEm).toLocaleDateString("pt-BR"),
+          ]),
+        };
+
+      case "leadsPeriodo": {
+        const leadsNoPeriodo = leads.filter((lead) => {
+          const dataLead = parseDate(lead.criadoEm);
+          if (!dataLead) return false;
+          if (!inicioFiltro) return true;
+          return dataLead >= inicioFiltro && dataLead <= hoje;
+        });
+        return {
+          columns: ["ID", "Cliente", "Status", "Atendente", "Data Criação"],
+          rows: leadsNoPeriodo.map((lead) => [
+            lead.id.toString(),
+            lead.cliente,
+            lead.status,
+            lead.atendente || "-",
+            new Date(lead.criadoEm).toLocaleDateString("pt-BR"),
+          ]),
+        };
+      }
+
+      case "fechamentos": {
+        const fechamentos = leads.filter((lead) => lead.status === "Vendido");
+        const receitas = lancamentos.filter((item) => item.tipo === "receita" && !item.oculto);
+        const despesas = lancamentos.filter((item) => item.tipo === "despesa" && !item.oculto);
+        
+        return {
+          columns: ["Tipo", "Quantidade", "Descrição"],
+          rows: [
+            ["Fechamentos", fechamentos.length.toString(), "Leads com status Vendido"],
+            ["Receitas", receitas.length.toString(), "Lançamentos financeiros de receita"],
+            ["Despesas", despesas.length.toString(), "Lançamentos financeiros de despesa"],
+          ],
+        };
+      }
+
+      case "churnInativos": {
+        const churn = leads.filter((lead) => lead.status === "Perdido");
+        return {
+          columns: ["Tipo", "Quantidade", "Descrição"],
+          rows: [
+            ["Churn Inativos", churn.length.toString(), "Leads com status Perdido"],
+            ["Taxa de Churn", `${churn.length > 0 ? ((churn.length / leads.length) * 100).toFixed(1) : 0}%`, "Percentual em relação ao total de leads"],
+          ],
+        };
+      }
+
+      case "receitaRoteiros": {
+        const receitas = lancamentos.filter((item) => item.tipo === "receita" && !item.oculto);
+        return {
+          columns: ["ID", "Descrição", "Valor", "Data", "Tipo"],
+          rows: receitas.map((item) => [
+            item.id.toString(),
+            item.descricao,
+            formatarMoeda(Number(item.valor || 0)),
+            new Date(item.data).toLocaleDateString("pt-BR"),
+            item.tipo,
+          ]),
+        };
+      }
+
+      case "viagensAndamento": {
+        const orcamentosAprovados = orcamentos.filter((orc) => orc.status === "Aprovado");
+        return {
+          columns: ["Número", "Cliente", "Destino", "Status", "Data Criação"],
+          rows: orcamentosAprovados.map((orc) => [
+            orc.numero,
+            orc.cliente,
+            orc.destino || "-",
+            orc.status,
+            new Date(orc.dataCriacao).toLocaleDateString("pt-BR"),
+          ]),
+        };
+      }
+
+      case "semFollowUp": {
+        const semFollowUp = leads.filter((lead) => lead.status === "Novo").length;
+        const followUpsCrm = leads.filter((lead) => lead.statusCrm === "Follow-ups").length;
+        return {
+          columns: ["Tipo", "Quantidade", "Descrição"],
+          rows: [
+            ["Sem Follow-up", semFollowUp.toString(), "Leads com status Novo"],
+            ["Follow-ups CRM", followUpsCrm.toString(), "Leads com statusCrm Follow-ups"],
+          ],
+        };
+      }
+
+      case "viagensFinalizadas":
+        return {
+          columns: ["Mensagem"],
+          rows: [["Nenhuma viagem finalizada registrada. As viagens finalizadas serão exibidas aqui quando disponíveis."]],
+        };
+
+      default:
+        return {
+          columns: [],
+          rows: [],
+        };
+    }
+  }, [activeCard, activeFilter, leads, lancamentos, orcamentos]);
 
   return (
     <div className="flex-1 space-y-4 p-4 sm:p-8 pt-6">
@@ -527,6 +645,43 @@ export default function LeadDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Tabela de Dados */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Detalhes - {dadosDashboard.cardData.find(c => c.key === activeCard)?.title || "Dados"}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {tableData.columns.map((column, index) => (
+                    <TableHead key={index}>{column}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tableData.rows.length > 0 ? (
+                  tableData.rows.map((row, rowIndex) => (
+                    <TableRow key={rowIndex}>
+                      {row.map((cell, cellIndex) => (
+                        <TableCell key={cellIndex}>{cell}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={tableData.columns.length} className="text-center text-gray-500 py-4">
+                      Nenhum dado disponível
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
