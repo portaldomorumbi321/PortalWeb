@@ -30,6 +30,7 @@ import {
   type Orcamento,
   type OrcamentoPayload,
   type StatusOrc,
+  type StatusViagem,
 } from "../data/orcamentosApi";
 import {
   criarLancamentoFinanceiro,
@@ -51,7 +52,7 @@ const statusConfig: Record<StatusOrc, { bg: string; cor: string }> = {
 };
 
 const allStatus: StatusOrc[] = ["Rascunho", "Enviado", "Aprovado", "Rejeitado", "Cancelado"];
-const secoesOrcamento = ["Pacotes", "Voos", "Hospedagem", "Roteiro", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
+const secoesOrcamento = ["Pacotes", "Voos", "Hospedagem", "Roteiro", "Day by Day", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
 type SecaoOrcamento = typeof secoesOrcamento[number];
 
 type CategoriaPerfilViagem = {
@@ -393,7 +394,7 @@ type Tela = "lista" | "form";
 const orcVazio = (): OrcamentoPayload => ({
   numero: "", cliente: "", email: "", destino: "", agenteViagem: "", status: "Rascunho",
   dataCriacao: new Date().toISOString().split("T")[0],
-  dataValidade: "", observacoes: "", passageiros: [], formaPagamento: "", parcelas: null, itens: [itemVazio()],
+  dataValidade: "", observacoes: "", passageiros: [], formaPagamento: "", parcelas: null, itens: [itemVazio()], statusViagem: undefined,
 });
 
 export default function Orcamentos() {
@@ -699,7 +700,7 @@ export default function Orcamentos() {
   async function abrirEdicao(o: Orcamento) {
     setEditando(o);
     setErro(null);
-    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, destino: o.destino || "", agenteViagem: o.agenteViagem || "", passageiros: Array.isArray(o.passageiros) ? o.passageiros : [], formaPagamento: o.formaPagamento || "", parcelas: typeof o.parcelas === "number" ? o.parcelas : null, status: o.status, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
+    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, destino: o.destino || "", agenteViagem: o.agenteViagem || "", passageiros: Array.isArray(o.passageiros) ? o.passageiros : [], formaPagamento: o.formaPagamento || "", parcelas: typeof o.parcelas === "number" ? o.parcelas : null, status: o.status, statusViagem: o.statusViagem, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
     // Carrega os dados das seções para os estados correspondentes
     setPacotes(o.pacotes || []);
     setVoos(o.voos || []);
@@ -759,7 +760,7 @@ export default function Orcamentos() {
     if (!form.cliente.trim()) return null;
     setSalvando(true);
     setErro(null);
-    
+
     // Montar dados do orçamento com seções
     const orcComSecoes = {
       ...form,
@@ -776,7 +777,7 @@ export default function Orcamentos() {
       perfilViagem: perfilViagemSelecionado,
       promptPerfilViagemIA: promptPerfilViagemIA.trim(),
     };
-    
+
     try {
       if (editando) {
         await atualizarOrcamento(editando.id, orcComSecoes);
@@ -831,7 +832,7 @@ export default function Orcamentos() {
     if (!orcParaAbrir) return;
 
     const usandoEstadoFormulario = !orc && Boolean(editando);
-    
+
     // Montar dados do orçamento com seções atualizadas
     const orcComSecoes = {
       ...orcParaAbrir,
@@ -848,7 +849,7 @@ export default function Orcamentos() {
       perfilViagem: usandoEstadoFormulario ? perfilViagemSelecionado : orcParaAbrir.perfilViagem,
       promptPerfilViagemIA: usandoEstadoFormulario ? promptPerfilViagemIA : (orcParaAbrir.promptPerfilViagemIA || ""),
     };
-    
+
     // Store in localStorage to access from new tab
     localStorage.setItem(`orc_${orcComSecoes.numero}`, JSON.stringify(orcComSecoes));
     // Open roteiro in new tab using numero (not id)
@@ -1093,17 +1094,17 @@ export default function Orcamentos() {
       + totalRestauranteResumo
       + totalExperienciasResumo
       + totalSeguroResumo;
-    const resumoSecoes: { nome: SecaoOrcamento; quantidade: number; valor: string }[] = [
-      { nome: "Pacotes", quantidade: pacotes.length, valor: moeda(totalPacotesResumo) },
-      { nome: "Voos", quantidade: voos.length, valor: "—" },
-      { nome: "Hospedagem", quantidade: hospedagem.length, valor: moeda(totalHospedagemResumo) },
-      { nome: "Roteiro", quantidade: roteiro.trim() ? 1 : 0, valor: roteiro.trim() ? "Preenchido" : "—" },
-      { nome: "Day by Day", quantidade: dayByDay.length, valor: "—" },
-      { nome: "Transporte", quantidade: transporte.length, valor: moeda(totalTransporteResumo) },
-      { nome: "Restaurante", quantidade: restaurante.length, valor: moeda(totalRestauranteResumo) },
-      { nome: "Experiências", quantidade: experiencias.length, valor: moeda(totalExperienciasResumo) },
-      { nome: "Seguro", quantidade: seguro.length, valor: moeda(totalSeguroResumo) },
-    ].filter((secao) => secao.quantidade > 0);
+    const resumeSecoes = [
+      { nome: "Pacotes" as const, quantidade: pacotes.length, valor: moeda(totalPacotesResumo) },
+      { nome: "Voos" as const, quantidade: voos.length, valor: "—" },
+      { nome: "Hospedagem" as const, quantidade: hospedagem.length, valor: moeda(totalHospedagemResumo) },
+      { nome: "Roteiro" as const, quantidade: roteiro.trim() ? 1 : 0, valor: roteiro.trim() ? "Preenchido" : "—" },
+      { nome: "Day by Day" as const, quantidade: dayByDay.length, valor: "—" },
+      { nome: "Transporte" as const, quantidade: transporte.length, valor: moeda(totalTransporteResumo) },
+      { nome: "Restaurante" as const, quantidade: restaurante.length, valor: moeda(totalRestauranteResumo) },
+      { nome: "Experiências" as const, quantidade: experiencias.length, valor: moeda(totalExperienciasResumo) },
+      { nome: "Seguro" as const, quantidade: seguro.length, valor: moeda(totalSeguroResumo) },
+    ].filter((secao) => secao.quantidade > 0) as { nome: SecaoOrcamento; quantidade: number; valor: string }[];
     return (
       <div>
         <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -1130,8 +1131,8 @@ export default function Orcamentos() {
                 </Button>
               </div>
               {!dadosClienteMinimizados && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="flex flex-col">
                   <Label htmlFor="cliente">Cliente *</Label>
                   <select
                     id="cliente"
@@ -1163,7 +1164,7 @@ export default function Orcamentos() {
                     </div>
                   )}
                 </div>
-                <div>
+                <div className="flex flex-col">
                   <Label htmlFor="passageiros">Passageiros</Label>
                   <select
                     id="passageiros"
@@ -1201,7 +1202,7 @@ export default function Orcamentos() {
                     </div>
                   )}
                 </div>
-                <div>
+                <div className="flex flex-col">
                   <Label htmlFor="agente-viagem">Agente de Viagem</Label>
                   <select
                     id="agente-viagem"
@@ -1603,7 +1604,7 @@ export default function Orcamentos() {
                   </div>
                 )}
                 <div>
-                  <Label>Status</Label>
+                  <Label>Status do Orçamento</Label>
                   <select
                     value={form.status}
                     onChange={(e) => void onChangeStatusOrcamento(e.target.value as StatusOrc)}
@@ -1620,6 +1621,21 @@ export default function Orcamentos() {
                     </p>
                   )}
                 </div>
+                {form.status === "Aprovado" && (
+                  <div>
+                    <Label>Status da Viagem</Label>
+                    <select
+                      value={form.statusViagem || ""}
+                      onChange={(e) => setForm({ ...form, statusViagem: e.target.value as StatusViagem | undefined })}
+                      className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="Iniciada">Iniciada</option>
+                      <option value="Andamento">Andamento</option>
+                      <option value="Finalizada">Finalizada</option>
+                    </select>
+                  </div>
+                )}
               </div>
               )}
             </Card>
@@ -1642,8 +1658,8 @@ export default function Orcamentos() {
               {!resumoMinimizado && (
               <div className="space-y-2 text-sm">
                 <div className="space-y-1.5">
-                  {resumoSecoes.length > 0 ? (
-                    resumoSecoes.map((secao) => (
+                  {resumeSecoes.length > 0 ? (
+                    resumeSecoes.map((secao) => (
                       <div key={secao.nome} className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-2.5 py-2">
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="inline-flex h-6 min-w-8 items-center justify-center rounded bg-indigo-100 px-2 text-xs font-semibold text-indigo-700">

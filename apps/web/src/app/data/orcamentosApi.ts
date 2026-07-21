@@ -1,4 +1,5 @@
 export type StatusOrc = 'Rascunho' | 'Enviado' | 'Aprovado' | 'Rejeitado' | 'Cancelado';
+export type StatusViagem = 'Iniciada' | 'Andamento' | 'Finalizada';
 
 export interface DocumentoVenda {
   id: number;
@@ -32,6 +33,7 @@ export interface Orcamento {
   destino?: string;
   agenteViagem?: string;
   status: StatusOrc;
+  statusViagem?: StatusViagem;
   dataCriacao: string;
   dataValidade: string;
   observacoes: string;
