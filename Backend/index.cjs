@@ -326,6 +326,24 @@ async function backfillOrcamentosPublicToken() {
     await ensureOrcamentosPublicTokenBackfillPromise;
 }
 
+let ensureOrcamentosStatusViagemColumnPromise = null;
+async function ensureOrcamentosStatusViagemColumn() {
+    if (!pool) {
+        return;
+    }
+
+    if (!ensureOrcamentosStatusViagemColumnPromise) {
+        ensureOrcamentosStatusViagemColumnPromise = pool
+            .query("ALTER TABLE public.orcamentos ADD COLUMN IF NOT EXISTS status_viagem VARCHAR(20) CHECK (status_viagem IN ('Viagem Iniciada', 'Andamento', 'Finalizada'))")
+            .catch((error) => {
+                ensureOrcamentosStatusViagemColumnPromise = null;
+                throw error;
+            });
+    }
+
+    await ensureOrcamentosStatusViagemColumnPromise;
+}
+
 async function ensureFuncionariosSaudacoesColumn() {
     if (!pool) {
         return;
@@ -3015,18 +3033,19 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
         await ensureOrcamentosPerfilViagemColumn();
         await ensureOrcamentosPromptPerfilIaColumn();
         await ensureOrcamentosPublicTokenColumn();
+        await ensureOrcamentosStatusViagemColumn();
 
         const publicToken = crypto.randomUUID();
         const result = await pool.query(
             `INSERT INTO public.orcamentos
-        (numero, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
+        (numero, cliente, email, destino, agente_viagem, status, status_viagem, data_criacao, data_validade, observacoes,
                  itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
          public_token,
          forma_pagamento, parcelas)
-           VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, '')::date, NULLIF($8, '')::date, $9,
-                             $10::jsonb, $11::jsonb, $12::jsonb, $13::jsonb, $14, $15::jsonb, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb, $21, $22::jsonb,
-                             $23, $24, $25)
-           RETURNING id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, '')::date, NULLIF($9, '')::date, $10,
+                             $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb, $21::jsonb, $22, $23::jsonb,
+                             $24, $25, $26)
+           RETURNING id, numero, public_token, cliente, email, destino, agente_viagem, status, status_viagem, data_criacao, data_validade, observacoes,
                                  itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
                  forma_pagamento, parcelas`,
             [
@@ -3036,6 +3055,7 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
                 payload.destino || null,
                 payload.agenteViagem || null,
                 payload.status,
+                payload.statusViagem || null,
                 payload.dataCriacao,
                 payload.dataValidade,
                 payload.observacoes || null,
@@ -3090,8 +3110,7 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
         await ensureOrcamentosPerfilViagemColumn();
         await ensureOrcamentosPromptPerfilIaColumn();
         await ensureOrcamentosPublicTokenColumn();
-
-        const existing = await pool.query('SELECT public_token FROM public.orcamentos WHERE id = $1 LIMIT 1', [id]);
+        await ensureOrcamentosStatusViagemColumn();
         const existingToken = existing.rows[0]?.public_token || crypto.randomUUID();
 
         const result = await pool.query(
@@ -3102,28 +3121,29 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
                             destino = $4,
                             agente_viagem = $5,
                             status = $6,
-                            data_criacao = NULLIF($7, '')::date,
-                            data_validade = NULLIF($8, '')::date,
-                            observacoes = $9,
-                            itens = $10::jsonb,
-                            pacotes = $11::jsonb,
-                            voos = $12::jsonb,
-                            hospedagem = $13::jsonb,
-                            roteiro = $14,
-                            day_by_day = $15::jsonb,
-                            transporte = $16::jsonb,
-                            restaurante = $17::jsonb,
-                            experiencias = $18::jsonb,
-                            seguro = $19::jsonb,
-                            perfil_viagem = $20::jsonb,
-                            prompt_perfil_ia = $21,
-                            passageiros = $22::jsonb,
-                            public_token = COALESCE(NULLIF(public_token, ''), $23),
-                            forma_pagamento = $24,
-                            parcelas = $25,
+                            status_viagem = $7,
+                            data_criacao = NULLIF($8, '')::date,
+                            data_validade = NULLIF($9, '')::date,
+                            observacoes = $10,
+                            itens = $11::jsonb,
+                            pacotes = $12::jsonb,
+                            voos = $13::jsonb,
+                            hospedagem = $14::jsonb,
+                            roteiro = $15,
+                            day_by_day = $16::jsonb,
+                            transporte = $17::jsonb,
+                            restaurante = $18::jsonb,
+                            experiencias = $19::jsonb,
+                            seguro = $20::jsonb,
+                            perfil_viagem = $21::jsonb,
+                            prompt_perfil_ia = $22,
+                            passageiros = $23::jsonb,
+                            public_token = COALESCE(NULLIF(public_token, ''), $24),
+                            forma_pagamento = $25,
+                            parcelas = $26,
               atualizado_em = NOW()
-                                WHERE id = $26
-            RETURNING id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
+                                WHERE id = $27
+            RETURNING id, numero, public_token, cliente, email, destino, agente_viagem, status, status_viagem, data_criacao, data_validade, observacoes,
                 itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
                 forma_pagamento, parcelas`,
             [
@@ -3133,6 +3153,7 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
                 payload.destino || null,
                 payload.agenteViagem || null,
                 payload.status,
+                payload.statusViagem || null,
                 payload.dataCriacao,
                 payload.dataValidade,
                 payload.observacoes || null,

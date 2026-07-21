@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.orcamentos (
   destino VARCHAR(255),
   agente_viagem VARCHAR(150),
   status VARCHAR(20) NOT NULL DEFAULT 'Rascunho' CHECK (status IN ('Rascunho', 'Enviado', 'Aprovado', 'Rejeitado', 'Cancelado')),
+  status_viagem VARCHAR(20) CHECK (status_viagem IN ('Viagem Iniciada', 'Andamento', 'Finalizada')),
   data_criacao DATE,
   data_validade DATE,
   observacoes TEXT,
@@ -33,6 +34,9 @@ ADD COLUMN IF NOT EXISTS public_token VARCHAR(36);
 
 ALTER TABLE public.orcamentos
 ADD COLUMN IF NOT EXISTS prompt_perfil_ia TEXT;
+
+ALTER TABLE public.orcamentos
+ADD COLUMN IF NOT EXISTS status_viagem VARCHAR(20) CHECK (status_viagem IN ('Viagem Iniciada', 'Andamento', 'Finalizada'));
 
 CREATE INDEX IF NOT EXISTS idx_orcamentos_cliente ON public.orcamentos (cliente);
 CREATE INDEX IF NOT EXISTS idx_orcamentos_status ON public.orcamentos (status);
