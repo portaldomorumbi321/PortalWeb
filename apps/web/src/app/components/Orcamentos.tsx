@@ -1630,8 +1630,8 @@ export default function Orcamentos() {
                       className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
                     >
                       <option value="">Selecione...</option>
-                      <option value="Iniciada">Iniciada</option>
-                      <option value="Andamento">Andamento</option>
+                      <option value="Não Iniciada">Não Iniciada</option>
+                      <option value="Em Andamento">Em Andamento</option>
                       <option value="Finalizada">Finalizada</option>
                     </select>
                   </div>

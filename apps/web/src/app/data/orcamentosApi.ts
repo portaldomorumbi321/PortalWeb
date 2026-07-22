@@ -1,5 +1,5 @@
 export type StatusOrc = 'Rascunho' | 'Enviado' | 'Aprovado' | 'Rejeitado' | 'Cancelado';
-export type StatusViagem = 'Iniciada' | 'Andamento' | 'Finalizada';
+export type StatusViagem = 'Não Iniciada' | 'Em Andamento' | 'Finalizada';
 
 export interface DocumentoVenda {
   id: number;

@@ -334,7 +334,7 @@ async function ensureOrcamentosStatusViagemColumn() {
 
     if (!ensureOrcamentosStatusViagemColumnPromise) {
         ensureOrcamentosStatusViagemColumnPromise = pool
-            .query("ALTER TABLE public.orcamentos ADD COLUMN IF NOT EXISTS status_viagem VARCHAR(20) CHECK (status_viagem IN ('Viagem Iniciada', 'Andamento', 'Finalizada'))")
+            .query("ALTER TABLE public.orcamentos ADD COLUMN IF NOT EXISTS status_viagem VARCHAR(20) CHECK (status_viagem IN ('Não Iniciada', 'Em Andamento', 'Finalizada'))")
             .catch((error) => {
                 ensureOrcamentosStatusViagemColumnPromise = null;
                 throw error;
@@ -533,6 +533,7 @@ function mapOrcamento(row) {
         restaurante: Array.isArray(row.restaurante) ? row.restaurante : [],
         experiencias: Array.isArray(row.experiencias) ? row.experiencias : [],
         seguro: Array.isArray(row.seguro) ? row.seguro : [],
+        statusViagem :  row.status_viagem || null,
     };
 }
 
@@ -550,6 +551,7 @@ function mapLancamentoFinanceiro(row) {
         orcamentoId: row.orcamento_id ? Number(row.orcamento_id) : null,
         orcamentoNumero: row.orcamento_numero || '',
         cliente: row.cliente || '',
+        statusViagem: row.status_viagem || null,
     };
 }
 
@@ -672,6 +674,12 @@ function normalizeEventoPayload(body) {
 function normalizeOrcamentoPayload(body) {
     const status = body?.status;
     const parcelas = Number(body?.parcelas);
+    const statusViagemRaw = String(body?.statusViagem || '').trim();
+    const statusViagem =
+    statusViagemRaw === 'Não Iniciada' ? 'Não Iniciada'
+    : statusViagemRaw === 'Em Andamento' ? 'Em Andamento'
+    : statusViagemRaw === 'Finalizada' ? 'Finalizada'
+    : null;
 
     return {
         numero: String(body?.numero || '').trim(),
@@ -706,6 +714,7 @@ function normalizeOrcamentoPayload(body) {
         restaurante: Array.isArray(body?.restaurante) ? body.restaurante : [],
         experiencias: Array.isArray(body?.experiencias) ? body.experiencias : [],
         seguro: Array.isArray(body?.seguro) ? body.seguro : [],
+        statusViagem
     };
 }
 
@@ -2929,7 +2938,7 @@ app.get('/api/orcamentos', ensureDb, async (req, res) => {
         const result = await pool.query(
             `SELECT id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
                             itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
-                            forma_pagamento, parcelas
+                            forma_pagamento, parcelas, status_viagem
        FROM public.orcamentos
        ORDER BY data_criacao DESC, id DESC`
         );
@@ -2961,7 +2970,7 @@ app.get('/api/orcamentos/numero/:numero', ensureDb, async (req, res) => {
         const result = await pool.query(
             `SELECT id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
                             itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
-                            forma_pagamento, parcelas
+                            forma_pagamento, parcelas, status_viagem
                FROM public.orcamentos
               WHERE numero = $1
               LIMIT 1`,
@@ -2999,7 +3008,7 @@ app.get('/api/orcamentos/public/:publicToken', ensureDb, async (req, res) => {
         const result = await pool.query(
             `SELECT id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
                             itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
-                            forma_pagamento, parcelas
+                            forma_pagamento, parcelas, status_viagem
                FROM public.orcamentos
               WHERE public_token = $1
               LIMIT 1`,
@@ -3111,6 +3120,7 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
         await ensureOrcamentosPromptPerfilIaColumn();
         await ensureOrcamentosPublicTokenColumn();
         await ensureOrcamentosStatusViagemColumn();
+        const existing = await pool.query('SELECT public_token FROM public.orcamentos WHERE id = $1', [id]);
         const existingToken = existing.rows[0]?.public_token || crypto.randomUUID();
 
         const result = await pool.query(
