@@ -415,6 +415,7 @@ export default function Orcamentos() {
   const [dayByDay, setDayByDay] = useState<any[]>([]);
   const [transporte, setTransporte] = useState<any[]>([]);
   const [gerandoRoteiro, setGerandoRoteiro] = useState(false); // Estado de loading para a IA
+  const [promptRoteiroIA, setPromptRoteiroIA] = useState("");
   const [restaurante, setRestaurante] = useState<any[]>([]);
   const [experiencias, setExperiencias] = useState<any[]>([]);
   const [seguro, setSeguro] = useState<any[]>([]);
@@ -678,6 +679,7 @@ export default function Orcamentos() {
     setVoos([]);
     setHospedagem([]);
     setRoteiro("");
+    setPromptRoteiroIA("");
     setDayByDay([]);
     setTransporte([]);
     setRestaurante([]);
@@ -706,6 +708,7 @@ export default function Orcamentos() {
     setVoos(o.voos || []);
     setHospedagem(o.hospedagem || []);
     setRoteiro(o.roteiro || "");
+    setPromptRoteiroIA(typeof o.promptRoteiroIA === "string" ? o.promptRoteiroIA : "");
     setDayByDay(o.dayByDay || []);
     setTransporte(o.transporte || []);
     setRestaurante(o.restaurante || []);
@@ -769,6 +772,7 @@ export default function Orcamentos() {
       voos: voos.length > 0 ? voos : undefined,
       hospedagem: hospedagem.length > 0 ? hospedagem : undefined,
       roteiro: roteiro.trim() ? roteiro : undefined,
+      promptRoteiroIA: promptRoteiroIA.trim(),
       dayByDay: dayByDay.length > 0 ? dayByDay : undefined,
       transporte: transporte.length > 0 ? transporte : undefined,
       restaurante: restaurante.length > 0 ? restaurante : undefined,
@@ -841,6 +845,7 @@ export default function Orcamentos() {
       voos: usandoEstadoFormulario ? voos : orcParaAbrir.voos,
       hospedagem: usandoEstadoFormulario ? hospedagem : orcParaAbrir.hospedagem,
       roteiro: usandoEstadoFormulario ? roteiro : orcParaAbrir.roteiro,
+      promptRoteiroIA: usandoEstadoFormulario ? promptRoteiroIA : (orcParaAbrir.promptRoteiroIA || ""),
       dayByDay: usandoEstadoFormulario ? dayByDay : orcParaAbrir.dayByDay,
       transporte: usandoEstadoFormulario ? transporte : orcParaAbrir.transporte,
       restaurante: usandoEstadoFormulario ? restaurante : orcParaAbrir.restaurante,
@@ -869,6 +874,7 @@ export default function Orcamentos() {
       voos: usandoEstadoFormulario ? voos : orcParaAbrir.voos,
       hospedagem: usandoEstadoFormulario ? hospedagem : orcParaAbrir.hospedagem,
       roteiro: usandoEstadoFormulario ? roteiro : orcParaAbrir.roteiro,
+      promptRoteiroIA: usandoEstadoFormulario ? promptRoteiroIA : (orcParaAbrir.promptRoteiroIA || ""),
       dayByDay: usandoEstadoFormulario ? dayByDay : orcParaAbrir.dayByDay,
       transporte: usandoEstadoFormulario ? transporte : orcParaAbrir.transporte,
       restaurante: usandoEstadoFormulario ? restaurante : orcParaAbrir.restaurante,
@@ -1025,10 +1031,16 @@ export default function Orcamentos() {
       .filter(Boolean);
 
     const promptPerfilViagemLimpo = promptPerfilViagemIA.trim();
+    const promptRoteiroLimpo = promptRoteiroIA.trim();
 
     const destinosTexto = destinosDosVoos.length > 0
       ? destinosDosVoos.join(", ")
       : (destinoPrincipal || "Destino não informado");
+
+    // Combina ambos os prompts: primeiro a personalização do roteiro, depois o perfil da viagem
+    const diretrizesAdicionais = [promptRoteiroLimpo, promptPerfilViagemLimpo]
+      .filter(Boolean)
+      .join("\n- ");
 
     const prompt = `Crie uma sugestão de roteiro de viagem para ${form.cliente || "cliente"}.
 
@@ -1044,7 +1056,7 @@ export default function Orcamentos() {
   - Perfil da viagem selecionado:
   ${perfilViagemResumo.length > 0 ? perfilViagemResumo.join("\n") : "Nenhum perfil selecionado"}
   - Diretrizes adicionais para personalizar o roteiro:
-  ${promptPerfilViagemLimpo || "Nenhuma diretriz adicional informada"}
+  ${diretrizesAdicionais || "Nenhuma diretriz adicional informada"}
 
   Formato obrigatório da resposta:
   1) Título elegante do roteiro.
@@ -1364,6 +1376,19 @@ export default function Orcamentos() {
 
                 {section === 'Roteiro' && (
                   <div>
+                    <div className="mb-4">
+                      <Label htmlFor="prompt-roteiro-ia">Prompt para Sugestão de Roteiro com IA</Label>
+                      <textarea
+                        id="prompt-roteiro-ia"
+                        value={promptRoteiroIA}
+                        onChange={(e) => setPromptRoteiroIA(e.target.value)}
+                        placeholder="Ex.: Roteiro contemplativo com visitas a templos antigos, ritmo lento e muitas atividades de meditação."
+                        className="mt-1 min-h-20 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Instruções específicas para personalizar a sugestão de roteiro gerada pela IA.
+                      </p>
+                    </div>
                     <div className="flex justify-between items-center mb-2">
                       <Label htmlFor="roteiro-texto">Descrição do Roteiro</Label>
                       <Button

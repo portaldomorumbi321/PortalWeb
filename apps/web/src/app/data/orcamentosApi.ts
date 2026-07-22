@@ -27,6 +27,7 @@ export interface Orcamento {
   email: string;
   perfilViagem?: string[];
   promptPerfilViagemIA?: string;
+  promptRoteiroIA?: string;
   passageiros?: string[];
   formaPagamento?: string;
   parcelas?: number | null;

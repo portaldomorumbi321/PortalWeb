@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.orcamentos (
   voos JSONB NOT NULL DEFAULT '[]'::jsonb,
   hospedagem JSONB NOT NULL DEFAULT '[]'::jsonb,
   roteiro TEXT,
+  prompt_roteiro_ia TEXT,
   day_by_day JSONB NOT NULL DEFAULT '[]'::jsonb,
   transporte JSONB NOT NULL DEFAULT '[]'::jsonb,
   restaurante JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -34,6 +35,9 @@ ADD COLUMN IF NOT EXISTS public_token VARCHAR(36);
 
 ALTER TABLE public.orcamentos
 ADD COLUMN IF NOT EXISTS prompt_perfil_ia TEXT;
+
+ALTER TABLE public.orcamentos
+ADD COLUMN IF NOT EXISTS prompt_roteiro_ia TEXT;
 
 ALTER TABLE public.orcamentos
 ADD COLUMN IF NOT EXISTS status_viagem VARCHAR(20) CHECK (status_viagem IN ('Viagem Iniciada', 'Andamento', 'Finalizada'));

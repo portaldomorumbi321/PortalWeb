@@ -168,6 +168,7 @@ let ensureOrcamentosPagamentoColumnsPromise = null;
 let ensureOrcamentosPacotesColumnPromise = null;
 let ensureOrcamentosPerfilViagemColumnPromise = null;
 let ensureOrcamentosPromptPerfilIaColumnPromise = null;
+let ensureOrcamentosPromptRoteiroIaColumnPromise = null;
 let ensureOrcamentosPublicTokenColumnPromise = null;
 let ensureOrcamentosPublicTokenBackfillPromise = null;
 let ensureFuncionariosSaudacoesColumnPromise = null;
@@ -273,6 +274,23 @@ async function ensureOrcamentosPromptPerfilIaColumn() {
     }
 
     await ensureOrcamentosPromptPerfilIaColumnPromise;
+}
+
+async function ensureOrcamentosPromptRoteiroIaColumn() {
+    if (!pool) {
+        return;
+    }
+
+    if (!ensureOrcamentosPromptRoteiroIaColumnPromise) {
+        ensureOrcamentosPromptRoteiroIaColumnPromise = pool
+            .query('ALTER TABLE public.orcamentos ADD COLUMN IF NOT EXISTS prompt_roteiro_ia TEXT')
+            .catch((error) => {
+                ensureOrcamentosPromptRoteiroIaColumnPromise = null;
+                throw error;
+            });
+    }
+
+    await ensureOrcamentosPromptRoteiroIaColumnPromise;
 }
 
 async function ensureOrcamentosPublicTokenColumn() {
@@ -514,6 +532,7 @@ function mapOrcamento(row) {
         email: row.email || '',
         perfilViagem: Array.isArray(row.perfil_viagem) ? row.perfil_viagem : [],
         promptPerfilViagemIA: row.prompt_perfil_ia || '',
+        promptRoteiroIA: row.prompt_roteiro_ia || '',
         passageiros: Array.isArray(row.passageiros) ? row.passageiros : [],
         formaPagamento: row.forma_pagamento || '',
         parcelas: row.parcelas ? Number(row.parcelas) : null,
@@ -691,6 +710,7 @@ function normalizeOrcamentoPayload(body) {
                 .filter(Boolean)
             : [],
         promptPerfilViagemIA: String(body?.promptPerfilViagemIA || '').trim(),
+        promptRoteiroIA: String(body?.promptRoteiroIA || '').trim(),
         passageiros: Array.isArray(body?.passageiros)
             ? body.passageiros
                 .map((item) => String(item || '').trim())
@@ -2933,11 +2953,12 @@ app.get('/api/orcamentos', ensureDb, async (req, res) => {
         await ensureOrcamentosPacotesColumn();
         await ensureOrcamentosPerfilViagemColumn();
         await ensureOrcamentosPromptPerfilIaColumn();
+        await ensureOrcamentosPromptRoteiroIaColumn();
         await backfillOrcamentosPublicToken();
 
         const result = await pool.query(
             `SELECT id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-                            itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
+                            itens, pacotes, voos, hospedagem, roteiro, prompt_roteiro_ia, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
                             forma_pagamento, parcelas, status_viagem
        FROM public.orcamentos
        ORDER BY data_criacao DESC, id DESC`
@@ -2965,11 +2986,12 @@ app.get('/api/orcamentos/numero/:numero', ensureDb, async (req, res) => {
         await ensureOrcamentosPacotesColumn();
         await ensureOrcamentosPerfilViagemColumn();
         await ensureOrcamentosPromptPerfilIaColumn();
+        await ensureOrcamentosPromptRoteiroIaColumn();
         await backfillOrcamentosPublicToken();
 
         const result = await pool.query(
             `SELECT id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-                            itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
+                            itens, pacotes, voos, hospedagem, roteiro, prompt_roteiro_ia, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
                             forma_pagamento, parcelas, status_viagem
                FROM public.orcamentos
               WHERE numero = $1
@@ -3003,11 +3025,12 @@ app.get('/api/orcamentos/public/:publicToken', ensureDb, async (req, res) => {
         await ensureOrcamentosPacotesColumn();
         await ensureOrcamentosPerfilViagemColumn();
         await ensureOrcamentosPromptPerfilIaColumn();
+        await ensureOrcamentosPromptRoteiroIaColumn();
         await backfillOrcamentosPublicToken();
 
         const result = await pool.query(
             `SELECT id, numero, public_token, cliente, email, destino, agente_viagem, status, data_criacao, data_validade, observacoes,
-                            itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
+                            itens, pacotes, voos, hospedagem, roteiro, prompt_roteiro_ia, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
                             forma_pagamento, parcelas, status_viagem
                FROM public.orcamentos
               WHERE public_token = $1
@@ -3041,6 +3064,7 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
         await ensureOrcamentosPacotesColumn();
         await ensureOrcamentosPerfilViagemColumn();
         await ensureOrcamentosPromptPerfilIaColumn();
+        await ensureOrcamentosPromptRoteiroIaColumn();
         await ensureOrcamentosPublicTokenColumn();
         await ensureOrcamentosStatusViagemColumn();
 
@@ -3048,14 +3072,14 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
         const result = await pool.query(
             `INSERT INTO public.orcamentos
         (numero, cliente, email, destino, agente_viagem, status, status_viagem, data_criacao, data_validade, observacoes,
-                 itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
+                 itens, pacotes, voos, hospedagem, roteiro, prompt_roteiro_ia, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
          public_token,
          forma_pagamento, parcelas)
            VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, '')::date, NULLIF($9, '')::date, $10,
-                             $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb, $21::jsonb, $22, $23::jsonb,
-                             $24, $25, $26)
+                             $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15, $16, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb, $21::jsonb, $22::jsonb, $23, $24::jsonb,
+                             $25, $26, $27)
            RETURNING id, numero, public_token, cliente, email, destino, agente_viagem, status, status_viagem, data_criacao, data_validade, observacoes,
-                                 itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
+                                 itens, pacotes, voos, hospedagem, roteiro, prompt_roteiro_ia, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
                  forma_pagamento, parcelas`,
             [
                 payload.numero,
@@ -3073,6 +3097,7 @@ app.post('/api/orcamentos', ensureDb, async (req, res) => {
                 JSON.stringify(payload.voos),
                 JSON.stringify(payload.hospedagem),
                 payload.roteiro || null,
+                payload.promptRoteiroIA || null,
                 JSON.stringify(payload.dayByDay),
                 JSON.stringify(payload.transporte),
                 JSON.stringify(payload.restaurante),
@@ -3118,6 +3143,7 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
         await ensureOrcamentosPacotesColumn();
         await ensureOrcamentosPerfilViagemColumn();
         await ensureOrcamentosPromptPerfilIaColumn();
+        await ensureOrcamentosPromptRoteiroIaColumn();
         await ensureOrcamentosPublicTokenColumn();
         await ensureOrcamentosStatusViagemColumn();
         const existing = await pool.query('SELECT public_token FROM public.orcamentos WHERE id = $1', [id]);
@@ -3140,21 +3166,22 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
                             voos = $13::jsonb,
                             hospedagem = $14::jsonb,
                             roteiro = $15,
-                            day_by_day = $16::jsonb,
-                            transporte = $17::jsonb,
-                            restaurante = $18::jsonb,
-                            experiencias = $19::jsonb,
-                            seguro = $20::jsonb,
-                            perfil_viagem = $21::jsonb,
-                            prompt_perfil_ia = $22,
-                            passageiros = $23::jsonb,
-                            public_token = COALESCE(NULLIF(public_token, ''), $24),
-                            forma_pagamento = $25,
-                            parcelas = $26,
+                            prompt_roteiro_ia = $16,
+                            day_by_day = $17::jsonb,
+                            transporte = $18::jsonb,
+                            restaurante = $19::jsonb,
+                            experiencias = $20::jsonb,
+                            seguro = $21::jsonb,
+                            perfil_viagem = $22::jsonb,
+                            prompt_perfil_ia = $23,
+                            passageiros = $24::jsonb,
+                            public_token = COALESCE(NULLIF(public_token, ''), $25),
+                            forma_pagamento = $26,
+                            parcelas = $27,
               atualizado_em = NOW()
-                                WHERE id = $27
+                                WHERE id = $28
             RETURNING id, numero, public_token, cliente, email, destino, agente_viagem, status, status_viagem, data_criacao, data_validade, observacoes,
-                itens, pacotes, voos, hospedagem, roteiro, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
+                itens, pacotes, voos, hospedagem, roteiro, prompt_roteiro_ia, day_by_day, transporte, restaurante, experiencias, seguro, perfil_viagem, prompt_perfil_ia, passageiros,
                 forma_pagamento, parcelas`,
             [
                 payload.numero,
@@ -3172,6 +3199,7 @@ app.put('/api/orcamentos/:id', ensureDb, async (req, res) => {
                 JSON.stringify(payload.voos),
                 JSON.stringify(payload.hospedagem),
                 payload.roteiro || null,
+                payload.promptRoteiroIA || null,
                 JSON.stringify(payload.dayByDay),
                 JSON.stringify(payload.transporte),
                 JSON.stringify(payload.restaurante),
