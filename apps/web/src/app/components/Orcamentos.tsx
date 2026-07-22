@@ -444,7 +444,7 @@ export default function Orcamentos() {
   const [secoesOrcamentoMinimizadas, setSecoesOrcamentoMinimizadas] = useState(true);
   const [vendasMinimizadas, setVendasMinimizadas] = useState(true);
   const [resumoMinimizado, setResumoMinimizado] = useState(false);
-
+  const [observacoesMinimizadas, setObservacoesMinimizadas] = useState(true);
   function obterDestinoPrincipalOrcamento(orcBase?: Partial<Orcamento>, preferirEstadoFormulario = false) {
     const hospedagemFonte = hospedagem.length > 0 ? hospedagem : Array.isArray(orcBase?.hospedagem) ? orcBase.hospedagem : [];
     const transporteFonte = transporte.length > 0 ? transporte : Array.isArray(orcBase?.transporte) ? orcBase.transporte : [];
@@ -1547,8 +1547,22 @@ export default function Orcamentos() {
 
             {/* Observações */}
             <Card className="p-5">
-              <Label htmlFor="obs">Observações</Label>
-              <textarea id="obs" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} placeholder="" rows={3} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring resize-none" />
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2"><FileText className="w-4 h-4 text-indigo-500" /> Observações</h3>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setObservacoesMinimizadas((prev) => !prev)}
+                  className="h-8 px-2 text-gray-600"
+                >
+                  {observacoesMinimizadas ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  <span className="ml-1">{observacoesMinimizadas ? "Expandir" : "Minimizar"}</span>
+                </Button>
+              </div>
+              {!observacoesMinimizadas && (
+                <textarea id="obs" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} placeholder="" rows={3} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring resize-none" />
+              )}
             </Card>
           </div>
 
