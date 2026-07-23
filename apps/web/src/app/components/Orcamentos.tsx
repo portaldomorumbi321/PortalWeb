@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
-  Search, Plus, Edit2, X, Check, FileText, ChevronDown, ChevronUp,
-  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Sparkles, Link2, Star
+  Search, Plus, Edit2, X, Check, FileText, ChevronDown, ChevronUp, Upload,
+  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Sparkles, Link2, Star, Plane
 } from "lucide-react"; // Adicionado Sparkles
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -33,6 +33,7 @@ import {
   type StatusViagem,
 } from "../data/orcamentosApi";
 import {
+  type Pacote,
   criarLancamentoFinanceiro,
   listarLancamentosFinanceiros,
   type LancamentoFinanceiro,
@@ -40,7 +41,16 @@ import {
 import { buscarOpcoesDestino } from "../data/placePhotoApi";
 import { enviarMensagemIA } from "../data/aiChatApi";
 
-const itemVazio = (): ItemOrc => ({ id: Date.now(), descricao: "", quantidade: 1, unidade: "un", valorUnitario: 0, desconto: 0, link: "", documentos: [] });
+const itemVazio = (): ItemOrc => ({
+  id: Date.now(),
+  descricao: "",
+  quantidade: 1,
+  unidade: "un",
+  valorUnitario: 0,
+  desconto: 0,
+  link: "",
+  documentos: [],
+});
 
 
 const statusConfig: Record<StatusOrc, { bg: string; cor: string }> = {
@@ -52,7 +62,7 @@ const statusConfig: Record<StatusOrc, { bg: string; cor: string }> = {
 };
 
 const allStatus: StatusOrc[] = ["Rascunho", "Enviado", "Aprovado", "Rejeitado", "Cancelado"];
-const secoesOrcamento = ["Pacotes", "Voos", "Hospedagem", "Roteiro", "Day by Day", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
+const secoesOrcamento = ["Pacotes", "Hospedagem", "Roteiro", "Day by Day", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
 type SecaoOrcamento = typeof secoesOrcamento[number];
 
 type CategoriaPerfilViagem = {
@@ -409,7 +419,7 @@ export default function Orcamentos() {
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
   const [section, setSection] = useState<SecaoOrcamento>("Pacotes");
   const [pacotes, setPacotes] = useState<any[]>([]);
-  const [voos, setVoos] = useState<any[]>([]);
+  const [voos, setVoos] = useState<Voo[]>([]);
   const [hospedagem, setHospedagem] = useState<any[]>([]);
   const [roteiro, setRoteiro] = useState<string>("");
   const [dayByDay, setDayByDay] = useState<any[]>([]);
@@ -435,7 +445,7 @@ export default function Orcamentos() {
   const [dataLancamento, setDataLancamento] = useState(new Date().toISOString().slice(0, 10));
   const [popupAprovadoAberto, setPopupAprovadoAberto] = useState(false);
   const [orcamentoDuplicacaoPendente, setOrcamentoDuplicacaoPendente] = useState<Orcamento | null>(null);
-  const [dadosClienteMinimizados, setDadosClienteMinimizados] = useState(false);
+  const [dadosClienteMinimizados, setDadosClienteMinimizados] = useState(true);
   const [perfilViagemMinimizado, setPerfilViagemMinimizado] = useState(true);
   const [perfilViagemSelecionado, setPerfilViagemSelecionado] = useState<string[]>([]);
   const [promptPerfilViagemIA, setPromptPerfilViagemIA] = useState("");
@@ -445,11 +455,11 @@ export default function Orcamentos() {
   const [vendasMinimizadas, setVendasMinimizadas] = useState(true);
   const [resumoMinimizado, setResumoMinimizado] = useState(false);
   const [observacoesMinimizadas, setObservacoesMinimizadas] = useState(true);
+  const [voosMinimizados, setVoosMinimizados] = useState(true);
   function obterDestinoPrincipalOrcamento(orcBase?: Partial<Orcamento>, preferirEstadoFormulario = false) {
     const hospedagemFonte = hospedagem.length > 0 ? hospedagem : Array.isArray(orcBase?.hospedagem) ? orcBase.hospedagem : [];
     const transporteFonte = transporte.length > 0 ? transporte : Array.isArray(orcBase?.transporte) ? orcBase.transporte : [];
     const voosFonte = voos.length > 0 ? voos : Array.isArray(orcBase?.voos) ? orcBase.voos : [];
-
     const hospedagemFinal = preferirEstadoFormulario ? hospedagem : hospedagemFonte;
     const transporteFinal = preferirEstadoFormulario ? transporte : transporteFonte;
     const voosFinal = preferirEstadoFormulario ? voos : voosFonte;
@@ -683,7 +693,7 @@ export default function Orcamentos() {
     setDayByDay([]);
     setTransporte([]);
     setRestaurante([]);
-    setExperiencias([]);
+    setExperiencias([]); 
     setSeguro([]);
     setDadosClienteMinimizados(false);
     setPerfilViagemSelecionado([]);
@@ -704,8 +714,13 @@ export default function Orcamentos() {
     setErro(null);
     setForm({ numero: o.numero, cliente: o.cliente, email: o.email, destino: o.destino || "", agenteViagem: o.agenteViagem || "", passageiros: Array.isArray(o.passageiros) ? o.passageiros : [], formaPagamento: o.formaPagamento || "", parcelas: typeof o.parcelas === "number" ? o.parcelas : null, status: o.status, statusViagem: o.statusViagem, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
     // Carrega os dados das seções para os estados correspondentes
-    setPacotes(o.pacotes || []);
-    setVoos(o.voos || []);
+    setPacotes(
+      (o.pacotes || []).map((p: any) => ({ ...p, documentos: p.documentos || [] })),
+    );
+    setVoos(
+      // @ts-ignore
+      o.voos || [],
+    );
     setHospedagem(o.hospedagem || []);
     setRoteiro(o.roteiro || "");
     setPromptRoteiroIA(typeof o.promptRoteiroIA === "string" ? o.promptRoteiroIA : "");
@@ -768,7 +783,9 @@ export default function Orcamentos() {
     const orcComSecoes = {
       ...form,
       destino: obterDestinoPrincipalOrcamento(),
-      pacotes: pacotes.length > 0 ? pacotes : undefined,
+      pacotes: pacotes.length > 0
+        ? pacotes.map((p) => ({ ...p, documentos: p.documentos || [] }))
+        : undefined,
       voos: voos.length > 0 ? voos : undefined,
       hospedagem: hospedagem.length > 0 ? hospedagem : undefined,
       roteiro: roteiro.trim() ? roteiro : undefined,
@@ -1264,11 +1281,7 @@ export default function Orcamentos() {
               </div>
 
               {perfilViagemMinimizado ? (
-                <p className="text-sm text-gray-500">
-                  {perfilViagemSelecionado.length > 0
-                    ? `${perfilViagemSelecionado.length} opção(ões) selecionada(s).`
-                    : "Nenhuma opção selecionada."}
-                </p>
+                null
               ) : (
                 <div className="space-y-5">
                   <div>
@@ -1363,11 +1376,27 @@ export default function Orcamentos() {
 
               <div className="mt-3">
                 {section === 'Pacotes' && (
-                  <PacotesForm pacotes={pacotes} onPacotesChange={setPacotes} />
-                )}
-
-                {section === 'Voos' && (
-                  <VoosForm voos={voos} onVoosChange={setVoos} />
+                  <div className="space-y-6">
+                    <PacotesForm pacotes={pacotes} onPacotesChange={setPacotes} />
+                    <Card className="p-4">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                          <Plane className="w-4 h-4 text-indigo-500" /> Voos
+                        </h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setVoosMinimizados((prev) => !prev)}
+                          className="gap-2 text-gray-600 hover:text-gray-900 h-8 px-2"
+                        >
+                          {voosMinimizados ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                          {voosMinimizados ? "Maximizar" : "Minimizar"}
+                        </Button>
+                      </div>
+                      {!voosMinimizados && <VoosForm voos={voos} onVoosChange={setVoos} />}
+                    </Card>
+                  </div>
                 )}
 
                 {section === 'Hospedagem' && (
@@ -1740,7 +1769,7 @@ export default function Orcamentos() {
 
             <div className="flex flex-col gap-2">
               <Button onClick={salvar} disabled={salvando || !form.cliente.trim()} className="w-full gap-2">
-                <Check className="w-4 h-4 mr-1" />{salvando ? "Salvando..." : editando ? "Salvar alteração" : "Criar orçamento"}
+                <Check className="w-4 h-4 mr-1" />{salvando ? "Salvando..." : editando ? "Salvar" : "Criar orçamento"}
               </Button>
               <Button variant="outline" onClick={voltar} className="w-full gap-2">Cancelar</Button>
               <Button variant="ghost" onClick={() => abrirResumo()} className="w-full gap-2">
