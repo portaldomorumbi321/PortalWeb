@@ -30,6 +30,7 @@ interface Pacote {
   dataIda?: string;
   dataVolta?: string;
   passageiros?: string;
+  logAnalise?: string;
   documentos: Documento[];
 }
 
@@ -60,6 +61,7 @@ const pacoteVazio: Omit<Pacote, "id"> = {
   dataIda: "",
   dataVolta: "",
   passageiros: "",
+  logAnalise: "",
   documentos: []
 };
 
@@ -84,8 +86,9 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
   const [erro, setErro] = useState("");
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [formMinimizado, setFormMinimizado] = useState(true);
+  const [vouchersMinimizado, setVouchersMinimizado] = useState(false);
   const [analisandoIA, setAnalisandoIA] = useState(false);
-  const [analiseMinimizada, setAnaliseMinimizada] = useState(true);
+  const [logAnaliseIA, setLogAnaliseIA] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const operadores = useMemo(
@@ -120,8 +123,9 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
                 valor: form.valor,
                 dataIda: form.dataIda,
                 dataVolta: form.dataVolta,
-                passageiros: form.passageiros,
+                passageiros: form.passageiros,                
                 documentos: form.documentos || [],
+                logAnalise: logAnaliseIA.join("\n"),
               }
             : item,
         ),
@@ -145,7 +149,8 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
         dataIda: form.dataIda,
         dataVolta: form.dataVolta,
         passageiros: form.passageiros,
-        documentos: form.documentos || [],
+        logAnalise: logAnaliseIA.join("\n"),
+        documentos: form.documentos,
       },
     ]);
     limparFormulario();
@@ -167,6 +172,7 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
       dataIda: pacote.dataIda || "",
       dataVolta: pacote.dataVolta || "",
       passageiros: pacote.passageiros || "",
+      logAnalise: pacote.logAnalise || "",
     });
     setValorInput(pacote.valor ? formatarMoeda(Number(pacote.valor) || 0) : "");
     setErro("");
@@ -222,6 +228,7 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
 
     setAnalisandoIA(true);
     setErro("");
+    setLogAnaliseIA(["Iniciando análise com IA..."]);
 
     try {
       const novasAnalises = await Promise.all(
@@ -270,13 +277,29 @@ Formato JSON esperado:
   "horaChegadaVolta": "string"
 }`;
 
+          const tentarComProvedor = async (provedor?: "groq" | "gemini") => {
+            return enviarMensagemIA([{ role: "user", content: prompt }], provedor);
+          };
+
           try {
-            const data = await enviarMensagemIA([{ role: "user", content: prompt }]);
+            let data;
+            let provedorUsado: "Groq" | "Gemini" = "Groq";
+            try {
+              setLogAnaliseIA(prev => [...prev, `Analisando "${doc.nome}" com Groq...`]);
+              data = await tentarComProvedor("groq");
+            } catch (error) {
+              // Se o provedor principal falhar, tenta com o fallback (Gemini)
+              const erroMsg = error instanceof Error ? error.message : "Erro desconhecido";
+              console.warn(`Falha no provedor principal (Groq): ${erroMsg}. Tentando com o fallback (Gemini)...`);
+              setLogAnaliseIA(prev => [...prev, `Falha no Groq para "${doc.nome}". Tentando com Gemini...`]);
+              data = await tentarComProvedor("gemini");
+              provedorUsado = "Gemini";
+            }
             const respostaLimpa = data.reply.replace(/^```json\s*/, "").replace(/```$/, "").trim();
             const respostaJson = JSON.parse(respostaLimpa);
 
             const fmtData = (d: string) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informado';
-const relatorio = `**Relatório do Pacote**
+const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
 --------------------
 **Nº de Reserva/Localizador:** ${respostaJson.reserva || 'Não informado'}
 **Destino Principal:** ${respostaJson.destino || 'Não informado'}
@@ -299,7 +322,8 @@ const relatorio = `**Relatório do Pacote**
 
             return { ...doc, analise: relatorio };
           } catch (error) {
-            const mensagemErro = error instanceof Error ? error.message : "Erro desconhecido ao contatar a IA.";
+            const mensagemErro = "Não foi possível analisar o documento. Tente novamente mais tarde.";
+            setLogAnaliseIA(prev => [...prev, `Falha ao analisar "${doc.nome}": ${mensagemErro}`]);
             return { ...doc, analise: `Falha na análise com IA: ${mensagemErro}` };
           }
         })
@@ -307,12 +331,14 @@ const relatorio = `**Relatório do Pacote**
 
       setForm((f) => ({ ...f, documentos: novasAnalises }));
     } catch (error) {
-      const mensagemErro = error instanceof Error ? error.message : "Erro desconhecido ao contatar a IA.";
+      const mensagemErro = "Falha em ambos os provedores de IA. Verifique os logs e tente novamente.";
+      setLogAnaliseIA(prev => [...prev, mensagemErro]);
       setErro(`Falha na análise com IA: ${mensagemErro}`);
     } finally {
       setAnalisandoIA(false);
     }
   }
+
 
   return (
     <div className="space-y-4">
@@ -320,22 +346,21 @@ const relatorio = `**Relatório do Pacote**
       <Card className="p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h4 className="flex items-center gap-2 font-semibold text-gray-900">
-            <Upload className="h-4 w-4 text-indigo-500" />
-          Vouchers
-          </h4>
-          <Button
+            <Package2 className="h-4 w-4 text-indigo-500" />
+            Vouchers
+          </h4>          <Button
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setAnaliseMinimizada((prev) => !prev)}
+            onClick={() => setVouchersMinimizado((prev) => !prev)}
             className="gap-2 text-gray-600 hover:text-gray-900"
           >
-            {analiseMinimizada ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            {analiseMinimizada ? "Maximizar" : "Minimizar"}
+            {vouchersMinimizado ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            {vouchersMinimizado ? "Maximizar" : "Minimizar"}
           </Button>
         </div>
-        {!analiseMinimizada && (
-          <>
+          {!vouchersMinimizado && (
+            <>
             <div className="space-y-4 mb-4">
               <div
                 onClick={() => fileInputRef.current?.click()}
@@ -378,25 +403,46 @@ const relatorio = `**Relatório do Pacote**
               ) : (
                 <div className="text-center text-xs text-gray-400 border border-dashed rounded-lg p-4 flex items-center justify-center bg-white">Nenhum anexo adicionado.</div>
               )}
-            </div>
-            <Button
+            </div><Button
               type="button"
               variant="outline"
               size="sm"
               onClick={analisarDocumentosComIA}
               disabled={analisandoIA || (form.documentos || []).length === 0}
               className="gap-2 text-indigo-600 border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
-            ><Sparkles className={`w-4 h-4 ${analisandoIA ? "animate-spin" : ""}`} /> {analisandoIA ? "Analisando..." : "Analisar com IA"}</Button>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={() => setFormMinimizado(false)}
-              className="gap-2"
             >
-              <Plus className="h-4 w-4" />
-              Adicionar Pacote Manualmente
+              <Sparkles className={`w-4 h-4 ${analisandoIA ? "animate-spin" : ""}`} />
+              {analisandoIA ? "Analisando..." : "Analisar com IA"}
             </Button>
+            {analisandoIA && logAnaliseIA.length > 0 && (
+              <div className="mt-2 text-xs text-gray-500 space-y-1">
+                {logAnaliseIA.map((log, index) => (
+                  <p key={index}>{log}</p>
+                ))}
+              </div>
+            )}
+            {form.logAnalise && !analisandoIA && (
+              <div className="mt-2 text-xs text-gray-500 space-y-1 p-2 border rounded-md bg-gray-50">
+                <p className="font-semibold">Log da última análise:</p>
+                <pre className="whitespace-pre-wrap font-sans">{form.logAnalise}</pre>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t">
+              <h4 className="flex items-center gap-2 font-semibold text-gray-900">
+                <Plus className="h-4 w-4 text-indigo-500" />
+                Adicionar Voucher Manualmente
+              </h4>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setFormMinimizado((prev) => !prev)}
+                className="gap-2 text-gray-600 hover:text-gray-900"
+              >
+                {formMinimizado ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                {formMinimizado ? "Maximizar" : "Minimizar"}
+              </Button>
+            </div>
 
             {!formMinimizado && (
               <>
@@ -523,7 +569,7 @@ const relatorio = `**Relatório do Pacote**
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button type="button" onClick={salvarPacote} className="gap-2">
                     <Plus className="h-4 w-4" />
-                    {editandoId !== null ? "Salvar pacote" : "Adicionar pacote"}
+                    {editandoId !== null ? "Salvar voucher" : "Adicionar voucher"}
                   </Button>
                   {editandoId !== null && (
                     <Button type="button" variant="outline" onClick={limparFormulario}>
@@ -534,7 +580,8 @@ const relatorio = `**Relatório do Pacote**
               </>
             )}
           </>
-        )}
+          )}
+
       </Card>
 
       {/* Lista de Pacotes Adicionados */}
@@ -543,7 +590,7 @@ const relatorio = `**Relatório do Pacote**
           <Card key={pacote.id} className="p-4">
             <div className="mb-2 flex items-start justify-between gap-2">
               <div>
-                <p className="text-xs font-semibold text-gray-400">Pacote {index + 1}</p>
+                <p className="text-xs font-semibold text-gray-400">Voucher {index + 1}</p>
                 <p className="font-semibold text-gray-900">{pacote.operador || "Sem operador"}</p>
                 {(pacote.origem || pacote.destino) && (
                   <p className="text-xs text-gray-500 mt-0.5">{pacote.origem || "Origem"} -&gt; {pacote.destino || "Destino"}</p>

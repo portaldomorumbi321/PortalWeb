@@ -784,10 +784,8 @@ export default function Orcamentos() {
     // Montar dados do orçamento com seções
     const orcComSecoes = {
       ...form,
-      destino: obterDestinoPrincipalOrcamento(),
-      pacotes: pacotes.length > 0
-        ? pacotes.map((p) => ({ ...p, documentos: p.documentos || [] }))
-        : undefined,
+      destino: obterDestinoPrincipalOrcamento(undefined, true),
+      pacotes: pacotes.length > 0 ? pacotes : undefined,
       voos: voos.length > 0 ? voos : undefined,
       hospedagem: hospedagem.length > 0 ? hospedagem : undefined,
       roteiro: roteiro.trim() ? roteiro : undefined,
