@@ -88,9 +88,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return parsedBody as T;
 }
 
-export function enviarMensagemIA(messages: AIChatApiMessage[]) {
+export function enviarMensagemIA(
+  messages: AIChatApiMessage[],
+  provedor?: "openai" | "groq" | "gemini" | "openrouter" | "cloudflare"
+) {
   return request<AIChatResponse>("/ai/chat", {
     method: "POST",
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, provedor }),
   });
 }

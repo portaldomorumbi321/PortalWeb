@@ -89,6 +89,7 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
   const [vouchersMinimizado, setVouchersMinimizado] = useState(false);
   const [analisandoIA, setAnalisandoIA] = useState(false);
   const [logAnaliseIA, setLogAnaliseIA] = useState<string[]>([]);
+  const [provedorIA, setProvedorIA] = useState<"automático" | "openai" | "groq" | "gemini" | "openrouter" | "cloudflare">("automático");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const operadores = useMemo(
@@ -228,7 +229,16 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
 
     setAnalisandoIA(true);
     setErro("");
-    setLogAnaliseIA(["Iniciando análise com IA..."]);
+    setForm((f) => ({ ...f, logAnalise: "" }));
+
+    // Usa array local para garantir que o log seja preciso (evita problemas com estado assíncrono do React)
+    const logEntries: string[] = ["Iniciando análise com IA..."];
+    setLogAnaliseIA([...logEntries]);
+
+    const adicionarLog = (mensagem: string) => {
+      logEntries.push(mensagem);
+      setLogAnaliseIA([...logEntries]);
+    };
 
     try {
       const novasAnalises = await Promise.all(
@@ -277,24 +287,57 @@ Formato JSON esperado:
   "horaChegadaVolta": "string"
 }`;
 
-          const tentarComProvedor = async (provedor?: "groq" | "gemini") => {
+          const tentarComProvedor = async (provedor?: "openai" | "groq" | "gemini" | "openrouter" | "cloudflare") => {
             return enviarMensagemIA([{ role: "user", content: prompt }], provedor);
           };
 
           try {
             let data;
-            let provedorUsado: "Groq" | "Gemini" = "Groq";
-            try {
-              setLogAnaliseIA(prev => [...prev, `Analisando "${doc.nome}" com Groq...`]);
-              data = await tentarComProvedor("groq");
-            } catch (error) {
-              // Se o provedor principal falhar, tenta com o fallback (Gemini)
-              const erroMsg = error instanceof Error ? error.message : "Erro desconhecido";
-              console.warn(`Falha no provedor principal (Groq): ${erroMsg}. Tentando com o fallback (Gemini)...`);
-              setLogAnaliseIA(prev => [...prev, `Falha no Groq para "${doc.nome}". Tentando com Gemini...`]);
-              data = await tentarComProvedor("gemini");
-              provedorUsado = "Gemini";
+            let provedorUsado: "OpenAI" | "Groq" | "Gemini" | "OpenRouter" | "Cloudflare";
+            const provedoresAutomatico: ("openai" | "groq" | "gemini" | "openrouter" | "cloudflare")[] = ["openai", "groq", "gemini", "openrouter", "cloudflare"];
+
+            if (provedorIA === "automático") {
+              const mapaProvedorCapitalizado: Record<string, "OpenAI" | "Groq" | "Gemini" | "OpenRouter" | "Cloudflare"> = {
+                openai: "OpenAI",
+                groq: "Groq",
+                gemini: "Gemini",
+                openrouter: "OpenRouter",
+                cloudflare: "Cloudflare",
+              };
+
+              for (const provedor of provedoresAutomatico) {
+                try {
+                  const nomeProvedor = mapaProvedorCapitalizado[provedor];
+                  adicionarLog(`Analisando "${doc.nome}" com ${nomeProvedor}...`);
+                  data = await tentarComProvedor(provedor);
+                  provedorUsado = nomeProvedor;
+                  // Se a chamada for bem-sucedida, saia do loop
+                  if (data) break;
+                } catch (error) {
+                  const nomeProvedor = mapaProvedorCapitalizado[provedor];
+                  console.warn(`Falha no ${nomeProvedor}, tentando com o próximo...`, error);
+                  adicionarLog(`Falha no ${nomeProvedor} para "${doc.nome}". Tentando com o próximo...`);
+                }
+              }
+
+              if (!data) {
+                // Se todos os provedores falharem
+                throw new Error("Todos os provedores de IA falharam.");
+              }
+            } else {
+              const mapaProvedor: Record<string, "OpenAI" | "Groq" | "Gemini" | "OpenRouter" | "Cloudflare"> = {
+                openai: "OpenAI",
+                groq: "Groq",
+                gemini: "Gemini",
+                openrouter: "OpenRouter",
+                cloudflare: "Cloudflare",
+              };
+              const provedorCapitalizado = mapaProvedor[provedorIA] || "OpenAI";
+              adicionarLog(`Analisando "${doc.nome}" com ${provedorCapitalizado}...`);
+              data = await tentarComProvedor(provedorIA);
+              provedorUsado = provedorCapitalizado;
             }
+
             const respostaLimpa = data.reply.replace(/^```json\s*/, "").replace(/```$/, "").trim();
             const respostaJson = JSON.parse(respostaLimpa);
 
@@ -323,7 +366,7 @@ const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
             return { ...doc, analise: relatorio };
           } catch (error) {
             const mensagemErro = "Não foi possível analisar o documento. Tente novamente mais tarde.";
-            setLogAnaliseIA(prev => [...prev, `Falha ao analisar "${doc.nome}": ${mensagemErro}`]);
+            adicionarLog(`Falha ao analisar "${doc.nome}": ${mensagemErro}`);
             return { ...doc, analise: `Falha na análise com IA: ${mensagemErro}` };
           }
         })
@@ -332,10 +375,12 @@ const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
       setForm((f) => ({ ...f, documentos: novasAnalises }));
     } catch (error) {
       const mensagemErro = "Falha em ambos os provedores de IA. Verifique os logs e tente novamente.";
-      setLogAnaliseIA(prev => [...prev, mensagemErro]);
+      adicionarLog(mensagemErro);
       setErro(`Falha na análise com IA: ${mensagemErro}`);
     } finally {
       setAnalisandoIA(false);
+      // Persiste o log no formulário para exibir após a análise (usa o array local que tem os valores corretos)
+      setForm((f) => ({ ...f, logAnalise: logEntries.join("\n") }));
     }
   }
 
@@ -403,28 +448,37 @@ const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
               ) : (
                 <div className="text-center text-xs text-gray-400 border border-dashed rounded-lg p-4 flex items-center justify-center bg-white">Nenhum anexo adicionado.</div>
               )}
-            </div><Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={analisarDocumentosComIA}
-              disabled={analisandoIA || (form.documentos || []).length === 0}
-              className="gap-2 text-indigo-600 border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
-            >
-              <Sparkles className={`w-4 h-4 ${analisandoIA ? "animate-spin" : ""}`} />
-              {analisandoIA ? "Analisando..." : "Analisar com IA"}
-            </Button>
-            {analisandoIA && logAnaliseIA.length > 0 && (
-              <div className="mt-2 text-xs text-gray-500 space-y-1">
-                {logAnaliseIA.map((log, index) => (
-                  <p key={index}>{log}</p>
-                ))}
-              </div>
-            )}
-            {form.logAnalise && !analisandoIA && (
-              <div className="mt-2 text-xs text-gray-500 space-y-1 p-2 border rounded-md bg-gray-50">
-                <p className="font-semibold">Log da última análise:</p>
-                <pre className="whitespace-pre-wrap font-sans">{form.logAnalise}</pre>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={analisarDocumentosComIA}
+                disabled={analisandoIA || (form.documentos || []).length === 0}
+                className="gap-2 text-indigo-600 border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+              >
+                <Sparkles className={`w-4 h-4 ${analisandoIA ? "animate-spin" : ""}`} />
+                {analisandoIA ? "Analisando..." : "Analisar com IA"}
+              </Button>
+              <select
+                value={provedorIA}
+                onChange={(e) => setProvedorIA(e.target.value as any)}
+                className="h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring"
+                disabled={analisandoIA}
+              >
+                <option value="automático">Automático</option>
+                <option value="openai">OpenAI</option>
+                <option value="groq">Groq</option>
+                <option value="gemini">Gemini</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="cloudflare">Cloudflare</option>
+              </select>
+            </div>
+            {logAnaliseIA.length > 0 && (
+              <div className={`mt-2 text-xs space-y-1 ${analisandoIA ? "text-gray-500" : "text-gray-600 p-2 border rounded-md bg-gray-50"}`}>
+                {!analisandoIA && <p className="font-semibold">Log da última análise:</p>}
+                <pre className="whitespace-pre-wrap font-sans">{logAnaliseIA.join("\n")}</pre>
               </div>
             )}
             <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t">

@@ -34,7 +34,33 @@ const { Pool } = require('pg');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 
-const AIService = require('./groq/index.cjs');
+const GroqService = require('./groq/index.cjs');
+const GeminiService = require('./gemini/index.cjs');
+const OpenAIService = require('./openai/index.cjs');
+const OpenRouterService = require('./openrouter/index.cjs');
+const CloudflareService = require('./cloudflare/index.cjs');
+
+// AIService roteia para o provedor correto
+const AIService = {
+    async generate(messages, provedor) {
+        const provider = provedor || process.env.AI_PROVIDER || 'openai';
+        
+        switch (provider) {
+            case 'openai':
+                return OpenAIService.generate(messages);
+            case 'groq':
+                return GroqService.generate(messages);
+            case 'gemini':
+                return GeminiService.generate(messages);
+            case 'openrouter':
+                return OpenRouterService.generate(messages);
+            case 'cloudflare':
+                return CloudflareService.generate(messages);
+            default:
+                return OpenAIService.generate(messages);
+        }
+    }
+};
 
 function loadEnvFile(filePath) {
     if (!fs.existsSync(filePath)) {
@@ -998,440 +1024,439 @@ function isAirportLike(place) {
     const text = normalizeTextForComparison(
         `${place?.displayName?.text || ''} ${place?.formattedAddress || ''}`
     );
-    return /\b(aeroporto|airport|aeropuerto|galeao|santos dumont|terminal)\b/.test(text);
+
+    return /\bairport\b/.test(text) || /\baeroporto\b/.test(text);
 }
 
-function scorePlaceForPhoto(place, expectedQuery) {
+function scorePlaceForPhoto(place, query) {
+    const name = normalizeTextForComparison(place?.displayName?.text || '');
+    const address = normalizeTextForComparison(place?.formattedAddress || '');
+    const queryNorm = normalizeTextForComparison(query);
+    const queryWords = queryNorm.split(/\s+/).filter(Boolean);
     const hasPhoto = Array.isArray(place?.photos) && place.photos.length > 0;
+    const isAirport = isAirportLike(place);
+
     if (!hasPhoto) {
-        return Number.NEGATIVE_INFINITY;
+        return -1;
     }
 
-    const query = normalizeTextForComparison(expectedQuery);
-    const name = normalizeTextForComparison(place?.displayName?.text || '');
-    const address = normalizeTextForComparison(place?.formattedAddress || '');
-    const combined = `${name} ${address}`.trim();
-
-    let score = 100;
-
-    if (query && combined.includes(query)) {
-        score += 60;
+    if (isAirport) {
+        return -1;
     }
-
-    const queryTokens = query.split(' ').filter((token) => token.length >= 3);
-    for (const token of queryTokens) {
-        if (combined.includes(token)) {
-            score += 8;
-        }
-    }
-
-    if (isAirportLike(place)) {
-        score -= 80;
-    }
-
-    return score;
-}
-
-function scoreCenterCandidate(place, expectedQuery) {
-    if (!place?.location || typeof place.location.latitude !== 'number' || typeof place.location.longitude !== 'number') {
-        return Number.NEGATIVE_INFINITY;
-    }
-
-    const query = normalizeTextForComparison(expectedQuery);
-    const name = normalizeTextForComparison(place?.displayName?.text || '');
-    const address = normalizeTextForComparison(place?.formattedAddress || '');
-    const combined = `${name} ${address}`.trim();
 
     let score = 0;
 
-    if (query && combined.includes(query)) {
-        score += 70;
+    if (name === queryNorm) {
+        score += 100;
+    } else if (name.includes(queryNorm)) {
+        score += 50;
+    } else {
+        const nameWords = name.split(/\s+/).filter(Boolean);
+        const matchCount = queryWords.filter((word) => nameWords.includes(word)).length;
+        score += matchCount * 10;
     }
 
-    const queryTokens = query.split(' ').filter((token) => token.length >= 3);
-    for (const token of queryTokens) {
-        if (combined.includes(token)) {
-            score += 10;
-        }
+    if (address.includes(queryNorm)) {
+        score += 20;
     }
 
-    if (isAirportLike(place)) {
-        score -= 120;
+    if (place?.rating) {
+        score += place.rating * 2;
+    }
+
+    if (place?.userRatingCount) {
+        score += Math.min(place.userRatingCount / 100, 10);
     }
 
     return score;
 }
 
+function scoreCenterCandidate(place, query) {
+    const name = normalizeTextForComparison(place?.displayName?.text || '');
+    const address = normalizeTextForComparison(place?.formattedAddress || '');
+    const queryNorm = normalizeTextForComparison(query);
+    const queryWords = queryNorm.split(/\s+/).filter(Boolean);
+    const isAirport = isAirportLike(place);
+
+    if (isAirport) {
+        return -1;
+    }
+
+    let score = 0;
+
+    if (name === queryNorm) {
+        score += 100;
+    } else if (name.includes(queryNorm)) {
+        score += 50;
+    } else {
+        const nameWords = name.split(/\s+/).filter(Boolean);
+        const matchCount = queryWords.filter((word) => nameWords.includes(word)).length;
+        score += matchCount * 10;
+    }
+
+    if (address.includes(queryNorm)) {
+        score += 20;
+    }
+
+    if (place?.rating) {
+        score += place.rating * 2;
+    }
+
+    if (place?.userRatingCount) {
+        score += Math.min(place.userRatingCount / 100, 10);
+    }
+
+    return score;
+}
+
+function logPlacePhoto(context, data) {
+    if (process.env.NODE_ENV === 'production') {
+        return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const prefix = `[PlacePhoto ${timestamp}]`;
+    console.log(`${prefix} ${context}`, JSON.stringify(data, null, 2));
+}
+
+function logServerError(context, error) {
+    const timestamp = new Date().toISOString();
+    const prefix = `[ServerError ${timestamp}]`;
+    console.error(`${prefix} ${context}`, error?.message || error, error?.stack || '');
+}
+
+function parseAxiosError(error, fallbackMessage) {
+    if (error?.response) {
+        const status = Number(error.response.status) || 500;
+        const data = error.response.data;
+
+        if (data?.error?.message) {
+            return { status, message: data.error.message };
+        }
+
+        if (typeof data?.error === 'string') {
+            return { status, message: data.error };
+        }
+
+        if (status === 403) {
+            return { status: 403, message: 'Acesso negado pela API externa. Verifique a chave de API e permissões.' };
+        }
+
+        if (status === 404) {
+            return { status: 404, message: 'Recurso não encontrado na API externa.' };
+        }
+
+        if (status >= 500) {
+            return { status: 502, message: 'API externa retornou erro interno.' };
+        }
+
+        return { status, message: `API externa retornou status ${status}.` };
+    }
+
+    if (error?.code === 'ENOTFOUND' || error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT') {
+        return { status: 503, message: 'API externa indisponível. Verifique internet/VPN.' };
+    }
+
+    return { status: 500, message: fallbackMessage || 'Erro desconhecido ao comunicar com API externa.' };
+}
+
 async function searchPlacesByText(textQuery, apiKey) {
-    const response = await axios.post(
-        'https://places.googleapis.com/v1/places:searchText',
-        {
-            textQuery,
-            languageCode: 'pt-BR',
-        },
-        {
-            timeout: 15000,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Goog-Api-Key': apiKey,
-                'X-Goog-FieldMask': 'places.name,places.displayName,places.formattedAddress,places.location,places.types,places.photos',
-            },
-        }
-    );
-
-    return Array.isArray(response?.data?.places) ? response.data.places : [];
-}
-
-async function searchLodgingOptions(place) {
-    const apiKey = getGoogleMapsApiKey();
-    const candidates = buildPlaceSearchCandidates(place);
-    const optionsMap = new Map();
-
-    for (const textQuery of candidates) {
-        const lodgingQuery = `${textQuery} hospedagem hotel`;
-
-        const response = await axios.post(
-            'https://places.googleapis.com/v1/places:searchText',
-            {
-                textQuery: lodgingQuery,
-                languageCode: 'pt-BR',
-            },
-            {
-                timeout: 15000,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': apiKey,
-                    'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.websiteUri,places.types',
-                },
-            }
-        );
-
-        const places = Array.isArray(response?.data?.places) ? response.data.places : [];
-        let added = 0;
-        let skipped = 0;
-
-        for (const item of places) {
-            const types = Array.isArray(item?.types) ? item.types : [];
-            const normalizedName = normalizeTextForComparison(item?.displayName?.text || '');
-            const nameSuggestsLodging = /\b(hotel|hostel|resort|pousada|inn)\b/.test(normalizedName);
-            const likelyLodging = types.some((type) =>
-                ['lodging', 'hotel', 'inn', 'resort_hotel', 'guest_house', 'hostel'].includes(String(type || '').toLowerCase())
-            );
-
-            if (!likelyLodging && !nameSuggestsLodging && types.length > 0) {
-                skipped += 1;
-                continue;
-            }
-
-            const nome = String(item?.displayName?.text || '').trim();
-            const endereco = String(item?.formattedAddress || '').trim();
-            const key = normalizeTextForComparison(`${nome} ${endereco}`);
-            if (!key) {
-                skipped += 1;
-                continue;
-            }
-
-            if (!optionsMap.has(key)) {
-                const classificacao = Number(item?.rating || 0);
-                optionsMap.set(key, {
-                    placeId: key,
-                    nome: nome || textQuery,
-                    local: textQuery,
-                    endereco: endereco || textQuery,
-                    classificacao: Number.isFinite(classificacao) ? classificacao : 0,
-                    totalAvaliacoes: Number(item?.userRatingCount || 0) || 0,
-                    tiposQuarto: ['Standard', 'Superior', 'Suíte'],
-                    amenidades: ['Wi-Fi', 'Café da manhã'],
-                    precoBase: 350,
-                    photos: null,
-                    linkOperadora: String(item?.websiteUri || '').trim(),
-                });
-                added += 1;
-            }
-        }
-
-    }
-
-    const options = Array.from(optionsMap.values()).slice(0, 20);
-    return options;
-}
-
-async function searchRestaurantOptions(place) {
-    const apiKey = getGoogleMapsApiKey();
-    const candidates = buildPlaceSearchCandidates(place);
-    const optionsMap = new Map();
-
-    for (const textQuery of candidates) {
-        const response = await axios.post(
-            'https://places.googleapis.com/v1/places:searchText',
-            {
-                textQuery: `${textQuery} restaurantes`,
-                languageCode: 'pt-BR',
-            },
-            {
-                timeout: 15000,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': apiKey,
-                    'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.websiteUri,places.internationalPhoneNumber,places.priceLevel,places.types',
-                },
-            }
-        );
-
-        const places = Array.isArray(response?.data?.places) ? response.data.places : [];
-        for (const item of places) {
-            const types = Array.isArray(item?.types) ? item.types : [];
-            const normalizedName = normalizeTextForComparison(item?.displayName?.text || '');
-            const nameSuggestsRestaurant = /\b(restaurante|bistro|cantina|pizzaria|grill|cafe|lanchonete)\b/.test(normalizedName);
-            const likelyRestaurant = types.some((type) =>
-                ['restaurant', 'cafe', 'meal_takeaway', 'meal_delivery', 'food'].includes(String(type || '').toLowerCase())
-            );
-
-            if (!likelyRestaurant && !nameSuggestsRestaurant && types.length > 0) {
-                continue;
-            }
-
-            const nome = String(item?.displayName?.text || '').trim();
-            const endereco = String(item?.formattedAddress || '').trim();
-            const key = normalizeTextForComparison(`${nome} ${endereco}`);
-            if (!key || optionsMap.has(key)) {
-                continue;
-            }
-
-            optionsMap.set(key, {
-                placeId: key,
-                nome: nome || textQuery,
-                local: textQuery,
-                endereco: endereco || textQuery,
-                classificacao: Number(item?.rating || 0) || 0,
-                totalAvaliacoes: Number(item?.userRatingCount || 0) || 0,
-                telefone: String(item?.internationalPhoneNumber || '').trim(),
-                website: String(item?.websiteUri || '').trim(),
-                priceLevel: typeof item?.priceLevel === 'string' ? item.priceLevel : Number(item?.priceLevel || 0) || '',
-            });
-        }
-    }
-
-    return Array.from(optionsMap.values()).slice(0, 20);
-}
-
-async function searchExperienceOptions(place) {
-    const apiKey = getGoogleMapsApiKey();
-    const candidates = buildPlaceSearchCandidates(place);
-    const optionsMap = new Map();
-
-    for (const textQuery of candidates) {
-        const response = await axios.post(
-            'https://places.googleapis.com/v1/places:searchText',
-            {
-                textQuery: `${textQuery} atrações experiências`,
-                languageCode: 'pt-BR',
-            },
-            {
-                timeout: 15000,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': apiKey,
-                    'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types',
-                },
-            }
-        );
-
-        const places = Array.isArray(response?.data?.places) ? response.data.places : [];
-        for (const item of places) {
-            const types = Array.isArray(item?.types) ? item.types : [];
-            const normalizedName = normalizeTextForComparison(item?.displayName?.text || '');
-            const nameSuggestsExperience = /\b(tour|passeio|museu|parque|atracao|atração|experiencia|experiência)\b/.test(normalizedName);
-            const likelyExperience = types.some((type) =>
-                [
-                    'tourist_attraction',
-                    'point_of_interest',
-                    'museum',
-                    'amusement_park',
-                    'park',
-                    'zoo',
-                    'aquarium',
-                    'art_gallery',
-                ].includes(String(type || '').toLowerCase())
-            );
-
-            if (!likelyExperience && !nameSuggestsExperience && types.length > 0) {
-                continue;
-            }
-
-            const nome = String(item?.displayName?.text || '').trim();
-            const endereco = String(item?.formattedAddress || '').trim();
-            const key = normalizeTextForComparison(`${nome} ${endereco}`);
-            if (!key || optionsMap.has(key)) {
-                continue;
-            }
-
-            optionsMap.set(key, {
-                placeId: key,
-                nome: nome || textQuery,
-                local: textQuery,
-                endereco: endereco || textQuery,
-                classificacao: Number(item?.rating || 0) || 0,
-                totalAvaliacoes: Number(item?.userRatingCount || 0) || 0,
-                descricao: '',
-                priceLevel: typeof item?.priceLevel === 'string' ? item.priceLevel : Number(item?.priceLevel || 0) || '',
-            });
-        }
-    }
-
-    return Array.from(optionsMap.values()).slice(0, 20);
-}
-
-async function searchNearbyPhotoPlace(center, apiKey) {
-    if (!center || typeof center.latitude !== 'number' || typeof center.longitude !== 'number') {
+    if (!textQuery || !apiKey) {
         return [];
     }
 
-    const requestBase = {
-        maxResultCount: 15,
-        rankPreference: 'POPULARITY',
-        languageCode: 'pt-BR',
-        locationRestriction: {
-            circle: {
-                center: {
-                    latitude: center.latitude,
-                    longitude: center.longitude,
-                },
-                radius: 35000,
+    try {
+        const response = await axios.post(
+            'https://places.googleapis.com/v1/places:searchText',
+            {
+                textQuery,
+                languageCode: 'pt-BR',
+                pageSize: 10,
             },
-        },
-    };
+            {
+                timeout: 10000,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': apiKey,
+                    'X-Goog-FieldMask':
+                        'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos,places.types',
+                },
+            }
+        );
 
-    const requestConfig = {
-        timeout: 15000,
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': apiKey,
-            'X-Goog-FieldMask': 'places.name,places.displayName,places.formattedAddress,places.types,places.photos',
-        },
-    };
+        return Array.isArray(response?.data?.places) ? response.data.places : [];
+    } catch (error) {
+        logServerError('Erro ao buscar lugares por texto:', error);
+        return [];
+    }
+}
+
+async function searchNearbyPhotoPlace(center, apiKey) {
+    if (!center || !apiKey) {
+        return [];
+    }
 
     try {
         const response = await axios.post(
             'https://places.googleapis.com/v1/places:searchNearby',
             {
-                ...requestBase,
-                includedTypes: ['tourist_attraction'],
+                locationRestriction: {
+                    circle: {
+                        center: {
+                            latitude: center.latitude,
+                            longitude: center.longitude,
+                        },
+                        radius: 500,
+                    },
+                },
+                includedTypes: ['tourist_attraction', 'point_of_interest', 'natural_feature', 'park', 'landmark'],
+                languageCode: 'pt-BR',
+                maxResultCount: 10,
             },
-            requestConfig
+            {
+                timeout: 10000,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': apiKey,
+                    'X-Goog-FieldMask':
+                        'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos,places.types',
+                },
+            }
         );
 
         return Array.isArray(response?.data?.places) ? response.data.places : [];
     } catch (error) {
-        const status = Number(error?.response?.status || 0);
-        const apiMessage = String(error?.response?.data?.error?.message || '');
-
-        if (status === 400 && /unsupported types/i.test(apiMessage)) {
-            logPlacePhoto('NearbySearch unsupported types fallback', { message: apiMessage });
-
-            const response = await axios.post(
-                'https://places.googleapis.com/v1/places:searchNearby',
-                requestBase,
-                requestConfig
-            );
-
-            return Array.isArray(response?.data?.places) ? response.data.places : [];
-        }
-
-        throw error;
-    }
-}
-
-async function getPlaceDetailsPhotos(placeName, apiKey) {
-    if (typeof placeName !== 'string' || !/^places\/.+/.test(placeName)) {
+        logServerError('Erro ao buscar lugares próximos:', error);
         return [];
     }
-
-    const response = await axios.get(`https://places.googleapis.com/v1/${placeName}`, {
-        timeout: 15000,
-        params: {
-            languageCode: 'pt-BR',
-        },
-        headers: {
-            'X-Goog-Api-Key': apiKey,
-            'X-Goog-FieldMask': 'name,photos',
-        },
-    });
-
-    return Array.isArray(response?.data?.photos) ? response.data.photos : [];
 }
-
-let placeDetailsBackoffUntil = 0;
 
 async function hydratePlacesWithDetailsPhotos(places, apiKey) {
-    if (!Array.isArray(places) || places.length === 0) {
+    if (!Array.isArray(places) || !apiKey) {
         return [];
     }
 
-    const needHydration = places.some((item) => !Array.isArray(item?.photos) || item.photos.length === 0);
-    if (!needHydration) {
-        return places;
-    }
+    const enriched = [];
 
-    if (Date.now() < placeDetailsBackoffUntil) {
-        logPlacePhoto('PlaceDetails hydration skipped (backoff)', {
-            remainingMs: placeDetailsBackoffUntil - Date.now(),
-        });
-        return places;
-    }
+    for (const place of places) {
+        const name = place?.displayName?.text || '';
+        const address = place?.formattedAddress || '';
+        const hasPhoto = Array.isArray(place?.photos) && place.photos.length > 0;
 
-    const hydrated = await Promise.all(
-        places.slice(0, 12).map(async (item) => {
-            const existingPhotos = Array.isArray(item?.photos) ? item.photos : [];
-            if (existingPhotos.length > 0) {
-                return item;
+        if (hasPhoto) {
+            enriched.push(place);
+            continue;
+        }
+
+        if (!name && !address) {
+            continue;
+        }
+
+        try {
+            const searchQuery = name || address;
+            const response = await axios.post(
+                'https://places.googleapis.com/v1/places:searchText',
+                {
+                    textQuery: searchQuery,
+                    languageCode: 'pt-BR',
+                    pageSize: 1,
+                },
+                {
+                    timeout: 10000,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': apiKey,
+                        'X-Goog-FieldMask':
+                            'places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.photos,places.types',
+                    },
+                }
+            );
+
+            const hydrated = response?.data?.places?.[0];
+            if (hydrated && Array.isArray(hydrated.photos) && hydrated.photos.length > 0) {
+                enriched.push(hydrated);
+            } else {
+                enriched.push(place);
             }
+        } catch (error) {
+            enriched.push(place);
+        }
+    }
 
+    return enriched;
+}
+
+async function fetchWikipediaThumbnail(place) {
+    const candidates = buildPlaceSearchCandidates(place);
+
+    for (const candidate of candidates) {
+        const parts = candidate.split(',').map((part) => part.trim()).filter(Boolean);
+        const title = parts[0];
+
+        if (!title) {
+            continue;
+        }
+
+        const locales = ['pt', 'en'];
+
+        for (const locale of locales) {
             try {
-                const detailsPhotos = await getPlaceDetailsPhotos(item?.name, apiKey);
-                if (detailsPhotos.length > 0) {
+                const response = await axios.get(`https://${locale}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`, {
+                    timeout: 10000,
+                    headers: {
+                        'User-Agent': 'PortalWeb-PlacePhoto/1.0',
+                    },
+                });
+
+                const thumbnail = response?.data?.thumbnail?.source;
+                if (typeof thumbnail === 'string' && /^https?:\/\//i.test(thumbnail)) {
                     return {
-                        ...item,
-                        photos: detailsPhotos,
+                        url: thumbnail,
+                        source: `wikipedia-${locale}`,
+                        title,
                     };
                 }
-            } catch (error) {
-                const status = Number(error?.response?.status || 0);
-                if (status === 429) {
-                    placeDetailsBackoffUntil = Date.now() + 5 * 60 * 1000;
-                }
-                logPlacePhoto('PlaceDetails photo fetch error', {
-                    placeName: item?.name || null,
-                    status,
-                    message: error?.message,
-                });
+            } catch (_) {
+                // Ignore and continue trying other title/locale combinations.
             }
-
-            return item;
-        })
-    );
-
-    if (places.length > 12) {
-        return [...hydrated, ...places.slice(12)];
+        }
     }
 
-    return hydrated;
+    return null;
 }
 
-function logPlacePhoto(step, data) {
-    return;
+async function canUseStreetView(apiKey, latitude, longitude) {
+    try {
+        const response = await axios.get('https://maps.googleapis.com/maps/api/streetview/metadata', {
+            timeout: 10000,
+            params: {
+                location: `${latitude},${longitude}`,
+                source: 'outdoor',
+                key: apiKey,
+            },
+        });
+
+        const status = String(response?.data?.status || '').toUpperCase();
+        return {
+            ok: status === 'OK',
+            status,
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            status: Number(error?.response?.status || 0) ? `HTTP_${error.response.status}` : 'ERROR',
+        };
+    }
 }
 
-function logServerError() {
-    return;
-}
+async function searchDestinationPhotoName(place) {
+    const apiKey = getGoogleMapsApiKey();
+    const candidates = buildPlaceSearchCandidates(place);
+    let selected = null;
+    let fallbackCenter = null;
+    const optionsMap = new Map();
 
-function parseAxiosError(error, fallbackMessage) {
-    const status = Number(error?.response?.status || 0);
-    const apiMessage = error?.response?.data?.error?.message;
+    const registerOptions = (places) => {
+        if (!Array.isArray(places)) {
+            return;
+        }
 
-    if (!apiMessage && Buffer.isBuffer(error?.response?.data)) {
-        const rawMessage = error.response.data.toString('utf8').trim();
+        for (const item of places) {
+            const name = String(item?.displayName?.text || '').trim();
+            const address = String(item?.formattedAddress || '').trim();
+            const key = normalizeTextForComparison(name || address);
+            if (!key) {
+                continue;
+            }
+
+            if (!optionsMap.has(key)) {
+                optionsMap.set(key, {
+                    name: name || address,
+                    address: address || null,
+                });
+            }
+        }
+    };
+
+    logPlacePhoto('TextSearch candidates', { place, candidates });
+
+    for (const textQuery of candidates) {
+        logPlacePhoto('TextSearch request', { place, textQuery });
+
+        const placesRaw = await searchPlacesByText(textQuery, apiKey);
+        registerOptions(placesRaw);
+        const places = await hydratePlacesWithDetailsPhotos(placesRaw, apiKey);
+        const centerCandidates = places
+            .map((item) => ({
+                item,
+                score: scoreCenterCandidate(item, textQuery),
+            }))
+            .filter((entry) => Number.isFinite(entry.score))
+            .sort((a, b) => b.score - a.score);
+
+        if (centerCandidates.length > 0) {
+            const bestCenter = centerCandidates[0];
+            if (!fallbackCenter || bestCenter.score > fallbackCenter.score) {
+                fallbackCenter = {
+                    latitude: bestCenter.item.location.latitude,
+                    longitude: bestCenter.item.location.longitude,
+                    sourceQuery: textQuery,
+                    sourcePlace: bestCenter.item?.displayName?.text || null,
+                    score: bestCenter.score,
+                };
+            }
+        }
+        const ranked = places
+            .map((item) => ({
+                item,
+                score: scorePlaceForPhoto(item, textQuery),
+            }))
+            .filter((entry) => Number.isFinite(entry.score))
+            .sort((a, b) => b.score - a.score);
+
+        logPlacePhoto('TextSearch response', {
+            place,
+            textQuery,
+            totalPlaces: placesRaw.length,
+            rankedWithPhoto: ranked.length,
+            topMatches: places.slice(0, 3).map((item) => ({
+                name: item?.displayName?.text || null,
+                address: item?.formattedAddress || null,
+                photoCount: Array.isArray(item?.photos) ? item.photos.length : 0,
+                airportLike: isAirportLike(item),
+            })),
+        });
+
+        if (ranked.length > 0) {
+            selected = {
+                textQuery,
+                place: ranked[0].item,
+                score: ranked[0].score,
+                method: 'textSearch',
+            };
+            break;
+        }
+    }
+
+    if (!selected && fallbackCenter) {
+        logPlacePhoto('NearbySearch request', {
+            place,
+            center: {
+                latitude: fallbackCenter.latitude,
+                longitude: fallbackCenter.longitude,
+            },
+            sourceQuery: fallbackCenter.sourceQuery,
+            sourcePlace: fallbackCenter.sourcePlace,
+        });
+
+        const nearbyPlacesRaw = await searchNearbyPhotoPlace(fallbackCenter, apiKey);
+        registerOptions(nearbyPlacesRaw);
+        const nearbyPlaces = await hydratePlacesWithDetailsPhotos(nearbyPlacesRaw, apiKey);
+        const nearbyRanked = nearbyPlaces
+            .map((item) => ({
+                item,
+                score: scorePlaceForPhoto(item, place),
+            }))
         if (rawMessage) {
             if (status === 401 || status === 403) {
                 return { status: 502, message: rawMessage };
@@ -1985,7 +2010,8 @@ app.post('/api/ai/chat', async (req, res) => {
     try {
 
         const reply = await AIService.generate(
-            req.body.messages
+            req.body.messages,
+            req.body.provedor
         );
 
         res.json({
