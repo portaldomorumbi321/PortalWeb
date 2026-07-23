@@ -2,9 +2,9 @@ import { useParams } from "react-router";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import {
-  Share2, X, Instagram, Mail, MessageCircle
+  Share2, X, Instagram, Mail, MessageCircle, Car, MapPin, Globe
 } from "lucide-react";
-import {JSX, useEffect, useRef, useState } from "react";
+import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { listarFuncionarios, type Funcionario } from "../data/funcionariosApi";
 import { buscarOrcamentoPublico } from "../data/orcamentosApi";
 
@@ -1355,10 +1355,68 @@ export default function RoteiroOrcamento() {
           </div>
           <div className="p-4 space-y-3">
             {orc.restaurante.map((r: any, idx: number) => (
-              <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                <p className="font-medium text-gray-900">{r.nome}</p>
-                <p className="text-sm text-gray-600">{r.local}</p>
-              </div>
+                <div key={idx} className="p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-gray-900 text-sm">{r.nome}</span>
+                    {r.tipoCozinha && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">{r.tipoCozinha}</span>}
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">{r.local}</p>
+                  {r.endereco && <p className="text-xs text-gray-500">{r.endereco}</p>}
+
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                    {r.data && <span>Data: <span className="font-medium text-gray-700">{formatarDataCurta(r.data)}</span></span>}
+                    {r.horario && <span>Horário: <span className="font-medium text-gray-700">{r.horario}</span></span>}
+                    {r.qtdPessoas > 0 && <span><span className="font-medium text-gray-700">{r.qtdPessoas}</span> pessoa(s)</span>}
+                    {r.preco > 0 && <span className="font-semibold text-indigo-600">{formatarMoeda(r.preco)}</span>}
+                  </div>
+
+                  {r.observacoes && <p className="text-xs text-gray-500 mt-1 italic">{r.observacoes}</p>}
+
+                  <div className="mt-2 flex flex-col items-start gap-1.5 text-xs">
+                    {r.website && (
+                      <a href={r.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5" />
+                        Website
+                      </a>
+                    )}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {r.voucher && (
+                        <button
+                          onClick={() => {
+                            const win = window.open("");
+                            if (win && r.voucher) {
+                              win.document.write(
+                                r.voucherTipo === "pdf"
+                                  ? `<iframe src="${r.voucher}" style="width:100%;height:100%;border:none;"></iframe>`
+                                  : `<img src="${r.voucher}" style="max-width:100%;max-height:100vh;display:block;margin:auto;" />`
+                              );
+                            }
+                          }}
+                          className="text-indigo-600 hover:text-indigo-800 underline"
+                        >
+                          Ver voucher
+                        </button>
+                      )}
+                    </div>
+                    {r.urlMaps && (
+                      <a href={r.urlMaps} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5" />
+                        Ver no Google Maps
+                      </a>
+                    )}
+                    {r.endereco && (
+                      <a
+                        href={`https://m.uber.com/ul/?action=setPickup&pickup=current_location&dropoff[formatted_address]=${encodeURIComponent(r.endereco)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center gap-1.5"
+                      >
+                        <Car className="w-3.5 h-3.5" />
+                        Chamar Uber
+                      </a>
+                    )}
+                  </div>
+                </div>
             ))}
           </div>
         </Card>

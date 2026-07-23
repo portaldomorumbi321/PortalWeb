@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Search, Plus, Edit2, X, Check, FileText, ChevronDown, ChevronUp, Upload,
-  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Sparkles, Link2, Star, Plane
+  User, Calendar, DollarSign, Send, Eye, Copy, MapPin, Sparkles, Link2, Star, Plane, Bed
 } from "lucide-react"; // Adicionado Sparkles
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
@@ -62,7 +62,7 @@ const statusConfig: Record<StatusOrc, { bg: string; cor: string }> = {
 };
 
 const allStatus: StatusOrc[] = ["Rascunho", "Enviado", "Aprovado", "Rejeitado", "Cancelado"];
-const secoesOrcamento = ["Pacotes", "Hospedagem", "Roteiro", "Day by Day", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
+const secoesOrcamento = ["Pacotes", "Roteiro", "Day by Day", "Transporte", "Restaurante", "Experiências", "Seguro", "Vendas"] as const;
 type SecaoOrcamento = typeof secoesOrcamento[number];
 
 type CategoriaPerfilViagem = {
@@ -403,8 +403,8 @@ type Tela = "lista" | "form";
 
 const orcVazio = (): OrcamentoPayload => ({
   numero: "", cliente: "", email: "", destino: "", agenteViagem: "", status: "Rascunho",
-  dataCriacao: new Date().toISOString().split("T")[0],
-  dataValidade: "", observacoes: "", passageiros: [], formaPagamento: "", parcelas: null, itens: [itemVazio()], statusViagem: undefined,
+  dataCriacao: new Date().toISOString().split("T")[0], itens: [],
+
 });
 
 export default function Orcamentos() {
@@ -456,6 +456,7 @@ export default function Orcamentos() {
   const [resumoMinimizado, setResumoMinimizado] = useState(false);
   const [observacoesMinimizadas, setObservacoesMinimizadas] = useState(true);
   const [voosMinimizados, setVoosMinimizados] = useState(true);
+  const [hospedagemMinimizada, setHospedagemMinimizada] = useState(true);
   function obterDestinoPrincipalOrcamento(orcBase?: Partial<Orcamento>, preferirEstadoFormulario = false) {
     const hospedagemFonte = hospedagem.length > 0 ? hospedagem : Array.isArray(orcBase?.hospedagem) ? orcBase.hospedagem : [];
     const transporteFonte = transporte.length > 0 ? transporte : Array.isArray(orcBase?.transporte) ? orcBase.transporte : [];
@@ -712,7 +713,8 @@ export default function Orcamentos() {
   async function abrirEdicao(o: Orcamento) {
     setEditando(o);
     setErro(null);
-    setForm({ numero: o.numero, cliente: o.cliente, email: o.email, destino: o.destino || "", agenteViagem: o.agenteViagem || "", passageiros: Array.isArray(o.passageiros) ? o.passageiros : [], formaPagamento: o.formaPagamento || "", parcelas: typeof o.parcelas === "number" ? o.parcelas : null, status: o.status, statusViagem: o.statusViagem, dataCriacao: o.dataCriacao, dataValidade: o.dataValidade, observacoes: o.observacoes, itens: o.itens.map((i) => ({ ...i, link: i.link || "", documentos: i.documentos || [] })) });
+    setForm(o);
+
     // Carrega os dados das seções para os estados correspondentes
     setPacotes(
       (o.pacotes || []).map((p: any) => ({ ...p, documentos: p.documentos || [] })),
@@ -1396,11 +1398,25 @@ export default function Orcamentos() {
                       </div>
                       {!voosMinimizados && <VoosForm voos={voos} onVoosChange={setVoos} />}
                     </Card>
+                    <Card className="p-4">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                          <Bed className="w-4 h-4 text-indigo-500" /> Hospedagem
+                        </h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setHospedagemMinimizada((prev) => !prev)}
+                          className="gap-2 text-gray-600 hover:text-gray-900 h-8 px-2"
+                        >
+                          {hospedagemMinimizada ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                          {hospedagemMinimizada ? "Maximizar" : "Minimizar"}
+                        </Button>
+                      </div>
+                      {!hospedagemMinimizada && <HospedagemForm hospedagens={hospedagem} onHospedagensChange={setHospedagem} />}
+                    </Card>
                   </div>
-                )}
-
-                {section === 'Hospedagem' && (
-                  <HospedagemForm hospedagens={hospedagem} onHospedagensChange={setHospedagem} />
                 )}
 
                 {section === 'Roteiro' && (
@@ -1412,7 +1428,7 @@ export default function Orcamentos() {
                         value={promptRoteiroIA}
                         onChange={(e) => setPromptRoteiroIA(e.target.value)}
                         placeholder="Ex.: Roteiro contemplativo com visitas a templos antigos, ritmo lento e muitas atividades de meditação."
-                        className="mt-1 min-h-20 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        className="mt-1 min-h-40 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                       />
                       <p className="mt-1 text-xs text-gray-500">
                         Instruções específicas para personalizar a sugestão de roteiro gerada pela IA.
@@ -1574,25 +1590,7 @@ export default function Orcamentos() {
               )}
             </Card>
 
-            {/* Observações */}
-            <Card className="p-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2"><FileText className="w-4 h-4 text-indigo-500" /> Observações</h3>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setObservacoesMinimizadas((prev) => !prev)}
-                  className="h-8 px-2 text-gray-600"
-                >
-                  {observacoesMinimizadas ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                  <span className="ml-1">{observacoesMinimizadas ? "Expandir" : "Minimizar"}</span>
-                </Button>
-              </div>
-              {!observacoesMinimizadas && (
-                <textarea id="obs" value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} placeholder="" rows={3} className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring resize-none" />
-              )}
-            </Card>
+
           </div>
 
           {/* Sidebar */}
@@ -2065,7 +2063,7 @@ export default function Orcamentos() {
                       </tr>
                     </tbody>
                   </table>
-                  {orc.observacoes && <p className="text-xs text-gray-500 mt-2 italic">Obs: {orc.observacoes}</p>}
+
                 </div>
               )}
             </Card>

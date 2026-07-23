@@ -8,6 +8,7 @@ import {
   Trash2,
   Search,
   MapPin,
+  Pencil,
   Star,
   Globe,
   Utensils,
@@ -34,6 +35,7 @@ interface Restaurante {
   preco: number;
   telefone: string;
   website: string;
+  urlMaps: string;
   observacoes: string;
   voucher: string | null;
   voucherTipo: "pdf" | "imagem" | null;
@@ -83,6 +85,7 @@ export default function RestauranteForm({
   const [selecionado, setSelecionado] = useState<any | null>(null);
   const [mostrarManual, setMostrarManual] = useState(false);
   const [formDetalhes, setFormDetalhes] = useState({
+    id: null as number | null,
     data: "",
     horario: "",
     qtdPessoas: 2,
@@ -95,6 +98,7 @@ export default function RestauranteForm({
     tipoCozinha: "",
     telefone: "",
     website: "",
+    urlMaps: "",
     observacoes: "",
   });
   const [voucher, setVoucher] = useState<{
@@ -180,8 +184,8 @@ export default function RestauranteForm({
   };
 
   const adicionarRestaurante = () => {
-    if (!selecionado || !formDetalhes.data || !formDetalhes.horario) {
-      setErro("Preencha todos os campos (data e horário são obrigatórios).");
+    if (!selecionado) {
+      setErro("Selecione um restaurante da busca primeiro.");
       return;
     }
 
@@ -197,6 +201,7 @@ export default function RestauranteForm({
       preco: formDetalhes.preco,
       telefone: selecionado.telefone || "",
       website: selecionado.website || "",
+      urlMaps: selecionado.urlMaps || "",
       observacoes: "",
       voucher: voucher?.base64 || null,
       voucherTipo: voucher?.tipo || null,
@@ -206,7 +211,7 @@ export default function RestauranteForm({
     onRestaurantesChange([...restaurantes, novoRestaurante]);
 
     setSelecionado(null);
-    setFormDetalhes({ data: "", horario: "", qtdPessoas: 2, preco: 0 });
+    setFormDetalhes({ id: null, data: "", horario: "", qtdPessoas: 2, preco: 0 });
     setResultados([]);
     setBusca("");
     setVoucher(null);
@@ -217,12 +222,37 @@ export default function RestauranteForm({
   };
 
   const adicionarRestauranteManual = () => {
-    if (!formManual.nome.trim() || !formManual.local.trim()) {
-      setErro("Preencha os campos obrigatórios: Nome e Local.");
+    if (!formManual.nome.trim()) {
+      setErro("O campo Nome do Restaurante é obrigatório.");
       return;
     }
-    if (!formDetalhes.data || !formDetalhes.horario) {
-      setErro("Preencha data e horário da reserva.");
+
+    if (formDetalhes.id) {
+      const restauranteAtualizado: Restaurante = {
+        id: formDetalhes.id,
+        nome: formManual.nome,
+        local: formManual.local,
+        endereco: formManual.endereco,
+        tipoCozinha: formManual.tipoCozinha,
+        data: formDetalhes.data,
+        horario: formDetalhes.horario,
+        qtdPessoas: formDetalhes.qtdPessoas,
+        preco: formDetalhes.preco,
+        telefone: formManual.telefone,
+        website: formManual.website,
+        urlMaps: formManual.urlMaps,
+        observacoes: formManual.observacoes,
+        voucher: voucher?.base64 || null,
+        voucherTipo: voucher?.tipo || null,
+        voucherNome: voucher?.nome || "",
+      };
+
+      onRestaurantesChange(
+        restaurantes.map((r) => (r.id === formDetalhes.id ? restauranteAtualizado : r))
+      );
+
+      limparFormularioManual();
+      setMostrarManual(false);
       return;
     }
 
@@ -238,6 +268,7 @@ export default function RestauranteForm({
       preco: formDetalhes.preco,
       telefone: formManual.telefone,
       website: formManual.website,
+      urlMaps: formManual.urlMaps,
       observacoes: formManual.observacoes,
       voucher: voucher?.base64 || null,
       voucherTipo: voucher?.tipo || null,
@@ -246,6 +277,10 @@ export default function RestauranteForm({
 
     onRestaurantesChange([...restaurantes, novoRestaurante]);
 
+    limparFormularioManual();
+  };
+
+  const limparFormularioManual = () => {
     setFormManual({
       nome: "",
       local: "",
@@ -253,9 +288,10 @@ export default function RestauranteForm({
       tipoCozinha: "",
       telefone: "",
       website: "",
+      urlMaps: "",
       observacoes: "",
     });
-    setFormDetalhes({ data: "", horario: "", qtdPessoas: 2, preco: 0 });
+    setFormDetalhes({ id: null, data: "", horario: "", qtdPessoas: 2, preco: 0 });
     setVoucher(null);
     setMostrarManual(false);
     setErro("");
@@ -266,6 +302,33 @@ export default function RestauranteForm({
 
   const removerRestaurante = (id: number) => {
     onRestaurantesChange(restaurantes.filter((r) => r.id !== id));
+  };
+
+  const editarRestaurante = (rest: Restaurante) => {
+    setMostrarManual(true);
+    setResultados([]);
+    setSelecionado(null);
+    setErro("");
+    setBuscou(false);
+
+    setFormManual({
+      nome: rest.nome,
+      local: rest.local,
+      endereco: rest.endereco,
+      tipoCozinha: rest.tipoCozinha,
+      telefone: rest.telefone,
+      website: rest.website,
+      urlMaps: rest.urlMaps,
+      observacoes: rest.observacoes,
+    });
+
+    setFormDetalhes({
+      id: rest.id,
+      data: rest.data,
+      horario: rest.horario,
+      qtdPessoas: rest.qtdPessoas,
+      preco: rest.preco,
+    });
   };
 
   const abrirFormManual = () => {
@@ -467,7 +530,7 @@ export default function RestauranteForm({
             </div>
             <div>
               <Label className="text-xs">
-                Horário <span className="text-red-500">*</span>
+                Horário
               </Label>
               <Input
                 type="time"
@@ -626,7 +689,7 @@ export default function RestauranteForm({
             </div>
             <div>
               <Label className="text-xs">
-                Local / Cidade <span className="text-red-500">*</span>
+                Local / Cidade
               </Label>
               <Input
                 placeholder="Ex: Paris, França"
@@ -706,7 +769,7 @@ export default function RestauranteForm({
             </div>
             <div>
               <Label className="text-xs">
-                Data da Reserva <span className="text-red-500">*</span>
+                Data da Reserva
               </Label>
               <Input
                 type="date"
@@ -719,7 +782,7 @@ export default function RestauranteForm({
             </div>
             <div>
               <Label className="text-xs">
-                Horário <span className="text-red-500">*</span>
+{/*  */}                Horário
               </Label>
               <Input
                 type="time"
@@ -744,6 +807,20 @@ export default function RestauranteForm({
                 }
                 className="mt-1"
               />
+            </div>
+            <div className="sm:col-span-2">
+              <Label className="text-xs">URL do Google Maps</Label>
+              <div className="relative mt-1">
+                <MapPin className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="https://maps.app.goo.gl/..."
+                  value={formManual.urlMaps}
+                  onChange={(e) =>
+                    setFormManual({ ...formManual, urlMaps: e.target.value })
+                  }
+                  className="pl-8"
+                />
+              </div>
             </div>
             <div className="sm:col-span-2">
               <Label className="text-xs">Observações</Label>
@@ -920,12 +997,20 @@ export default function RestauranteForm({
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={() => removerRestaurante(rest.id)}
-                  className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors ml-3 flex-shrink-0"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex flex-col gap-1 ml-3 flex-shrink-0">
+                  <button
+                    onClick={() => editarRestaurante(rest)}
+                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => removerRestaurante(rest.id)}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
