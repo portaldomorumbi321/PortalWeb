@@ -1769,7 +1769,6 @@ export default function Orcamentos() {
               <Button onClick={salvar} disabled={salvando || !form.cliente.trim()} className="w-full gap-2">
                 <Check className="w-4 h-4 mr-1" />{salvando ? "Salvando..." : editando ? "Salvar" : "Criar orçamento"}
               </Button>
-              <Button variant="outline" onClick={voltar} className="w-full gap-2">Cancelar</Button>
               <Button variant="ghost" onClick={() => abrirResumo()} className="w-full gap-2">
                 Orçamento
               </Button>
