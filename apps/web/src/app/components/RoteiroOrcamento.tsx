@@ -1399,7 +1399,12 @@ export default function RoteiroOrcamento() {
                       )}
                     </div>
                     {r.urlMaps && (
-                      <a href={r.urlMaps} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1.5">
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=${encodeURIComponent(r.endereco || r.local)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center gap-1.5"
+                      >
                         <MapPin className="w-3.5 h-3.5" />
                         Ver no Google Maps
                       </a>
