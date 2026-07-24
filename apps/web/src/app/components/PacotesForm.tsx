@@ -16,6 +16,14 @@ interface Documento {
   tipo: string;
   arquivo: string;
   analise?: string;
+  dadosIA?: {
+    operador?: string;
+    reserva?: string;
+    destino?: string;
+    passageiros?: string;
+    dataIda?: string;
+    dataVolta?: string;
+  };
 }
 
 interface Pacote {
@@ -80,6 +88,70 @@ function parseMoeda(valorTexto: string) {
     .replace(/[^\d.-]/g, "");
   const valor = Number(limpo);
   return Number.isFinite(valor) && valor >= 0 ? valor : 0;
+}
+
+function normalizarChave(texto: string) {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function padronizarOperador(valor: string) {
+  const normalizado = normalizarChave(valor);
+  if (!normalizado) return "";
+
+  const mapaOperadores: Record<string, string> = {
+    hoteldo: "HotelDO",
+    decolar: "Decolar",
+    cvc: "CVC",
+    flytour: "Flytour",
+    orinter: "Orinter",
+    abreu: "Abreu",
+    visualturismo: "Visual Turismo",
+    diversaturismo: "Diversa Turismo",
+  };
+
+  const exato = mapaOperadores[normalizado];
+  if (exato) return exato;
+
+  const porContem = Object.entries(mapaOperadores).find(([chave]) => normalizado.includes(chave));
+  return porContem?.[1] || valor.trim();
+}
+
+function normalizarValorIA(valor?: string) {
+  if (!valor) return "";
+  const normalizado = valor.trim();
+  return normalizado.toLowerCase() === "não informado" ? "" : normalizado;
+}
+
+function dataBrParaIso(dataBr: string) {
+  const partes = dataBr.split("/");
+  if (partes.length !== 3) return "";
+  const [dia, mes, ano] = partes;
+  if (!dia || !mes || !ano) return "";
+  if (dia.length !== 2 || mes.length !== 2 || ano.length !== 4) return "";
+  return `${ano}-${mes}-${dia}`;
+}
+
+function extrairDadosIADeAnalise(analise: string) {
+  const extrair = (regex: RegExp) => {
+    const valor = analise.match(regex)?.[1];
+    return normalizarValorIA(valor);
+  };
+
+  const dataIdaBr = extrair(/\*\*Data de Ida:\*\*\s*(.+)/);
+  const dataVoltaBr = extrair(/\*\*Data de Volta:\*\*\s*(.+)/);
+
+  return {
+    operador: padronizarOperador(extrair(/\*\*Operador:\*\*\s*(.+)/)),
+    reserva: extrair(/\*\*Nº de Reserva\/Localizador:\*\*\s*(.+)/),
+    destino: extrair(/\*\*Destino Principal:\*\*\s*(.+)/),
+    passageiros: extrair(/\*\*Passageiros:\*\*\s*(.+)/),
+    dataIda: dataIdaBr ? dataBrParaIso(dataIdaBr) : "",
+    dataVolta: dataVoltaBr ? dataBrParaIso(dataVoltaBr) : "",
+  };
 }
 
 export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormProps) {
@@ -163,8 +235,14 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
   }
 
   function editarPacote(pacote: Pacote) {
+    setVouchersMinimizado(false);
     setFormMinimizado(false);
     setEditandoId(pacote.id);
+    const logPacote = (pacote.logAnalise || "")
+      .split("\n")
+      .map((linha) => linha.trim())
+      .filter(Boolean);
+    setLogAnaliseIA(logPacote);
     setForm({
       operador: pacote.operador || "",
       origem: pacote.origem || "",
@@ -226,6 +304,67 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
     }))
   }
 
+  function atualizarCamposComResultadoIA() {
+    const documentos = form.documentos || [];
+    if (documentos.length === 0) {
+      setErro("Nenhum documento para atualizar os campos.");
+      return;
+    }
+
+    const documentoComResultado = documentos.find((doc) => doc.dadosIA || doc.analise);
+    if (!documentoComResultado) {
+      setErro("Nenhum resultado de IA encontrado para atualizar os campos.");
+      return;
+    }
+
+    const dadosIA = documentoComResultado.dadosIA || extrairDadosIADeAnalise(documentoComResultado.analise || "");
+    if (!dadosIA.operador && !dadosIA.reserva && !dadosIA.destino && !dadosIA.passageiros && !dadosIA.dataIda && !dadosIA.dataVolta) {
+      setErro("Não foi possível extrair dados do resultado da IA para atualizar os campos.");
+      return;
+    }
+
+    setErro("");
+    setForm((f) => ({
+      ...f,
+      operador: dadosIA.operador || f.operador || "",
+      reserva: dadosIA.reserva || f.reserva || "",
+      destino: dadosIA.destino || f.destino || "",
+      dataIda: dadosIA.dataIda || f.dataIda || "",
+      dataVolta: dadosIA.dataVolta || f.dataVolta || "",
+      passageiros: dadosIA.passageiros || f.passageiros || "",
+    }));
+  }
+
+  async function identificarOperadorNoIcone(doc: Documento) {
+    if (!doc.tipo.startsWith("image/") || !doc.arquivo) return "";
+
+    const promptOperador = [
+      "Identifique o nome da operadora de turismo exibida no logo da imagem.",
+      "Responda APENAS com um nome de operadora, sem frases extras.",
+      "Se não conseguir identificar com confiança, responda apenas com string vazia.",
+      "Operadoras válidas: HotelDO, Decolar, CVC, Flytour, Orinter, Abreu, Visual Turismo, Diversa Turismo.",
+    ].join("\n");
+
+    try {
+      const resposta = await enviarMensagemIA(
+        [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: promptOperador },
+              { type: "image_url", image_url: { url: doc.arquivo } },
+            ],
+          },
+        ],
+        "openai",
+      );
+
+      return padronizarOperador(resposta.reply.replace(/[`"]/g, "").trim());
+    } catch {
+      return "";
+    }
+  }
+
   async function analisarDocumentosComIA() {
     if (!form.documentos || form.documentos.length === 0) {
       setErro("Nenhum documento para analisar.");
@@ -250,6 +389,7 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
         form.documentos.map(async (doc) => {
           let contextoArquivo = "Nome do arquivo: " + doc.nome + "\n\n";
           let temConteudoPdf = false;
+          let operadorDetectado = "";
 
           if (doc.tipo === 'application/pdf' && doc.arquivo) {
             try {
@@ -268,6 +408,13 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
             }
           }
 
+          if (doc.tipo.startsWith("image/") && doc.arquivo) {
+            operadorDetectado = await identificarOperadorNoIcone(doc);
+            if (operadorDetectado) {
+              contextoArquivo += `--- Operador identificado no ícone: ${operadorDetectado} ---\n\n`;
+            }
+          }
+
           const prompt = `Você é um assistente especialista em turismo. Analise o contexto de um arquivo de um pacote de viagem e extraia as informações solicitadas para o formato JSON.
 
 Contexto do arquivo para análise:
@@ -281,6 +428,7 @@ Instruções:
 ${!temConteudoPdf ? "\n5. Como o conteúdo do arquivo não pôde ser lido, baseie sua análise **exclusivamente no nome do arquivo**." : ""}
 Formato JSON esperado:
 {
+  "operador": "string",
   "reserva": "string",
   "destino": "string",
   "passageiros": "string",
@@ -349,6 +497,7 @@ Formato JSON esperado:
             const fmtData = (d: string) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informado';
 const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
 --------------------
+**Operador:** ${padronizarOperador(respostaJson.operador || operadorDetectado || '') || 'Não informado'}
 **Nº de Reserva/Localizador:** ${respostaJson.reserva || 'Não informado'}
 **Destino Principal:** ${respostaJson.destino || 'Não informado'}
 **Passageiros:** ${respostaJson.passageiros || 'Não informado'}
@@ -359,9 +508,10 @@ const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
 **Horário de Saída (Volta):** ${respostaJson.horaSaidaVolta || 'Não informado'}
 **Horário de Chegada (Volta):** ${respostaJson.horaChegadaVolta || 'Não informado'}`;
 
-            // Atualiza o formulário com os dados extraídos do primeiro documento analisado com sucesso
+            // Atualiza o formulário com os dados extraídos da análise.
             setForm((f) => ({
               ...f,
+              operador: f.operador || padronizarOperador(respostaJson.operador || operadorDetectado || ''),
               reserva: f.reserva || respostaJson.reserva || '',
               destino: f.destino || respostaJson.destino || '',
               dataIda: f.dataIda || respostaJson.dataIda || '',
@@ -369,7 +519,18 @@ const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
               passageiros: f.passageiros || respostaJson.passageiros || '',
             }));
 
-            return { ...doc, analise: relatorio };
+            return {
+              ...doc,
+              analise: relatorio,
+              dadosIA: {
+                operador: padronizarOperador(respostaJson.operador || operadorDetectado || ""),
+                reserva: respostaJson.reserva || "",
+                destino: respostaJson.destino || "",
+                passageiros: respostaJson.passageiros || "",
+                dataIda: respostaJson.dataIda || "",
+                dataVolta: respostaJson.dataVolta || "",
+              },
+            };
           } catch (error) {
             const mensagemErro = "Não foi possível analisar o documento. Tente novamente mais tarde.";
             adicionarLog(`Falha ao analisar "${doc.nome}": ${mensagemErro}`);
@@ -502,18 +663,31 @@ const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
             <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t">
               <h4 className="flex items-center gap-2 font-semibold text-gray-900">
                 <Plus className="h-4 w-4 text-indigo-500" />
-                Adicionar Voucher Manualmente
+                Detalhes
               </h4>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setFormMinimizado((prev) => !prev)}
-                className="gap-2 text-gray-600 hover:text-gray-900"
-              >
-                {formMinimizado ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                {formMinimizado ? "Maximizar" : "Minimizar"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={atualizarCamposComResultadoIA}
+                  disabled={analisandoIA || (form.documentos || []).length === 0}
+                  className="gap-2"
+                >
+                  <Sparkles className={`w-4 h-4 ${analisandoIA ? "animate-spin" : ""}`} />
+                  Atualizar
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFormMinimizado((prev) => !prev)}
+                  className="gap-2 text-gray-600 hover:text-gray-900"
+                >
+                  {formMinimizado ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  {formMinimizado ? "Maximizar" : "Minimizar"}
+                </Button>
+              </div>
             </div>
 
             {!formMinimizado && (

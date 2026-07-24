@@ -1,8 +1,24 @@
 export type AIChatRole = "user" | "assistant";
 
+export interface AIChatApiTextContentPart {
+  type: "text";
+  text: string;
+}
+
+export interface AIChatApiImageContentPart {
+  type: "image_url";
+  image_url: {
+    url: string;
+  };
+}
+
+export type AIChatApiMessageContent =
+  | string
+  | Array<AIChatApiTextContentPart | AIChatApiImageContentPart>;
+
 export interface AIChatApiMessage {
   role: AIChatRole;
-  content: string;
+  content: AIChatApiMessageContent;
 }
 
 interface AIChatResponse {
