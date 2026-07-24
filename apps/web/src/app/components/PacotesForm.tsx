@@ -23,6 +23,7 @@ interface Pacote {
   operador: string;
   origem: string;
   destino: string;
+  reserva?: string;
   link: string;
 
   foto: string | null;
@@ -54,6 +55,7 @@ const pacoteVazio: Omit<Pacote, "id"> = {
   operador: "",
   origem: "",
   destino: "",
+  reserva: "",
   link: "",
 
   foto: null,
@@ -118,6 +120,7 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
                 operador: form.operador.trim(),
                 origem: form.origem.trim(),
                 destino: form.destino.trim(),
+                reserva: form.reserva?.trim(),
                 link: form.link.trim(),
 
                 foto: form.foto,
@@ -143,6 +146,7 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
         operador: form.operador.trim(),
         origem: form.origem.trim(),
         destino: form.destino.trim(),
+        reserva: form.reserva?.trim(),
         link: form.link.trim(),
 
         foto: form.foto,
@@ -165,6 +169,7 @@ export default function PacotesForm({ pacotes, onPacotesChange }: PacotesFormPro
       operador: pacote.operador || "",
       origem: pacote.origem || "",
       destino: pacote.destino || "",
+      reserva: pacote.reserva || "",
       link: pacote.link || "",
 
       foto: pacote.foto || null,
@@ -357,6 +362,7 @@ const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
             // Atualiza o formulário com os dados extraídos do primeiro documento analisado com sucesso
             setForm((f) => ({
               ...f,
+              reserva: f.reserva || respostaJson.reserva || '',
               destino: f.destino || respostaJson.destino || '',
               dataIda: f.dataIda || respostaJson.dataIda || '',
               dataVolta: f.dataVolta || respostaJson.dataVolta || '',
@@ -463,7 +469,19 @@ const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
               </Button>
               <select
                 value={provedorIA}
-                onChange={(e) => setProvedorIA(e.target.value as any)}
+                onChange={(e) => {
+                  const valor = e.target.value;
+                  if (
+                    valor === "automático" ||
+                    valor === "openai" ||
+                    valor === "groq" ||
+                    valor === "gemini" ||
+                    valor === "openrouter" ||
+                    valor === "cloudflare"
+                  ) {
+                    setProvedorIA(valor);
+                  }
+                }}
                 className="h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:border-ring"
                 disabled={analisandoIA}
               >
@@ -515,6 +533,16 @@ const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
                         <option key={operador} value={operador} />
                       ))}
                     </datalist>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <Label className="text-xs">Nº de Reserva</Label>
+                    <Input
+                      className="mt-1"
+                      placeholder="Ex: ABC123"
+                      value={form.reserva || ""}
+                      onChange={(e) => setForm((prev) => ({ ...prev, reserva: e.target.value }))}
+                    />
                   </div>
 
                   <div className="sm:col-span-2">
@@ -646,6 +674,9 @@ const relatorio = `**Relatório do Pacote (Analisado com ${provedorUsado})**
               <div>
                 <p className="text-xs font-semibold text-gray-400">Voucher {index + 1}</p>
                 <p className="font-semibold text-gray-900">{pacote.operador || "Sem operador"}</p>
+                {pacote.reserva && (
+                  <p className="text-xs text-gray-500 mt-0.5">Reserva: {pacote.reserva}</p>
+                )}
                 {(pacote.origem || pacote.destino) && (
                   <p className="text-xs text-gray-500 mt-0.5">{pacote.origem || "Origem"} -&gt; {pacote.destino || "Destino"}</p>
                 )}
